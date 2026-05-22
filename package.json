@@ -1,0 +1,46 @@
+{
+  "name": "dine-and-stay-os",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Restaurant POS & Hotel Management SaaS",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "start": "turbo run start",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "db:generate": "turbo run db:generate --filter=@dine-stay/api",
+    "db:migrate": "turbo run db:migrate --filter=@dine-stay/api",
+    "db:migrate:revert": "turbo run db:migrate:revert --filter=@dine-stay/api",
+    "db:seed": "turbo run db:seed --filter=@dine-stay/api",
+    "db:drop": "turbo run db:drop --filter=@dine-stay/api",
+    "db:reset": "turbo run db:reset --filter=@dine-stay/api",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.57.0",
+    "prettier": "^3.2.0",
+    "turbo": "^2.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
+  "packageManager": "npm@10.0.0",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "class-validator": "^0.15.1",
+    "lodash": "^4.18.1",
+    "redis": "^5.12.1",
+    "rxjs": "^7.8.2",
+    "sharp": "^0.34.5"
+  }
+}

@@ -1,0 +1,223 @@
+import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import * as crypto from 'crypto';
+import Razorpay from 'razorpay';
+import { Subscription, SubscriptionStatus } from '../subscriptions/entities/subscription.entity';
+import { Plan, PlanCode } from '../subscriptions/entities/plan.entity';
+import { Tenant } from '../tenants/entities/tenant.entity';
+
+@Injectable()
+export class RazorpayService {
+  private readonly logger = new Logger(RazorpayService.name);
+  private readonly client: Razorpay | null = null;
+  private readonly webhookSecret: string;
+
+  constructor(
+    private readonly config: ConfigService,
+    @InjectRepository(Subscription) private readonly subRepo: Repository<Subscription>,
+    @InjectRepository(Plan) private readonly planRepo: Repository<Plan>,
+    @InjectRepository(Tenant) private readonly tenantRepo: Repository<Tenant>,
+  ) {
+    const keyId = config.get('RAZORPAY_KEY_ID', '');
+    const keySecret = config.get('RAZORPAY_KEY_SECRET', '');
+    this.webhookSecret = config.get('RAZORPAY_WEBHOOK_SECRET', '');
+
+    if (keyId && keySecret && !keyId.includes('xxxxx')) {
+      this.client = new Razorpay({ key_id: keyId, key_secret: keySecret });
+      this.logger.log('Razorpay client initialized');
+    } else {
+      this.logger.warn('Razorpay not configured — payments will be skipped');
+    }
+  }
+
+  // ─── Create a Razorpay subscription for a tenant ─────────────────────────
+
+  async createSubscription(tenantId: string, planCode: string, frequency: 'monthly' | 'yearly' = 'monthly') {
+    if (!this.client) throw new BadRequestException('Razorpay not configured');
+
+    const plan = await this.planRepo.findOne({ where: { code: planCode as PlanCode } });
+    if (!plan) throw new BadRequestException('Plan not found');
+
+    const amount = frequency === 'yearly'
+      ? Number(plan.priceAnnual) * 100
+      : Number(plan.priceMonthly) * 100;
+
+    // Create Razorpay order (subscription-style one-time or recurring)
+    const order = await (this.client as any).orders.create({
+      amount: Math.round(amount),
+      currency: 'INR',
+      receipt: `sub_${tenantId.slice(0, 8)}_${Date.now()}`,
+      notes: { tenantId, planCode, frequency },
+    });
+
+    this.logger.log(`Razorpay order created: ${order.id} for tenant ${tenantId}`);
+    return {
+      orderId: order.id,
+      amount: order.amount,
+      currency: order.currency,
+      keyId: this.config.get('RAZORPAY_KEY_ID'),
+    };
+  }
+
+  // ─── Verify payment signature after frontend checkout ────────────────────
+
+  verifyPaymentSignature(opts: {
+    orderId: string;
+    paymentId: string;
+    signature: string;
+  }): boolean {
+    const body = `${opts.orderId}|${opts.paymentId}`;
+    const expectedSig = crypto
+      .createHmac('sha256', this.config.get('RAZORPAY_KEY_SECRET', ''))
+      .update(body)
+      .digest('hex');
+    return expectedSig === opts.signature;
+  }
+
+  // ─── Activate subscription after verified payment ────────────────────────
+
+  async activateSubscription(opts: {
+    tenantId: string;
+    planCode: string;
+    frequency: 'monthly' | 'yearly';
+    razorpayPaymentId: string;
+    razorpayOrderId: string;
+  }): Promise<Subscription> {
+    const plan = await this.planRepo.findOne({ where: { code: opts.planCode as PlanCode } });
+    if (!plan) throw new BadRequestException('Plan not found');
+
+    const now = new Date();
+    const periodEnd = new Date(now);
+    if (opts.frequency === 'yearly') {
+      periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+    } else {
+      periodEnd.setMonth(periodEnd.getMonth() + 1);
+    }
+
+    let sub = await this.subRepo.findOne({ where: { tenantId: opts.tenantId } });
+    if (sub) {
+      sub.status = SubscriptionStatus.ACTIVE;
+      sub.planId = plan.id;
+      sub.currentPeriodStart = now;
+      sub.currentPeriodEnd = periodEnd;
+      sub.razorpaySubId = opts.razorpayPaymentId;
+      sub.metadata = { ...sub.metadata, lastPaymentId: opts.razorpayPaymentId, lastOrderId: opts.razorpayOrderId };
+    } else {
+      sub = this.subRepo.create({
+        tenantId: opts.tenantId,
+        planId: plan.id,
+        status: SubscriptionStatus.ACTIVE,
+        currentPeriodStart: now,
+        currentPeriodEnd: periodEnd,
+        razorpaySubId: opts.razorpayPaymentId,
+        metadata: { lastPaymentId: opts.razorpayPaymentId, lastOrderId: opts.razorpayOrderId },
+      });
+    }
+
+    await this.subRepo.save(sub);
+    this.logger.log(`Subscription activated for tenant ${opts.tenantId} — plan ${opts.planCode}`);
+    return sub;
+  }
+
+  // ─── Process Razorpay webhooks ────────────────────────────────────────────
+
+  async handleWebhook(rawBody: Buffer, signature: string): Promise<{ processed: boolean; event: string }> {
+    // Always verify webhook authenticity — no bypass allowed.
+    // A missing or placeholder secret means the endpoint is not safe to expose;
+    // reject all incoming webhooks rather than process unverified payloads
+    // (an attacker could otherwise POST fake subscription.activated events for free).
+    if (!this.webhookSecret || this.webhookSecret === 'xxxxx') {
+      this.logger.error('RAZORPAY_WEBHOOK_SECRET is not configured — rejecting webhook');
+      throw new BadRequestException('Webhook endpoint is not configured. Set RAZORPAY_WEBHOOK_SECRET.');
+    }
+
+    const expectedSig = crypto
+      .createHmac('sha256', this.webhookSecret)
+      .update(rawBody)
+      .digest('hex');
+    if (expectedSig !== signature) {
+      throw new BadRequestException('Invalid webhook signature');
+    }
+
+    const event = JSON.parse(rawBody.toString());
+    const eventType: string = event.event;
+    this.logger.log(`Razorpay webhook received: ${eventType}`);
+
+    switch (eventType) {
+      case 'payment.captured':
+        await this.onPaymentCaptured(event.payload.payment.entity);
+        break;
+      case 'payment.failed':
+        await this.onPaymentFailed(event.payload.payment.entity);
+        break;
+      case 'subscription.activated':
+        await this.onSubscriptionActivated(event.payload.subscription.entity);
+        break;
+      case 'subscription.charged':
+        await this.onSubscriptionCharged(event.payload.subscription.entity);
+        break;
+      case 'subscription.cancelled':
+        await this.onSubscriptionCancelled(event.payload.subscription.entity);
+        break;
+      case 'subscription.halted':
+        await this.onSubscriptionHalted(event.payload.subscription.entity);
+        break;
+      default:
+        this.logger.log(`Unhandled Razorpay event: ${eventType}`);
+    }
+
+    return { processed: true, event: eventType };
+  }
+
+  private async onPaymentCaptured(payment: any) {
+    const { tenantId, planCode, frequency } = payment.notes || {};
+    if (!tenantId || !planCode) return;
+
+    await this.activateSubscription({
+      tenantId,
+      planCode,
+      frequency: frequency || 'monthly',
+      razorpayPaymentId: payment.id,
+      razorpayOrderId: payment.order_id,
+    });
+  }
+
+  private async onPaymentFailed(payment: any) {
+    const { tenantId } = payment.notes || {};
+    if (!tenantId) return;
+    this.logger.warn(`Payment failed for tenant ${tenantId}: ${payment.id}`);
+  }
+
+  private async onSubscriptionActivated(sub: any) {
+    this.logger.log(`Razorpay subscription activated: ${sub.id}`);
+    await this.subRepo.update({ razorpaySubId: sub.id }, { status: SubscriptionStatus.ACTIVE });
+  }
+
+  private async onSubscriptionCharged(sub: any) {
+    this.logger.log(`Razorpay subscription renewed: ${sub.id}`);
+    const dbSub = await this.subRepo.findOne({ where: { razorpaySubId: sub.id } });
+    if (!dbSub) return;
+    const now = new Date();
+    const end = new Date(now);
+    end.setMonth(end.getMonth() + 1);
+    dbSub.currentPeriodStart = now;
+    dbSub.currentPeriodEnd = end;
+    dbSub.status = SubscriptionStatus.ACTIVE;
+    await this.subRepo.save(dbSub);
+  }
+
+  private async onSubscriptionCancelled(sub: any) {
+    this.logger.log(`Razorpay subscription cancelled: ${sub.id}`);
+    await this.subRepo.update(
+      { razorpaySubId: sub.id },
+      { status: SubscriptionStatus.CANCELLED, cancelledAt: new Date() },
+    );
+  }
+
+  private async onSubscriptionHalted(sub: any) {
+    this.logger.warn(`Razorpay subscription halted (past due): ${sub.id}`);
+    await this.subRepo.update({ razorpaySubId: sub.id }, { status: SubscriptionStatus.PAST_DUE });
+  }
+}
