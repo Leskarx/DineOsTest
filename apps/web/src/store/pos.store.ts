@@ -46,6 +46,7 @@ interface PosState {
   setTable: (id: string | null, name: string | null) => void;
   setCovers: (n: number) => void;
   setDiscount: (percent: number, amount: number) => void;
+  setCart: (items: CartItem[]) => void;
 }
 
 export const usePosStore = create<PosState>((set) => ({
@@ -106,4 +107,5 @@ export const usePosStore = create<PosState>((set) => ({
   setTable: (id, name) => set({ tableId: id, tableName: name }),
   setCovers: (n) => set({ covers: n }),
   setDiscount: (percent, amount) => set({ discountPercent: percent, discountAmount: amount }),
+  setCart: (items) => set({ cart: items }),
 }));
