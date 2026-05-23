@@ -18,7 +18,7 @@ export enum OrderType {
 }
 
 export enum OrderStatus {
-  DRAFT = 'draft',
+  // DRAFT = 'draft',
   PLACED = 'placed',
   CONFIRMED = 'confirmed',
   PREPARING = 'preparing',
@@ -81,7 +81,7 @@ export class Order {
   @Column({
     type: 'enum',
     enum: OrderStatus,
-    default: OrderStatus.DRAFT,
+    default: OrderStatus.PLACED,
   })
   status: OrderStatus;
 

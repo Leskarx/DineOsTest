@@ -1,5 +1,5 @@
 'use client';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { apiFetch, apiPost } from '@/lib/api';
@@ -210,12 +210,19 @@ export default function PosPage() {
 
   const {
     cart, addItem, updateQty, removeItem, clearCart,
-    currentOrder, setCurrentOrder,
+    currentOrder, setCurrentOrder, setCart,
     orderType, setOrderType,
     tableId, tableName, setTable,
     covers,
     discountPercent, discountAmount, setDiscount,
   } = usePosStore();
+
+
+  useEffect(() => {
+    if (cart.length === 0) {
+      setCurrentOrder(null);
+    }
+  }, [cart.length, setCurrentOrder]);
 
   const { data: categories } = useQuery({
     queryKey: ['categories'],
@@ -243,9 +250,20 @@ export default function PosPage() {
   const subtotal = cart.reduce((s: number, i: any) => s + i.price * i.qty, 0);
   const taxableAmount = subtotal - discountAmount;
   const gstTotal = cart.reduce((s: number, i: any) => {
-    const lineSubtotal = i.price * i.qty;
-    const lineDiscounted = lineSubtotal * (1 - discountPercent / 100);
-    return s + ((i.cgstRate + i.sgstRate) / 100) * lineDiscounted;
+    const price = Number(i.price || 0);
+    const qty = Number(i.qty || 0);
+
+    const cgst = Number(i.cgstRate || 0);
+    const sgst = Number(i.sgstRate || 0);
+
+    const lineSubtotal = price * qty;
+
+    const lineDiscounted =
+      lineSubtotal * (1 - Number(discountPercent || 0) / 100);
+
+    const gstRate = (cgst + sgst) / 100;
+
+    return s + gstRate * lineDiscounted;
   }, 0);
   const grandTotal = taxableAmount + gstTotal;
 
@@ -263,9 +281,16 @@ export default function PosPage() {
     if (activeVariations.length > 0) {
       setPickerItem({ ...item, variations: activeVariations });
     } else {
+      const gstRate = Number(item.gstRate || 0);
+
       addItem({
-        id: item.id, name: item.name, price: item.price,
-        cgstRate: item.cgstRate || 0, sgstRate: item.sgstRate || 0,
+        id: item.id,
+        name: item.name,
+        price: Number(item.price || 0),
+
+        cgstRate: Number(item.cgstRate ?? gstRate / 2),
+        sgstRate: Number(item.sgstRate ?? gstRate / 2),
+
         isVeg: item.isVeg,
       });
     }
@@ -283,27 +308,41 @@ export default function PosPage() {
           scheduledAt: scheduledAt?.toISOString(),
           items: cart.map((i: any) => ({
             menuItemId: i.id,
+            name: i.name,
+            price: i.price,
             quantity: i.qty,
             notes: i.notes,
             variationId: i.variationId ?? undefined,
-          })),
+            variationName: i.variationName ?? undefined,
+          }))
         });
-        setCurrentOrder(order.data.id);
+        // setCurrentOrder(order.data.id);
         return order.data;
       } else {
         return apiPost(`/api/v1/orders/${currentOrder}/items`, {
           items: cart.map((i: any) => ({
             menuItemId: i.id,
+            name: i.name,
+            price: i.price,
             quantity: i.qty,
             notes: i.notes,
             variationId: i.variationId ?? undefined,
-          })),
+            variationName: i.variationName ?? undefined,
+          }))
         });
       }
     },
     onSuccess: () => {
       toast.success('KOT sent to kitchen!');
+
       clearCart();
+
+      setCurrentOrder(null);
+
+      setIsComplimentary(false);
+      setIsSalesReturn(false);
+      setScheduledAt(null);
+
       qc.invalidateQueries({ queryKey: ['orders'] });
       qc.invalidateQueries({ queryKey: ['tables'] });
     },
@@ -348,7 +387,38 @@ export default function PosPage() {
                   ) : openOrders.map((o: any) => (
                     <button
                       key={o.id}
-                      onClick={() => { setCurrentOrder(o.id); setShowOpenOrders(false); toast.success(`Loaded order ${o.orderNumber}`); }}
+                      onClick={async () => {
+                        try {
+                          const res = await apiFetch(`/api/v1/orders/${o.id}`);
+                          const order = res.data;
+
+                          setCurrentOrder(order.id);
+
+                          setCart(
+                            (order.items || []).map((item: any) => ({
+                              cartKey: `${item.menuItemId}-${item.variationId ?? 'base'}`,
+                              id: item.menuItemId,
+                              name: item.name,
+                              price: Number(item.unitPrice || item.price || 0),
+                              qty: Number(item.quantity || item.qty || 1),
+                              cgstRate: Number(item.cgstRate || 0),
+                              sgstRate: Number(item.sgstRate || 0),
+                              igstRate: Number(item.igstRate || 0),
+                              cessRate: Number(item.cessRate || 0),
+                              isVeg: item.isVeg ?? true,
+                              notes: item.notes,
+                              variationId: item.variationId,
+                              variationName: item.variationName,
+                            }))
+                          );
+
+                          setShowOpenOrders(false);
+
+                          toast.success(`Loaded order ${o.orderNumber}`);
+                        } catch {
+                          toast.error('Failed to load order');
+                        }
+                      }}
                       className={cn('w-full text-left px-3 py-2.5 hover:bg-slate-800 transition-colors border-b border-slate-800/50 last:border-0', currentOrder === o.id && 'bg-amber-900/20')}
                     >
                       <div className="flex items-center justify-between">
@@ -591,8 +661,8 @@ export default function PosPage() {
               id: pickerItem.id,
               name: pickerItem.name,
               price,
-              cgstRate: pickerItem.cgstRate,
-              sgstRate: pickerItem.sgstRate,
+              cgstRate: Number(pickerItem.cgstRate || 0),
+              sgstRate: Number(pickerItem.sgstRate || 0),
               isVeg: pickerItem.isVeg,
               variationId,
               variationName,
@@ -633,8 +703,8 @@ export default function PosPage() {
 function ShoppingCartIcon() {
   return (
     <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
-      <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+      <circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" />
+      <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
     </svg>
   );
 }
