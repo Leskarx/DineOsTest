@@ -1,5 +1,5 @@
 'use client';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/store/auth.store';
@@ -55,14 +55,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const pathname = usePathname();
   const { user, accessToken, logout } = useAuthStore();
+  const [hydrated, setHydrated] = useState(false);
   const isOnline = useOnlineStatus();
   const { isBlocked, plan, daysLeft } = useSubscriptionWall();
 
   useEffect(() => {
-    if (!accessToken) router.replace('/login');
-  }, [accessToken, router]);
+    setHydrated(true);
+  }, []);
 
-  if (!accessToken) return null;
+  useEffect(() => {
+    if (!hydrated) return;
+    if (!accessToken) router.replace('/login');
+  }, [hydrated, accessToken, router]);
+
+  if (!hydrated || !accessToken) return null;
 
   // Onboarding wizard uses its own full-screen layout — skip the sidebar
   if (pathname === '/onboarding') {
