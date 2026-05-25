@@ -14,39 +14,41 @@ import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { useSubscriptionWall } from '@/hooks/useSubscriptionWall';
 import { SubscriptionWall } from '@/components/ui/SubscriptionWall';
 
-interface NavItem { href: string; label: string; icon: React.ElementType; exact?: boolean }
+interface NavItem { href: string; label: string; icon: React.ElementType; exact?: boolean; roles?: string[] }
 interface NavSection { section: string; items: NavItem[] }
 
 const navSections: NavSection[] = [
   {
     section: 'Restaurant',
     items: [
-      { href: '/dashboard', label: 'Dashboard',      icon: LayoutDashboard, exact: true },
-      { href: '/pos',       label: 'POS',            icon: ShoppingCart },
-      { href: '/kds',       label: 'Kitchen Display', icon: Monitor },
-      { href: '/tables',    label: 'Tables',          icon: Layout },
-      { href: '/menu',      label: 'Menu',            icon: BookOpen },
-      { href: '/inventory', label: 'Inventory',       icon: Package },
-      { href: '/billing',   label: 'Bills',           icon: Receipt },
-      { href: '/shifts',    label: 'Shifts',          icon: Clock },
-      { href: '/reports',   label: 'Reports',         icon: BarChart3 },
+      { href: '/dashboard', label: 'Dashboard',      icon: LayoutDashboard, exact: true, roles: ['owner', 'manager'] },
+      { href: '/cashier',   label: 'Home',           icon: LayoutDashboard, exact: true, roles: ['cashier'] },
+      { href: '/waiter',    label: 'Home',           icon: LayoutDashboard, exact: true, roles: ['waiter'] },
+      { href: '/pos',       label: 'POS',            icon: ShoppingCart, roles: ['owner', 'manager', 'cashier', 'waiter'] },
+      { href: '/kds',       label: 'Kitchen Display', icon: Monitor, roles: ['owner', 'manager', 'kitchen'] },
+      { href: '/tables',    label: 'Tables',          icon: Layout, roles: ['owner', 'manager', 'cashier', 'waiter'] },
+      { href: '/menu',      label: 'Menu',            icon: BookOpen, roles: ['owner', 'manager'] },
+      { href: '/inventory', label: 'Inventory',       icon: Package, roles: ['owner', 'manager', 'inventory'] },
+      { href: '/billing',   label: 'Bills',           icon: Receipt, roles: ['owner', 'manager', 'cashier'] },
+      { href: '/shifts',    label: 'Shifts',          icon: Clock, roles: ['owner', 'manager'] },
+      { href: '/reports',   label: 'Reports',         icon: BarChart3, roles: ['owner', 'manager'] },
     ],
   },
   {
     section: 'Hotel',
     items: [
-      { href: '/hotel',               label: 'Front Desk',    icon: Hotel },
-      { href: '/hotel/reservations',  label: 'Reservations',  icon: CalendarDays },
-      { href: '/hotel/housekeeping',  label: 'Housekeeping',  icon: SprayCan },
+      { href: '/hotel',               label: 'Front Desk',    icon: Hotel, roles: ['owner', 'manager', 'cashier'] },
+      { href: '/hotel/reservations',  label: 'Reservations',  icon: CalendarDays, roles: ['owner', 'manager'] },
+      { href: '/hotel/housekeeping',  label: 'Housekeeping',  icon: SprayCan, roles: ['owner', 'manager'] },
     ],
   },
   {
     section: 'Admin',
     items: [
-      { href: '/employees', label: 'Employees', icon: Users },
-      { href: '/branches',  label: 'Branches',  icon: Building2 },
-      { href: '/audit',     label: 'Audit Log', icon: Shield },
-      { href: '/settings',  label: 'Settings',  icon: Settings },
+      { href: '/employees', label: 'Employees', icon: Users, roles: ['owner', 'manager'] },
+      { href: '/branches',  label: 'Branches',  icon: Building2, roles: ['owner', 'manager'] },
+      { href: '/audit',     label: 'Audit Log', icon: Shield, roles: ['owner'] },
+      { href: '/settings',  label: 'Settings',  icon: Settings, roles: ['owner', 'manager'] },
     ],
   },
 ];
@@ -96,28 +98,36 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
 
         <nav className="flex-1 p-2 overflow-y-auto scrollbar-thin">
-          {navSections.map(({ section, items }) => (
-            <div key={section} className="mb-3">
-              <div className="text-[10px] font-semibold text-slate-600 uppercase tracking-widest px-2 py-1.5">
-                {section}
+          {navSections.map(({ section, items }) => {
+            const allowedItems = items.filter(
+              (item) => !item.roles || (user?.role && item.roles.includes(user.role))
+            );
+
+            if (allowedItems.length === 0) return null;
+
+            return (
+              <div key={section} className="mb-3">
+                <div className="text-[10px] font-semibold text-slate-600 uppercase tracking-widest px-2 py-1.5">
+                  {section}
+                </div>
+                <div className="space-y-0.5">
+                  {allowedItems.map(({ href, label, icon: Icon, exact }) => {
+                    const isActive = exact ? pathname === href : pathname === href || pathname.startsWith(href + '/');
+                    return (
+                      <Link
+                        key={href}
+                        href={href}
+                        className={cn('sidebar-link', isActive && 'sidebar-link-active')}
+                      >
+                        <Icon size={16} />
+                        <span>{label}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
               </div>
-              <div className="space-y-0.5">
-                {items.map(({ href, label, icon: Icon, exact }) => {
-                  const isActive = exact ? pathname === href : pathname === href || pathname.startsWith(href + '/');
-                  return (
-                    <Link
-                      key={href}
-                      href={href}
-                      className={cn('sidebar-link', isActive && 'sidebar-link-active')}
-                    >
-                      <Icon size={16} />
-                      <span>{label}</span>
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </nav>
 
         <div className="p-3 border-t border-slate-800 space-y-2">

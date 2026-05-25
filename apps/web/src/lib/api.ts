@@ -51,28 +51,36 @@ api.interceptors.response.use(
   },
 );
 
+/** Helper to safely extract wrapped data even if it's null */
+const extractData = (resData: any) => {
+  if (resData && typeof resData === 'object' && 'success' in resData) {
+    return resData.data; // Handles the { success: true, data: null } case correctly
+  }
+  return resData?.data ?? resData;
+};
+
 /** Convenience wrappers — returns response.data.data */
 export const apiFetch = async (url: string, params?: object) => {
   const res = await api.get(url, { params });
-  return { data: res.data?.data ?? res.data, status: res.status };
+  return { data: extractData(res.data), status: res.status };
 };
 
-export const apiPost = async (url: string, body: object) => {
+export const apiPost = async (url: string, body?: object) => {
   const res = await api.post(url, body);
-  return { data: res.data?.data ?? res.data, status: res.status };
+  return { data: extractData(res.data), status: res.status };
 };
 
-export const apiPatch = async (url: string, body: object) => {
+export const apiPatch = async (url: string, body?: object) => {
   const res = await api.patch(url, body);
-  return { data: res.data?.data ?? res.data, status: res.status };
+  return { data: extractData(res.data), status: res.status };
 };
 
-export const apiPut = async (url: string, body: object) => {
+export const apiPut = async (url: string, body?: object) => {
   const res = await api.put(url, body);
-  return { data: res.data?.data ?? res.data, status: res.status };
+  return { data: extractData(res.data), status: res.status };
 };
 
 export const apiDelete = async (url: string) => {
   const res = await api.delete(url);
-  return { data: res.data?.data ?? res.data, status: res.status };
+  return { data: extractData(res.data), status: res.status };
 };

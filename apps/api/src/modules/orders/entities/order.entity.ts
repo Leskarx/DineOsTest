@@ -6,9 +6,12 @@ import {
   UpdateDateColumn,
   Index,
   OneToMany,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 
 import { OrderItem } from './order-item.entity';
+import { Table } from '../../tables/entities/table.entity';
 
 export enum OrderType {
   DINE_IN = 'dine_in',
@@ -56,6 +59,10 @@ export class Order {
     nullable: true,
   })
   tableId: string | null;
+
+  @ManyToOne(() => Table, { nullable: true })
+  @JoinColumn({ name: 'table_id' })
+  table: Table | null;
 
   @Column({
     name: 'shift_id',

@@ -22,6 +22,7 @@ const PAYMENT_METHODS: { id: PayMethod; label: string; icon: string }[] = [
 ];
 
 interface Props {
+  shiftId?: string | null;
   grandTotal: number;
   subtotal: number;
   gstTotal: number;
@@ -30,7 +31,7 @@ interface Props {
   onSuccess: () => void;
 }
 
-export function BillingModal({ grandTotal, subtotal, gstTotal, orderId, onClose, onSuccess }: Props) {
+export function BillingModal({ shiftId, grandTotal, subtotal, gstTotal, orderId, onClose, onSuccess }: Props) {
   const { branchId, tenantId } = useAuthStore();
   const { cart, orderType, tableId, tableName, discountAmount, discountPercent } = usePosStore();
 
@@ -76,6 +77,7 @@ export function BillingModal({ grandTotal, subtotal, gstTotal, orderId, onClose,
         orderId: oid,
         branchId,
         tenantId,
+        shiftId: shiftId || undefined,
         customerName: customerName || undefined,
         customerPhone: customerPhone || undefined,
         customerGstin: customerGstin || undefined,

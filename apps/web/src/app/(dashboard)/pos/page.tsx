@@ -1,15 +1,17 @@
 'use client';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { apiFetch, apiPost } from '@/lib/api';
 import { usePosStore } from '@/store/pos.store';
+import { useAuthStore } from '@/store/auth.store';
+import { useSocket } from '@/hooks/useSocket';
 import { BillingModal } from '@/components/billing/BillingModal';
 import { TablePickerModal } from '@/components/pos/TablePickerModal';
 import { OrderTypeSelector } from '@/components/pos/OrderTypeSelector';
 import {
   Search, Plus, Minus, Trash2, Printer, CreditCard, UtensilsCrossed,
-  Tag, ChevronDown, ClipboardList, X, Gift, RotateCcw, Clock,
+  Tag, ChevronDown, ClipboardList, X, Gift, RotateCcw, Clock, CheckCircle2, ChefHat,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
@@ -207,6 +209,14 @@ export default function PosPage() {
   const [isComplimentary, setIsComplimentary] = useState(false);
   const [isSalesReturn, setIsSalesReturn] = useState(false);
   const [scheduledAt, setScheduledAt] = useState<Date | null>(null);
+  const [currentOrderNumber, setCurrentOrderNumber] = useState<string | null>(null);
+
+  const { user, branchId } = useAuthStore();
+  
+  const { data: shift } = useQuery({
+    queryKey: ['current-shift', branchId],
+    queryFn: () => apiFetch('/api/v1/shifts/current').then((r) => r.data).catch(() => null),
+  });
 
   const {
     cart, addItem, updateQty, removeItem, clearCart,
@@ -217,12 +227,16 @@ export default function PosPage() {
     discountPercent, discountAmount, setDiscount,
   } = usePosStore();
 
-
-  useEffect(() => {
-    if (cart.length === 0) {
-      setCurrentOrder(null);
-    }
-  }, [cart.length, setCurrentOrder]);
+  const resetPosState = useCallback(() => {
+    clearCart();
+    setCurrentOrder(null);
+    setCurrentOrderNumber(null);
+    setIsComplimentary(false);
+    setIsSalesReturn(false);
+    setScheduledAt(null);
+    setDiscount(0, 0);
+    setTable(null, null);
+  }, [clearCart, setCurrentOrder, setDiscount, setTable]);
 
   const { data: categories } = useQuery({
     queryKey: ['categories'],
@@ -232,11 +246,50 @@ export default function PosPage() {
     queryKey: ['menuItems', selectedCat],
     queryFn: () => apiFetch(`/api/v1/menu/items${selectedCat ? `?categoryId=${selectedCat}` : ''}`).then((r) => r.data),
   });
-  const { data: openOrders } = useQuery({
+  const { data: openOrders, refetch: refetchOpenOrders } = useQuery({
     queryKey: ['open-orders-pos'],
-    queryFn: () => apiFetch('/api/v1/orders?status=draft,placed,confirmed,preparing&limit=20').then((r) => r.data),
-    enabled: showOpenOrders,
+    queryFn: () => apiFetch('/api/v1/orders?status=draft,placed,confirmed,preparing,ready,served&limit=50').then((r) => r.data),
+    staleTime: 10_000,
+    refetchInterval: 30_000,
   });
+
+  // Refresh open orders list when the dropdown is opened
+  useEffect(() => {
+    if (showOpenOrders) refetchOpenOrders();
+  }, [showOpenOrders, refetchOpenOrders]);
+
+  // ── Real-time: refresh open orders list on any order event ──────────────
+  const handleOrderEvent = useCallback(() => {
+    qc.invalidateQueries({ queryKey: ['open-orders-pos'] });
+  }, [qc]);
+
+  useSocket('order:created', handleOrderEvent);
+  useSocket('order:itemsAdded', handleOrderEvent);
+  useSocket('order:statusChanged', handleOrderEvent);
+
+  // ── Real-time: update kdsStatus of existing cart items (NEVER replace cart) ──
+  const handleKdsChange = useCallback((payload: any) => {
+    qc.invalidateQueries({ queryKey: ['open-orders-pos'] });
+    const store = usePosStore.getState();
+    const activeOrderId = store.currentOrder;
+    if (!payload?.orderId || !activeOrderId || activeOrderId !== payload.orderId) return;
+
+    // Instantly update the specific item's kdsStatus using the socket payload
+    let changed = false;
+    const currentCart = store.cart;
+    const updatedCart = currentCart.map((c: any) => {
+      // payload.itemId is the database UUID, which now perfectly matches cartKey for alreadySent items
+      if (c.alreadySent && c.cartKey === payload.itemId && c.kdsStatus !== payload.status) {
+        changed = true;
+        return { ...c, kdsStatus: payload.status };
+      }
+      return c;
+    });
+
+    if (changed) store.setCart(updatedCart);
+  }, [qc]);
+
+  useSocket('kds:itemStatusChanged', handleKdsChange);
 
   const filteredItems = useMemo(() => {
     if (!items) return [];
@@ -299,6 +352,7 @@ export default function PosPage() {
   const placeKotMutation = useMutation({
     mutationFn: async () => {
       if (!currentOrder) {
+        // New order — send all cart items
         const order = await apiPost('/api/v1/orders', {
           type: orderType,
           tableId: tableId ?? undefined,
@@ -308,45 +362,36 @@ export default function PosPage() {
           scheduledAt: scheduledAt?.toISOString(),
           items: cart.map((i: any) => ({
             menuItemId: i.id,
-            name: i.name,
-            price: i.price,
             quantity: i.qty,
             notes: i.notes,
             variationId: i.variationId ?? undefined,
-            variationName: i.variationName ?? undefined,
           }))
         });
-        // setCurrentOrder(order.data.id);
         return order.data;
       } else {
+        // Existing order — only send items that are NEW (not alreadySent)
+        const newItems = cart.filter((i: any) => !i.alreadySent);
+        if (newItems.length === 0) {
+          throw new Error('No new items to send. The items already in this order have been sent to the kitchen.');
+        }
         return apiPost(`/api/v1/orders/${currentOrder}/items`, {
-          items: cart.map((i: any) => ({
+          items: newItems.map((i: any) => ({
             menuItemId: i.id,
-            name: i.name,
-            price: i.price,
             quantity: i.qty,
             notes: i.notes,
             variationId: i.variationId ?? undefined,
-            variationName: i.variationName ?? undefined,
           }))
         });
       }
     },
     onSuccess: () => {
       toast.success('KOT sent to kitchen!');
-
-      clearCart();
-
-      setCurrentOrder(null);
-
-      setIsComplimentary(false);
-      setIsSalesReturn(false);
-      setScheduledAt(null);
-
+      resetPosState();
       qc.invalidateQueries({ queryKey: ['orders'] });
+      qc.invalidateQueries({ queryKey: ['open-orders-pos'] });
       qc.invalidateQueries({ queryKey: ['tables'] });
     },
-    onError: () => toast.error('Failed to send KOT'),
+    onError: (err: any) => toast.error(err?.message || 'Failed to send KOT'),
   });
 
   return (
@@ -392,11 +437,17 @@ export default function PosPage() {
                           const res = await apiFetch(`/api/v1/orders/${o.id}`);
                           const order = res.data;
 
+                          // Reset everything first so switching orders gives a clean slate
+                          resetPosState();
                           setCurrentOrder(order.id);
+                          setCurrentOrderNumber(order.orderNumber ?? null);
+                          setTable(order.tableId ?? null, order.table?.name ?? null);
+                          if (order.type) setOrderType(order.type);
 
+                          // Mark all loaded items as alreadySent so KOT only sends truly new ones
                           setCart(
-                            (order.items || []).map((item: any) => ({
-                              cartKey: `${item.menuItemId}-${item.variationId ?? 'base'}`,
+                            (order.items || []).filter((item: any) => !item.isVoided).map((item: any) => ({
+                              cartKey: item.id, // Use unique DB ID for already sent items
                               id: item.menuItemId,
                               name: item.name,
                               price: Number(item.unitPrice || item.price || 0),
@@ -409,6 +460,8 @@ export default function PosPage() {
                               notes: item.notes,
                               variationId: item.variationId,
                               variationName: item.variationName,
+                              alreadySent: true, // already in the kitchen — don't re-send
+                              kdsStatus: item.kdsStatus ?? null,
                             }))
                           );
 
@@ -495,7 +548,7 @@ export default function PosPage() {
         <div className="p-4 border-b border-slate-800">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-white">Current Order</h2>
-            {cart.length > 0 && <button onClick={clearCart} className="text-xs text-red-400 hover:text-red-300">Clear</button>}
+            {cart.length > 0 && <button onClick={resetPosState} className="text-xs text-red-400 hover:text-red-300">Clear</button>}
           </div>
 
           {/* Table tag */}
@@ -514,34 +567,45 @@ export default function PosPage() {
               )}
             </div>
           )}
-          {currentOrder && <div className="text-xs text-slate-500 mt-1">Editing existing order</div>}
+          {currentOrder && currentOrderNumber && (
+            <div className="mt-1.5 flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 text-amber-400 text-xs font-bold">
+                {currentOrderNumber}
+              </span>
+              <span className="text-xs text-slate-500">Editing existing order</span>
+            </div>
+          )}
 
           {/* Order type flags */}
           <div className="mt-3 flex items-center gap-2 flex-wrap">
-            <button
-              onClick={() => setIsComplimentary((v) => !v)}
-              className={cn(
-                'flex items-center gap-1.5 px-2 py-1 rounded-lg border text-xs font-medium transition-all',
-                isComplimentary
-                  ? 'bg-emerald-600/20 border-emerald-600 text-emerald-400'
-                  : 'border-slate-700 text-slate-500 hover:border-slate-500',
-              )}
-              title="Mark as complimentary (free)"
-            >
-              <Gift size={11} /> Complimentary
-            </button>
-            <button
-              onClick={() => setIsSalesReturn((v) => !v)}
-              className={cn(
-                'flex items-center gap-1.5 px-2 py-1 rounded-lg border text-xs font-medium transition-all',
-                isSalesReturn
-                  ? 'bg-orange-600/20 border-orange-600 text-orange-400'
-                  : 'border-slate-700 text-slate-500 hover:border-slate-500',
-              )}
-              title="Sales return / refund"
-            >
-              <RotateCcw size={11} /> Return
-            </button>
+            {user?.role && ['manager', 'owner'].includes(user.role) && (
+              <>
+                <button
+                  onClick={() => setIsComplimentary((v) => !v)}
+                  className={cn(
+                    'flex items-center gap-1.5 px-2 py-1 rounded-lg border text-xs font-medium transition-all',
+                    isComplimentary
+                      ? 'bg-emerald-600/20 border-emerald-600 text-emerald-400'
+                      : 'border-slate-700 text-slate-500 hover:border-slate-500',
+                  )}
+                  title="Mark as complimentary (free)"
+                >
+                  <Gift size={11} /> Complimentary
+                </button>
+                <button
+                  onClick={() => setIsSalesReturn((v) => !v)}
+                  className={cn(
+                    'flex items-center gap-1.5 px-2 py-1 rounded-lg border text-xs font-medium transition-all',
+                    isSalesReturn
+                      ? 'bg-orange-600/20 border-orange-600 text-orange-400'
+                      : 'border-slate-700 text-slate-500 hover:border-slate-500',
+                  )}
+                  title="Sales return / refund"
+                >
+                  <RotateCcw size={11} /> Return
+                </button>
+              </>
+            )}
             <button
               onClick={() => setShowAdvanceOrder(true)}
               className={cn(
@@ -567,33 +631,71 @@ export default function PosPage() {
               <ShoppingCartIcon />
               <span>Add items to start an order</span>
             </div>
-          ) : cart.map((item: any) => (
-            <div key={`${item.id}-${item.variationId ?? 'base'}`} className="bg-slate-800 rounded-lg p-3">
+          ) : cart.map((item: any) => {
+            const borderColor = !item.alreadySent
+              ? 'border-amber-500/40'
+              : item.kdsStatus === 'ready'
+              ? 'border-emerald-500/50'
+              : item.kdsStatus === 'preparing'
+              ? 'border-blue-500/40'
+              : 'border-slate-700/50';
+
+            return (
+            <div key={item.cartKey} className={cn("rounded-lg p-3 border", item.alreadySent ? "bg-slate-800/50" : "bg-slate-800", borderColor)}>
               <div className="flex items-start justify-between gap-2">
-                <div>
-                  <span className="text-sm text-white leading-tight">{item.name}</span>
-                  {item.variationName && (
-                    <span className="text-xs text-blue-400 ml-1">({item.variationName})</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-sm text-white leading-tight">{item.name}</span>
+                    {item.variationName && (
+                      <span className="text-xs text-blue-400">({item.variationName})</span>
+                    )}
+                  </div>
+                  {/* KDS status badge */}
+                  {item.alreadySent ? (
+                    item.kdsStatus === 'ready' ? (
+                      <span className="inline-flex items-center gap-1 text-xs text-emerald-400 font-semibold mt-0.5">
+                        <CheckCircle2 size={11} /> Ready — pick up from kitchen
+                      </span>
+                    ) : item.kdsStatus === 'preparing' ? (
+                      <span className="inline-flex items-center gap-1 text-xs text-blue-400 mt-0.5">
+                        <ChefHat size={11} /> Preparing...
+                      </span>
+                    ) : item.kdsStatus === 'completed' ? (
+                      <span className="inline-flex items-center gap-1 text-xs text-slate-400 mt-0.5">
+                        <CheckCircle2 size={11} /> Served
+                      </span>
+                    ) : (
+                      <span className="text-xs text-slate-500 mt-0.5 block">⏳ Sent — waiting for kitchen</span>
+                    )
+                  ) : (
+                    <span className="text-xs text-amber-400 font-semibold mt-0.5 block">● New — pending KOT</span>
                   )}
                 </div>
-                <button onClick={() => removeItem(item.cartKey)} className="text-slate-500 hover:text-red-400 flex-shrink-0">
-                  <Trash2 size={12} />
-                </button>
+                {!item.alreadySent && (
+                  <button onClick={() => removeItem(item.cartKey)} className="text-slate-500 hover:text-red-400 flex-shrink-0">
+                    <Trash2 size={12} />
+                  </button>
+                )}
               </div>
               <div className="flex items-center justify-between mt-2">
                 <div className="flex items-center gap-2">
-                  <button onClick={() => updateQty(item.cartKey, item.qty - 1)} className="w-6 h-6 rounded bg-slate-700 hover:bg-slate-600 flex items-center justify-center">
-                    <Minus size={10} />
-                  </button>
+                  {!item.alreadySent && (
+                    <button onClick={() => updateQty(item.cartKey, item.qty - 1)} className="w-6 h-6 rounded bg-slate-700 hover:bg-slate-600 flex items-center justify-center">
+                      <Minus size={10} />
+                    </button>
+                  )}
                   <span className="text-sm text-white w-4 text-center">{item.qty}</span>
-                  <button onClick={() => updateQty(item.cartKey, item.qty + 1)} className="w-6 h-6 rounded bg-slate-700 hover:bg-slate-600 flex items-center justify-center">
-                    <Plus size={10} />
-                  </button>
+                  {!item.alreadySent && (
+                    <button onClick={() => updateQty(item.cartKey, item.qty + 1)} className="w-6 h-6 rounded bg-slate-700 hover:bg-slate-600 flex items-center justify-center">
+                      <Plus size={10} />
+                    </button>
+                  )}
                 </div>
-                <span className="text-sm font-medium text-amber-400">₹{(item.price * item.qty).toFixed(2)}</span>
+                <span className={cn("text-sm font-medium", item.alreadySent ? "text-slate-500" : "text-amber-400")}>₹{(item.price * item.qty).toFixed(2)}</span>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Totals + Actions */}
@@ -643,9 +745,17 @@ export default function PosPage() {
               <button onClick={() => placeKotMutation.mutate()} disabled={placeKotMutation.isPending} className="btn-secondary text-xs">
                 <Printer size={12} /> {placeKotMutation.isPending ? 'Sending...' : 'Send KOT'}
               </button>
-              <button onClick={() => setShowBilling(true)} className="btn-primary text-xs">
-                <CreditCard size={12} /> Bill
-              </button>
+              {user?.role !== 'waiter' && (
+                <button onClick={() => {
+                  if (user?.role === 'cashier' && !shift?.id) {
+                    toast.error('You must open a shift first!');
+                    return;
+                  }
+                  setShowBilling(true);
+                }} className="btn-primary text-xs">
+                  <CreditCard size={12} /> Bill
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -680,6 +790,7 @@ export default function PosPage() {
       )}
       {showBilling && (
         <BillingModal
+          shiftId={shift?.id}
           grandTotal={isComplimentary ? 0 : grandTotal}
           gstTotal={isComplimentary ? 0 : gstTotal}
           subtotal={isComplimentary ? 0 : subtotal}
@@ -687,11 +798,10 @@ export default function PosPage() {
           onClose={() => setShowBilling(false)}
           onSuccess={() => {
             setShowBilling(false);
-            clearCart();
-            setCurrentOrder(null);
-            setIsComplimentary(false);
-            setIsSalesReturn(false);
-            setScheduledAt(null);
+            resetPosState();
+            qc.invalidateQueries({ queryKey: ['orders'] });
+            qc.invalidateQueries({ queryKey: ['open-orders-pos'] });
+            qc.invalidateQueries({ queryKey: ['tables'] });
           }}
         />
       )}

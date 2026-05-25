@@ -19,8 +19,15 @@ export default function LoginPage() {
       const res = await api.post('/api/v1/auth/login', payload);
       const userData = res.data.data;
       login(userData);
-      // Superadmin goes to the admin panel; everyone else to the dashboard
-      router.push(userData?.user?.role === 'superadmin' ? '/admin' : '/dashboard');
+      const role = userData?.user?.role;
+      let redirectUrl = '/dashboard';
+      if (role === 'superadmin') redirectUrl = '/admin';
+      else if (role === 'cashier') redirectUrl = '/cashier';
+      else if (role === 'waiter') redirectUrl = '/waiter';
+      else if (role === 'kitchen') redirectUrl = '/kds';
+      else if (role === 'inventory') redirectUrl = '/inventory';
+      
+      router.push(redirectUrl);
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Login failed');
     } finally {

@@ -209,22 +209,37 @@ export default function KdsPage() {
   // Socket event handlers
   useSocket('order:created', handleNewOrder);
   useSocket('order:itemsAdded', handleNewOrder);
+  useSocket('order:statusChanged', () => refetch());
   useSocket('kds:itemStatusChanged', () => refetch());
 
   const bumpMutation = useMutation({
     mutationFn: (id: string) => apiPatch(`/api/v1/kds/items/${id}/bump`, {}),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['kds-pending'] });
+      qc.invalidateQueries({ queryKey: ['kds-items'] });
     },
     onError: (error) => {
       console.error('Failed to bump item:', error);
     },
   });
 
-  const ackMutation = useMutation({
-    mutationFn: (id: string) => apiPatch(`/api/v1/kds/items/${id}/status`, { status: 'preparing' }),
+  const markReadyMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      await Promise.all(ids.map((id) => apiPatch(`/api/v1/kds/items/${id}/status`, { status: 'ready' })));
+    },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['kds-pending'] });
+      qc.invalidateQueries({ queryKey: ['kds-items'] });
+    },
+    onError: (error) => {
+      console.error('Failed to mark ready:', error);
+    },
+  });
+
+  const ackMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      await Promise.all(ids.map((id) => apiPatch(`/api/v1/kds/items/${id}/status`, { status: 'preparing' })));
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['kds-items'] });
     },
     onError: (error) => {
       console.error('Failed to acknowledge item:', error);
@@ -398,7 +413,9 @@ export default function KdsPage() {
         <div className="flex-1 overflow-auto p-4">
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5">
             {(Object.entries(groupedByOrder) as [string, KDSItem[]][]).map(([orderNum, tickets]) => {
-              const oldest = tickets[0];
+              const unfulfilled = tickets.filter((t) => t.kds_status === 'pending' || t.kds_status === 'preparing' || t.kds_status === 'acknowledged');
+              // Use oldest unfulfilled item if exists, otherwise oldest item overall. Since array is DESC, last item is oldest.
+              const oldest = unfulfilled.length > 0 ? unfulfilled[unfulfilled.length - 1] : tickets[tickets.length - 1];
               const ageSeconds = oldest?.age_seconds || 0;
               const isUrgent = ageSeconds > KDS_URGENT_SECONDS;
               const allReady = tickets.every((t) => t.kds_status === 'ready');
@@ -490,37 +507,48 @@ export default function KdsPage() {
                   </div>
 
                   {/* Footer Actions */}
-                  <div className="p-4 border-t border-slate-700 bg-slate-900/70">
-                    <div className="grid grid-cols-2 gap-3">
-                      {anyPending && (
+                  {!allReady ? (
+                    <div className="p-4 border-t border-slate-700 bg-slate-900/70">
+                      <div className="grid grid-cols-2 gap-3">
+                        {anyPending && (
+                          <button
+                            onClick={() => {
+                              const pendingItems = tickets.filter((t) => t.kds_status === 'pending');
+                              const ids = pendingItems.map((t) => t.order_item_id);
+                              if (ids.length > 0) ackMutation.mutate(ids);
+                            }}
+                            className="flex items-center justify-center gap-2 rounded-xl bg-slate-700 hover:bg-slate-600 transition-all text-white font-medium py-2.5 px-3 text-sm"
+                            disabled={ackMutation.isPending}
+                          >
+                            <ChefHat size={15} />
+                            Start Cooking
+                          </button>
+                        )}
+
                         <button
                           onClick={() => {
-                            const pendingItems = tickets.filter((t) => t.kds_status === 'pending');
-                            pendingItems.forEach((t) => ackMutation.mutate(t.order_item_id));
+                            const ids = tickets
+                              .filter((t) => t.kds_status !== 'ready' && t.kds_status !== 'completed')
+                              .map((t) => t.order_item_id);
+                            if (ids.length > 0) markReadyMutation.mutate(ids);
                           }}
-                          className="flex items-center justify-center gap-2 rounded-xl bg-slate-700 hover:bg-slate-600 transition-all text-white font-medium py-2.5 px-3 text-sm"
-                          disabled={ackMutation.isPending}
+                          className={cn(
+                            'flex items-center justify-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 transition-all text-slate-950 font-bold py-2.5 px-3 text-sm',
+                            !anyPending && 'col-span-2'
+                          )}
+                          disabled={markReadyMutation.isPending}
                         >
-                          <ChefHat size={15} />
-                          Start Cooking
+                          <CheckCircle size={15} />
+                          Mark Ready
                         </button>
-                      )}
-
-                      <button
-                        onClick={() => {
-                          tickets.forEach((t) => bumpMutation.mutate(t.order_item_id));
-                        }}
-                        className={cn(
-                          'flex items-center justify-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 transition-all text-slate-950 font-bold py-2.5 px-3 text-sm',
-                          !anyPending && 'col-span-2'
-                        )}
-                        disabled={bumpMutation.isPending}
-                      >
-                        <CheckCircle size={15} />
-                        Mark Ready
-                      </button>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="p-4 border-t border-slate-700 bg-emerald-500/10 flex items-center justify-center gap-2 text-emerald-400 font-medium">
+                      <CheckCircle size={18} />
+                      Waiting for pickup
+                    </div>
+                  )}
                 </div>
               );
             })}

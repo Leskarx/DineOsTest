@@ -33,7 +33,7 @@ export class KdsService {
         o.order_type,
         t.table_number           AS table_name,
         c.name                   AS category_name,
-        EXTRACT(EPOCH FROM (NOW() - oi.created_at))::INT AS age_seconds
+        EXTRACT(EPOCH FROM (COALESCE(oi.kds_ready_at, NOW()) - oi.created_at))::INT AS age_seconds
       FROM order_items oi
       INNER JOIN orders o ON o.id = oi.order_id
       LEFT  JOIN tables t ON t.id = o.table_id
@@ -41,10 +41,10 @@ export class KdsService {
       LEFT  JOIN categories c  ON c.id = mi.category_id
       WHERE o.branch_id  = $1
         AND o.tenant_id  = $2
-        AND oi.kds_status IN ('pending','acknowledged','preparing')
+        AND oi.kds_status IN ('pending','acknowledged','preparing','ready')
         AND oi.is_voided  = false
         AND o.status NOT IN ('cancelled','billed','void')
-      ORDER BY oi.created_at ASC
+      ORDER BY oi.created_at DESC
     `, [branchId, tenantId]);
   }
 
@@ -72,7 +72,7 @@ export class KdsService {
   }
 
   async bumpItem(itemId: string, tenantId: string) {
-    return this.updateItemStatus(itemId, KdsStatus.READY, tenantId);
+    return this.updateItemStatus(itemId, KdsStatus.COMPLETED as any, tenantId);
   }
 
   async recallItem(itemId: string, tenantId: string) {

@@ -16,13 +16,18 @@ export interface CartItem {
   notes?: string;
   variationId?: string | null;
   variationName?: string | null;
+  /** True if this item has already been sent to the kitchen (came from an existing order) */
+  alreadySent?: boolean;
+  /** Kitchen status of this item — synced from KDS */
+  kdsStatus?: 'pending' | 'preparing' | 'ready' | 'completed' | null;
 }
 
-type AddItemInput = Omit<CartItem, 'cartKey' | 'qty' | 'igstRate' | 'cessRate'> & {
+type AddItemInput = Omit<CartItem, 'cartKey' | 'qty' | 'igstRate' | 'cessRate' | 'alreadySent'> & {
   igstRate?: number;
   cessRate?: number;
   /** Directly set quantity (e.g. from picker). Defaults to 1. */
   qty?: number;
+  alreadySent?: boolean;
 };
 
 interface PosState {
@@ -64,13 +69,45 @@ export const usePosStore = create<PosState>((set) => ({
       const cartKey = `${item.id}-${item.variationId ?? 'base'}`;
       const existing = state.cart.find((c) => c.cartKey === cartKey);
       const incomingQty = item.qty ?? 1;
+
       if (existing) {
+        if (!existing.alreadySent) {
+          // Item is new (not yet sent) — just increment qty
+          return {
+            cart: state.cart.map((c) =>
+              c.cartKey === cartKey ? { ...c, qty: c.qty + incomingQty } : c,
+            ),
+          };
+        }
+        // Item was already sent to kitchen — create a SEPARATE new entry
+        // so only the new portion gets sent in the next KOT
+        const newKey = `${cartKey}-new-${Date.now()}`;
+        const newEntry = state.cart.find((c) => c.cartKey.startsWith(`${cartKey}-new-`));
+        if (newEntry) {
+          // Already have a pending new entry — increment it
+          return {
+            cart: state.cart.map((c) =>
+              c.cartKey.startsWith(`${cartKey}-new-`) ? { ...c, qty: c.qty + incomingQty } : c,
+            ),
+          };
+        }
         return {
-          cart: state.cart.map((c) =>
-            c.cartKey === cartKey ? { ...c, qty: c.qty + incomingQty } : c,
-          ),
+          cart: [
+            ...state.cart,
+            {
+              ...item,
+              cartKey: newKey,
+              qty: incomingQty,
+              igstRate: item.igstRate ?? 0,
+              cessRate: item.cessRate ?? 0,
+              variationId: item.variationId ?? null,
+              variationName: item.variationName ?? null,
+              alreadySent: false, // this is a NEW addition
+            },
+          ],
         };
       }
+
       return {
         cart: [
           ...state.cart,
@@ -82,6 +119,7 @@ export const usePosStore = create<PosState>((set) => ({
             cessRate: item.cessRate ?? 0,
             variationId: item.variationId ?? null,
             variationName: item.variationName ?? null,
+            alreadySent: item.alreadySent ?? false,
           },
         ],
       };
