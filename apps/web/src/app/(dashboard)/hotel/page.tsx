@@ -51,12 +51,12 @@ type RoomStatus = 'available' | 'occupied' | 'reserved' | 'cleaning' | 'maintena
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const STATUS_CONFIG: Record<RoomStatus, { label: string; color: string; dot: string }> = {
-  available:   { label: 'Available',    color: 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300', dot: 'bg-emerald-500' },
-  occupied:    { label: 'Occupied',     color: 'bg-blue-500/15    border-blue-500/40    text-blue-300',    dot: 'bg-blue-500'    },
-  reserved:    { label: 'Reserved',     color: 'bg-amber-500/15   border-amber-500/40   text-amber-300',   dot: 'bg-amber-500'   },
-  cleaning:    { label: 'Cleaning',     color: 'bg-violet-500/15  border-violet-500/40  text-violet-300',  dot: 'bg-violet-500'  },
-  maintenance: { label: 'Maintenance',  color: 'bg-orange-500/15  border-orange-500/40  text-orange-300',  dot: 'bg-orange-500'  },
-  out_of_order:{ label: 'Out of Order', color: 'bg-red-500/15     border-red-500/40     text-red-300',     dot: 'bg-red-500'     },
+  available: { label: 'Available', color: 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300', dot: 'bg-emerald-500' },
+  occupied: { label: 'Occupied', color: 'bg-blue-500/15    border-blue-500/40    text-blue-300', dot: 'bg-blue-500' },
+  reserved: { label: 'Reserved', color: 'bg-amber-500/15   border-amber-500/40   text-amber-300', dot: 'bg-amber-500' },
+  cleaning: { label: 'Cleaning', color: 'bg-violet-500/15  border-violet-500/40  text-violet-300', dot: 'bg-violet-500' },
+  maintenance: { label: 'Maintenance', color: 'bg-orange-500/15  border-orange-500/40  text-orange-300', dot: 'bg-orange-500' },
+  out_of_order: { label: 'Out of Order', color: 'bg-red-500/15     border-red-500/40     text-red-300', dot: 'bg-red-500' },
 };
 
 // ─── Room card ────────────────────────────────────────────────────────────────
@@ -122,30 +122,40 @@ export default function HotelPage() {
 
   const { data: dash, isLoading: dashLoading, refetch } = useQuery<DashboardData>({
     queryKey: ['hotel-dashboard'],
-    queryFn:  () => api.get('/api/v1/hotel/dashboard').then((r) => r.data),
+    queryFn: () => api.get('/api/v1/hotel/dashboard').then((r) => {
+      const d = r.data;
+      // Unwrap { data: ... } wrapper if present
+      if (d && typeof d === 'object' && 'data' in d && !('totalRooms' in d)) return d.data;
+      return d;
+    }),
     staleTime: 60_000,
   });
 
   const { data: roomsData } = useQuery<RoomSummary[]>({
     queryKey: ['hotel-rooms'],
-    queryFn:  () => api.get('/api/v1/hotel/rooms').then((r) => r.data),
+    queryFn: () => api.get('/api/v1/hotel/rooms').then((r) => {
+      const d = r.data;
+      if (Array.isArray(d)) return d;
+      if (d && Array.isArray(d.data)) return d.data;
+      return [];
+    }),
     staleTime: 30_000,
   });
 
   const { data: arrivalsData } = useQuery<{ data: Reservation[] }>({
     queryKey: ['hotel-arrivals'],
-    queryFn:  () => api.get(`/api/v1/hotel/reservations?status=confirmed&from=${new Date().toISOString().split('T')[0]}&to=${new Date().toISOString().split('T')[0]}&limit=10`).then((r) => r.data),
+    queryFn: () => api.get(`/api/v1/hotel/reservations?status=confirmed&from=${new Date().toISOString().split('T')[0]}&to=${new Date().toISOString().split('T')[0]}&limit=10`).then((r) => r.data),
     staleTime: 60_000,
   });
 
   const { data: departuresData } = useQuery<{ data: Reservation[] }>({
     queryKey: ['hotel-departures'],
-    queryFn:  () => api.get(`/api/v1/hotel/reservations?status=checked_in&to=${new Date().toISOString().split('T')[0]}&limit=10`).then((r) => r.data),
+    queryFn: () => api.get(`/api/v1/hotel/reservations?status=checked_in&to=${new Date().toISOString().split('T')[0]}&limit=10`).then((r) => r.data),
     staleTime: 60_000,
   });
 
-  // Group rooms by floor
-  const rooms = roomsData ?? [];
+  // Group rooms by floor — ensure rooms is always an array
+  const rooms: RoomSummary[] = Array.isArray(roomsData) ? roomsData : [];
   const floors = Array.from(new Set(rooms.map((r) => r.floor))).sort((a, b) => a - b);
   const byFloor = (floor: number) => rooms.filter((r) => r.floor === floor);
 
@@ -180,12 +190,12 @@ export default function HotelPage() {
         {/* ── Stats bar ─────────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {[
-            { label: 'Total Rooms',    value: stats.totalRooms,     color: 'text-slate-300' },
-            { label: 'Occupancy',      value: `${stats.occupancyPct}%`, color: 'text-blue-400' },
-            { label: 'In House',       value: stats.inHouse,        color: 'text-blue-400' },
-            { label: 'Arrivals Today', value: stats.arrivalsToday,  color: 'text-amber-400' },
-            { label: 'Departures',     value: stats.departuresToday, color: 'text-violet-400' },
-            { label: 'Available',      value: stats.roomsByStatus?.available ?? 0, color: 'text-emerald-400' },
+            { label: 'Total Rooms', value: stats.totalRooms, color: 'text-slate-300' },
+            { label: 'Occupancy', value: `${stats.occupancyPct}%`, color: 'text-blue-400' },
+            { label: 'In House', value: stats.inHouse, color: 'text-blue-400' },
+            { label: 'Arrivals Today', value: stats.arrivalsToday, color: 'text-amber-400' },
+            { label: 'Departures', value: stats.departuresToday, color: 'text-violet-400' },
+            { label: 'Available', value: stats.roomsByStatus?.available ?? 0, color: 'text-emerald-400' },
           ].map(({ label, value, color }) => (
             <div key={label} className="card text-center">
               <div className={cn('text-2xl font-bold tabular-nums', color)}>{value}</div>
@@ -252,7 +262,9 @@ export default function HotelPage() {
                   <div key={r.id} className="py-2 flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <div className="text-sm text-white font-medium truncate">{r.primaryGuest?.name}</div>
-                      <div className="text-xs text-slate-500">{r.room?.roomNumber} · {r.numNights}N · ₹{Number(r.room?.roomType as any)}</div>
+                      <div className="text-xs text-slate-500">
+                        {r.room?.roomNumber} · {r.numNights}N · {r.room?.roomType?.name}
+                      </div>
                     </div>
                     <span className="text-xs bg-amber-500/15 text-amber-400 px-2 py-0.5 rounded-md flex-shrink-0">
                       {r.room?.roomNumber}

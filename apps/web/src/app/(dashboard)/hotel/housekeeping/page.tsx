@@ -22,7 +22,7 @@ import { api } from '@/lib/api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type HkStatus   = 'pending' | 'in_progress' | 'done' | 'skipped';
+type HkStatus = 'pending' | 'in_progress' | 'done' | 'skipped';
 type HkPriority = 'normal' | 'high' | 'urgent';
 type HkTaskType = 'checkout_clean' | 'stayover' | 'turndown' | 'inspection' | 'maintenance';
 
@@ -54,23 +54,23 @@ interface Room {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const TASK_TYPE_CONFIG: Record<HkTaskType, { label: string; icon: React.ElementType; color: string }> = {
-  checkout_clean: { label: 'Checkout Clean', icon: SprayCan,    color: 'text-violet-400' },
-  stayover:       { label: 'Stayover',        icon: BedDouble,   color: 'text-blue-400'   },
-  turndown:       { label: 'Turndown',         icon: BedDouble,   color: 'text-indigo-400' },
-  inspection:     { label: 'Inspection',       icon: CheckCircle2,color: 'text-emerald-400'},
-  maintenance:    { label: 'Maintenance',      icon: Wrench,      color: 'text-orange-400' },
+  checkout_clean: { label: 'Checkout Clean', icon: SprayCan, color: 'text-violet-400' },
+  stayover: { label: 'Stayover', icon: BedDouble, color: 'text-blue-400' },
+  turndown: { label: 'Turndown', icon: BedDouble, color: 'text-indigo-400' },
+  inspection: { label: 'Inspection', icon: CheckCircle2, color: 'text-emerald-400' },
+  maintenance: { label: 'Maintenance', icon: Wrench, color: 'text-orange-400' },
 };
 
 const PRIORITY_CONFIG: Record<HkPriority, { label: string; color: string; icon: React.ElementType }> = {
-  normal: { label: 'Normal', color: 'bg-slate-700/60 text-slate-400',    icon: Clock          },
-  high:   { label: 'High',   color: 'bg-amber-500/15 text-amber-400',    icon: AlertTriangle  },
-  urgent: { label: 'Urgent', color: 'bg-red-500/15 text-red-400',        icon: Zap            },
+  normal: { label: 'Normal', color: 'bg-slate-700/60 text-slate-400', icon: Clock },
+  high: { label: 'High', color: 'bg-amber-500/15 text-amber-400', icon: AlertTriangle },
+  urgent: { label: 'Urgent', color: 'bg-red-500/15 text-red-400', icon: Zap },
 };
 
 const STATUS_COLUMNS: { status: HkStatus; label: string; nextStatus?: HkStatus; nextLabel?: string; color: string }[] = [
-  { status: 'pending',     label: 'Pending',     nextStatus: 'in_progress', nextLabel: 'Start',    color: 'border-slate-700' },
-  { status: 'in_progress', label: 'In Progress', nextStatus: 'done',        nextLabel: 'Mark Done', color: 'border-amber-500/40' },
-  { status: 'done',        label: 'Done',                                                            color: 'border-emerald-500/40' },
+  { status: 'pending', label: 'Pending', nextStatus: 'in_progress', nextLabel: 'Start', color: 'border-slate-700' },
+  { status: 'in_progress', label: 'In Progress', nextStatus: 'done', nextLabel: 'Mark Done', color: 'border-amber-500/40' },
+  { status: 'done', label: 'Done', color: 'border-emerald-500/40' },
 ];
 
 // ─── Task Card ────────────────────────────────────────────────────────────────
@@ -84,11 +84,11 @@ function TaskCard({
   onStatusChange: (id: string, status: HkStatus) => void;
   updating: boolean;
 }) {
-  const taskCfg    = TASK_TYPE_CONFIG[task.taskType] ?? TASK_TYPE_CONFIG.stayover;
-  const priCfg     = PRIORITY_CONFIG[task.priority]  ?? PRIORITY_CONFIG.normal;
-  const PriIcon    = priCfg.icon;
-  const TaskIcon   = taskCfg.icon;
-  const col        = STATUS_COLUMNS.find((c) => c.status === task.status);
+  const taskCfg = TASK_TYPE_CONFIG[task.taskType] ?? TASK_TYPE_CONFIG.stayover;
+  const priCfg = PRIORITY_CONFIG[task.priority] ?? PRIORITY_CONFIG.normal;
+  const PriIcon = priCfg.icon;
+  const TaskIcon = taskCfg.icon;
+  const col = STATUS_COLUMNS.find((c) => c.status === task.status);
 
   return (
     <div className={cn(
@@ -159,16 +159,44 @@ function NewTaskModal({ date, onClose }: { date: string; onClose: () => void }) 
 
   const { data: rooms = [] } = useQuery<Room[]>({
     queryKey: ['hotel-rooms-for-hk'],
-    queryFn:  () => api.get('/api/v1/hotel/rooms').then((r) => r.data),
+    queryFn: async () => {
+      const res = await api.get('/api/v1/hotel/rooms');
+
+      console.log('ROOM RESPONSE:', res.data);
+
+      const data = res.data;
+
+      // direct array
+      if (Array.isArray(data)) {
+        return data;
+      }
+
+      // { rooms: [] }
+      if (data && Array.isArray(data.rooms)) {
+        return data.rooms;
+      }
+
+      // { data: [] }
+      if (data && Array.isArray(data.data)) {
+        return data.data;
+      }
+
+      // { data: { rooms: [] } }
+      if (data?.data && Array.isArray(data.data.rooms)) {
+        return data.data.rooms;
+      }
+
+      return [];
+    },
     staleTime: 60_000,
   });
 
   const [form, setForm] = useState({
-    roomId:       '',
-    taskType:     'stayover' as HkTaskType,
-    priority:     'normal'   as HkPriority,
-    assignedTo:   '',
-    notes:        '',
+    roomId: '',
+    taskType: 'stayover' as HkTaskType,
+    priority: 'normal' as HkPriority,
+    assignedTo: '',
+    notes: '',
     scheduledFor: date,
   });
 
@@ -284,13 +312,19 @@ function NewTaskModal({ date, onClose }: { date: string; onClose: () => void }) 
 
 export default function HousekeepingPage() {
   const qc = useQueryClient();
-  const [date, setDate]     = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [showNew, setShowNew] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   const { data: tasks = [], isLoading, refetch } = useQuery<HkTask[]>({
     queryKey: ['hotel-housekeeping', date],
-    queryFn:  () => api.get(`/api/v1/hotel/housekeeping?date=${date}`).then((r) => r.data),
+    queryFn: () => api.get(`/api/v1/hotel/housekeeping?date=${date}`).then((r) => {
+      const d = r.data;
+      // API may return raw array or wrapped { data: [...] }
+      if (Array.isArray(d)) return d;
+      if (d && Array.isArray(d.data)) return d.data;
+      return [];
+    }),
     staleTime: 30_000,
   });
 
@@ -310,8 +344,9 @@ export default function HousekeepingPage() {
     updateStatus({ id, status });
   };
 
-  // Count per status for column headers
-  const countFor = (s: HkStatus) => tasks.filter((t) => t.status === s).length;
+  // Count per status for column headers — guard against non-array edge cases
+  const safeTasks = Array.isArray(tasks) ? tasks : [];
+  const countFor = (s: HkStatus) => safeTasks.filter((t) => t.status === s).length;
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -360,7 +395,7 @@ export default function HousekeepingPage() {
             <span className="text-slate-500">({countFor(col.status)})</span>
           </div>
         ))}
-        <span className="text-slate-700 text-xs ml-auto">{tasks.length} total tasks for {format(new Date(date + 'T12:00:00'), 'MMM d, yyyy')}</span>
+        <span className="text-slate-700 text-xs ml-auto">{safeTasks.length} total tasks for {format(new Date(date + 'T12:00:00'), 'MMM d, yyyy')}</span>
       </div>
 
       {/* Board */}
@@ -369,7 +404,7 @@ export default function HousekeepingPage() {
           <div className="flex items-center justify-center h-full">
             <Loader2 size={24} className="animate-spin text-slate-600" />
           </div>
-        ) : tasks.length === 0 ? (
+        ) : safeTasks.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-3 text-slate-600">
             <CheckCircle2 size={40} />
             <p className="text-sm">No tasks scheduled for this day.</p>
@@ -380,7 +415,7 @@ export default function HousekeepingPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-0 h-full divide-x divide-slate-800">
             {STATUS_COLUMNS.map((col) => {
-              const colTasks = tasks.filter((t) => t.status === col.status);
+              const colTasks = safeTasks.filter((t) => t.status === col.status);
               return (
                 <div key={col.status} className="flex flex-col overflow-hidden">
                   {/* Column header */}
@@ -390,8 +425,8 @@ export default function HousekeepingPage() {
                   )}>
                     <div className="flex items-center gap-2">
                       <span className={cn('w-2 h-2 rounded-full flex-shrink-0', {
-                        'bg-slate-500':   col.status === 'pending',
-                        'bg-amber-500':   col.status === 'in_progress',
+                        'bg-slate-500': col.status === 'pending',
+                        'bg-amber-500': col.status === 'in_progress',
                         'bg-emerald-500': col.status === 'done',
                       })} />
                       <span className="text-sm font-semibold text-white">{col.label}</span>
