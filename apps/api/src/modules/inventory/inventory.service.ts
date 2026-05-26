@@ -7,8 +7,10 @@ import { InventoryTransaction, TransactionType } from './entities/inventory-tran
 @Injectable()
 export class InventoryService {
   constructor(
-    @InjectRepository(InventoryItem) private readonly itemRepo: Repository<InventoryItem>,
-    @InjectRepository(InventoryTransaction) private readonly txnRepo: Repository<InventoryTransaction>,
+    @InjectRepository(InventoryItem)
+    private readonly itemRepo: Repository<InventoryItem>,
+    @InjectRepository(InventoryTransaction)
+    private readonly txnRepo: Repository<InventoryTransaction>,
     private readonly db: DataSource,
   ) {}
 
@@ -24,7 +26,10 @@ export class InventoryService {
     return item;
   }
 
-  createItem(data: Partial<InventoryItem>) { return this.itemRepo.save(this.itemRepo.create(data)); }
+  createItem(data: Partial<InventoryItem>) {
+    return this.itemRepo.save(this.itemRepo.create(data));
+  }
+
   async updateItem(id: string, tenantId: string, data: Partial<InventoryItem>) {
     await this.getItem(id, tenantId);
     await this.itemRepo.update(id, data);
@@ -41,40 +46,46 @@ export class InventoryService {
     notes?: string,
     createdBy?: string,
   ) {
-    // Wrap in a transaction with a row-level lock (SELECT ... FOR UPDATE) to
-    // prevent concurrent stock deductions from reading the same currentStock
-    // value and both passing the sufficiency check — which would result in
-    // negative stock without an error.
     return this.db.transaction(async (em) => {
+      // ← FIXED: use avg_cost (actual DB column name), not average_cost
       const [row] = await em.query(
-        `SELECT id, current_stock, average_cost, cost_price
+        `SELECT id, current_stock, avg_cost, cost_price
          FROM inventory_items
          WHERE id = $1 AND tenant_id = $2
          FOR UPDATE`,
         [itemId, tenantId],
       );
+
       if (!row) throw new NotFoundException('Item not found');
 
       const currentStock = Number(row.current_stock);
-      const isOutgoing = [TransactionType.SALE, TransactionType.WASTE].includes(type);
-      const newStock = parseFloat((currentStock + (isOutgoing ? -quantity : quantity)).toFixed(3));
+      const isOutgoing   = [TransactionType.SALE, TransactionType.WASTE].includes(type);
+      const newStock     = parseFloat(
+        (currentStock + (isOutgoing ? -quantity : quantity)).toFixed(3),
+      );
 
       if (isOutgoing && newStock < 0) {
-        throw new BadRequestException(`Insufficient stock. Available: ${currentStock}`);
+        throw new BadRequestException(
+          `Insufficient stock. Available: ${currentStock}`,
+        );
       }
 
-      let newAvgCost = Number(row.average_cost);
+      // ← FIXED: read avg_cost (actual DB column name)
+      let newAvgCost   = Number(row.avg_cost);
       let newCostPrice = Number(row.cost_price);
 
       if (type === TransactionType.PURCHASE && unitCost > 0) {
         const totalStock = currentStock + quantity;
-        newAvgCost = parseFloat(((newAvgCost * currentStock + unitCost * quantity) / totalStock).toFixed(4));
+        newAvgCost = parseFloat(
+          ((newAvgCost * currentStock + unitCost * quantity) / totalStock).toFixed(4),
+        );
         newCostPrice = unitCost;
       }
 
+      // ← FIXED: SET avg_cost (actual DB column name), not average_cost
       await em.query(
         `UPDATE inventory_items
-         SET current_stock = $1, average_cost = $2, cost_price = $3, updated_at = NOW()
+         SET current_stock = $1, avg_cost = $2, cost_price = $3, updated_at = NOW()
          WHERE id = $4`,
         [newStock, newAvgCost, newCostPrice, itemId],
       );
@@ -105,11 +116,13 @@ export class InventoryService {
   }
 
   getLowStockAlerts(tenantId: string, branchId?: string) {
-    return this.db.query(`
-      SELECT * FROM v_stock_summary
-      WHERE tenant_id=$1 ${branchId ? 'AND branch_id=$2' : ''}
-      AND stock_status IN ('low_stock','out_of_stock','reorder')
-      ORDER BY current_stock ASC
-    `, branchId ? [tenantId, branchId] : [tenantId]);
+    return this.db.query(
+      `SELECT * FROM v_stock_summary
+       WHERE tenant_id = $1
+       ${branchId ? 'AND branch_id = $2' : ''}
+       AND stock_status IN ('low_stock', 'out_of_stock', 'reorder')
+       ORDER BY current_stock ASC`,
+      branchId ? [tenantId, branchId] : [tenantId],
+    );
   }
 }
