@@ -53,3 +53,5 @@ coverage/
 *.pptx
 *.mov
 *.mp4
+
+apps/api/uploads/
