@@ -1,6 +1,6 @@
 import {
   Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn,
-  ManyToOne, JoinColumn, Index,
+  Index,
 } from 'typeorm';
 
 export enum UserRole {
@@ -26,7 +26,10 @@ export class User {
   @Column({ name: 'first_name' }) firstName: string;
   @Column({ name: 'last_name', nullable: true }) lastName: string;
   @Column({ type: 'enum', enum: UserRole, default: UserRole.CASHIER }) role: UserRole;
-  @Column({ nullable: true, length: 6 }) pin: string;
+
+  // ✅ FIXED: length 6 → 72 (bcrypt hash is 60 chars, 72 is safe standard)
+  @Column({ nullable: true, length: 72 }) pin: string;
+
   @Column({ name: 'employee_code', nullable: true }) employeeCode: string;
   @Column({ name: 'is_active', default: true }) isActive: boolean;
   @Column({ name: 'last_login_at', nullable: true }) lastLoginAt: Date;

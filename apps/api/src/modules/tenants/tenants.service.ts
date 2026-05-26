@@ -4,15 +4,53 @@ import { Repository } from 'typeorm';
 import * as https from 'https';
 import { Tenant } from './entities/tenant.entity';
 
+// Only these Tenant entity properties are allowed to be updated via PUT /tenant
+const ALLOWED_UPDATE_FIELDS: (keyof Tenant)[] = [
+  'name',
+  'gstin',
+  'pan',
+  'fssaiNo',
+  'addressLine1',
+  'addressLine2',
+  'city',
+  'state',
+  'stateCode',
+  'pincode',
+  'country',
+  'email',
+  'phone',
+  'logoUrl',
+  'taxRegime',
+  'settings',
+];
+
 @Injectable()
 export class TenantsService {
-  constructor(@InjectRepository(Tenant) private readonly repo: Repository<Tenant>) {}
+  constructor(
+    @InjectRepository(Tenant)
+    private readonly repo: Repository<Tenant>,
+  ) {}
 
   findById(id: string)     { return this.repo.findOne({ where: { id } }); }
   findBySlug(slug: string) { return this.repo.findOne({ where: { slug } }); }
 
   async update(id: string, data: Partial<Tenant>) {
-    await this.repo.update(id, data);
+    // Strip any fields that are not mapped columns on the Tenant entity.
+    // This prevents EntityPropertyNotFoundError when the frontend sends
+    // extra UI-only fields like notifLowStock, notifEmail, etc.
+    const safe: Partial<Tenant> = {};
+    for (const key of ALLOWED_UPDATE_FIELDS) {
+      if (key in data) {
+        (safe as any)[key] = (data as any)[key];
+      }
+    }
+
+    if (Object.keys(safe).length === 0) {
+      // Nothing valid to update — just return current state
+      return this.findById(id);
+    }
+
+    await this.repo.update(id, safe);
     return this.findById(id);
   }
 
@@ -24,17 +62,12 @@ export class TenantsService {
     return {
       connected:   !!rzp.connected,
       liveMode:    !!rzp.liveMode,
-      keyId:       rzp.keyId ?? null,
+      keyId:       rzp.keyId   ?? null,
       connectedAt: rzp.connectedAt ?? null,
     };
   }
 
-  async saveRazorpayKeys(
-    tenantId: string,
-    keyId: string,
-    keySecret: string,
-  ) {
-    // Verify keys against Razorpay API before saving
+  async saveRazorpayKeys(tenantId: string, keyId: string, keySecret: string) {
     const valid = await this.verifyRazorpayKeys(keyId, keySecret);
     if (!valid) {
       throw new BadRequestException(
@@ -44,7 +77,6 @@ export class TenantsService {
 
     const tenant = await this.findById(tenantId);
     const existingSettings = tenant?.settings ?? {};
-
     const liveMode = keyId.startsWith('rzp_live_');
 
     const updated = await this.repo.save({
@@ -53,10 +85,10 @@ export class TenantsService {
         ...existingSettings,
         razorpay: {
           keyId,
-          keySecret,     // ⚠️  Encrypt this at-rest in production via KMS / Vault
-          connected:    true,
+          keySecret,      // ⚠️ Encrypt at-rest in production via KMS / Vault
+          connected:   true,
           liveMode,
-          connectedAt:  new Date().toISOString(),
+          connectedAt: new Date().toISOString(),
         },
       },
     });
@@ -82,7 +114,6 @@ export class TenantsService {
     return { connected: false };
   }
 
-  /** Makes a lightweight Razorpay REST call to validate credentials */
   private verifyRazorpayKeys(keyId: string, keySecret: string): Promise<boolean> {
     return new Promise((resolve) => {
       const auth = Buffer.from(`${keyId}:${keySecret}`).toString('base64');
@@ -94,7 +125,6 @@ export class TenantsService {
           headers:  { Authorization: `Basic ${auth}`, 'Content-Type': 'application/json' },
         },
         (res) => {
-          // 200 = valid, 401 = bad creds, 400 = valid creds (bad params is OK here)
           resolve(res.statusCode !== 401 && res.statusCode !== 403);
         },
       );
