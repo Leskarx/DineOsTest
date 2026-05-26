@@ -8,27 +8,6 @@
 # ────────────────────────────────────────────────────────────────
 
 services:
-  # ── PostgreSQL ────────────────────────────────────────────────
-  postgres:
-    image: postgres:16-alpine
-    container_name: dinestay_db
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: dinestayadmin
-      POSTGRES_PASSWORD: changeme
-      POSTGRES_DB: dinestay
-    ports:
-      - "127.0.0.1:5432:5432"   # loopback only — not exposed to LAN/cloud network
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      # Schema is managed entirely by TypeORM migrations (npm run db:migrate)
-      # init-db.sql is kept as a reference but NOT auto-run here
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U dinestayadmin -d dinestay"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   # ── Redis ─────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
@@ -78,8 +57,6 @@ services:
     container_name: dinestay_api
     restart: unless-stopped
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
     env_file: .env
@@ -118,7 +95,6 @@ services:
     command: npm run dev
 
 volumes:
-  postgres_data:
   redis_data:
   minio_data:
   api_uploads:
