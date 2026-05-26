@@ -13,6 +13,7 @@ const dataSource = new DataSource({
   username: process.env.DB_USER || 'dinestayadmin',
   password: process.env.DB_PASSWORD || 'changeme',
   database: process.env.DB_NAME || 'dinestay',
+  ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
   synchronize: false,
   entities: [__dirname + '/../../**/*.entity{.ts,.js}'],
 });

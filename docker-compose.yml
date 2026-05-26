@@ -48,52 +48,6 @@ services:
     profiles:
       - minio           # start with:  docker compose --profile minio up
 
-  # ── NestJS API ────────────────────────────────────────────────
-  api:
-    build:
-      context: ./apps/api
-      dockerfile: Dockerfile
-      target: development
-    container_name: dinestay_api
-    restart: unless-stopped
-    depends_on:
-      redis:
-        condition: service_healthy
-    env_file: .env
-    environment:
-      # Override host names to match Docker service names
-      REDIS_HOST: redis
-      # When using MinIO profile, point storage at it
-      S3_ENDPOINT: ${S3_ENDPOINT:-}
-    ports:
-      - "4000:4000"
-    volumes:
-      - ./apps/api/src:/app/src:delegated
-      # Persist local uploads across restarts
-      - api_uploads:/app/uploads
-    command: npm run start:dev
-
-  # ── Next.js Web App ───────────────────────────────────────────
-  web:
-    build:
-      context: ./apps/web
-      dockerfile: Dockerfile
-      target: development
-    container_name: dinestay_web
-    restart: unless-stopped
-    depends_on:
-      - api
-    env_file: .env
-    environment:
-      NEXT_PUBLIC_API_URL: http://localhost:4000
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./apps/web/src:/app/src:delegated
-      - ./apps/web/public:/app/public:delegated
-    command: npm run dev
-
 volumes:
   redis_data:
   minio_data:
-  api_uploads:
