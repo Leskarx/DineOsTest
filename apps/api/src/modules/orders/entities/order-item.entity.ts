@@ -16,6 +16,7 @@ export enum KdsStatus {
   ACKNOWLEDGED = 'acknowledged',
   PREPARING = 'preparing',
   READY = 'ready',
+  COMPLETED = 'completed',
   RECALLED = 'recalled',
 }
 

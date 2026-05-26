@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, In } from 'typeorm';
-import { EventEmitter2 } from '@nestjs/event-emitter';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { Order, OrderStatus, OrderType } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
 import { MenuItem } from '../menu/entities/menu-item.entity';
@@ -203,11 +203,11 @@ export class OrdersService {
       const statuses = status.split(',').map((s) => s.trim()) as OrderStatus[];
       where.status = statuses.length === 1 ? statuses[0] : In(statuses);
     }
-    return this.orderRepo.find({ where, relations: ['items'], order: { createdAt: 'DESC' }, take: limit });
+    return this.orderRepo.find({ where, relations: ['items', 'table'], order: { createdAt: 'DESC' }, take: limit });
   }
 
   async findOne(id: string, tenantId: string): Promise<Order> {
-    const order = await this.orderRepo.findOne({ where: { id, tenantId }, relations: ['items'] });
+    const order = await this.orderRepo.findOne({ where: { id, tenantId }, relations: ['items', 'table'] });
     if (!order) throw new NotFoundException('Order not found');
     return order;
   }
@@ -266,6 +266,40 @@ export class OrdersService {
     };
   }
 
+  @OnEvent('kds.itemStatus')
+  async handleKdsItemStatus(payload: { itemId: string, orderId: string, status: string, branchId: string }) {
+    const order = await this.orderRepo.findOne({ where: { id: payload.orderId }, relations: ['items'] });
+    if (!order) return;
+
+    const activeItems = order.items.filter(i => !i.isVoided);
+    if (activeItems.length === 0) return;
+
+    if (['billed', 'cancelled', 'void'].includes(order.status)) return;
+
+    const allCompleted = activeItems.every(i => i.kdsStatus === 'completed');
+    const allReadyOrCompleted = activeItems.every(i => ['ready', 'completed'].includes(i.kdsStatus as any));
+    const anyPreparing = activeItems.some(i => i.kdsStatus === 'preparing');
+    const anyReady = activeItems.some(i => i.kdsStatus === 'ready');
+    const anyCompleted = activeItems.some(i => i.kdsStatus === 'completed');
+
+    let newStatus = order.status;
+
+    if (allCompleted) {
+       newStatus = OrderStatus.SERVED;
+    } else if (allReadyOrCompleted) {
+       newStatus = OrderStatus.READY;
+    } else if (anyPreparing || anyReady || anyCompleted) {
+       newStatus = OrderStatus.PREPARING;
+    }
+
+    if (newStatus !== order.status) {
+       order.status = newStatus;
+       if (newStatus === OrderStatus.SERVED) order.servedAt = new Date();
+       await this.orderRepo.save(order);
+       this.events.emit('order.statusChanged', { orderId: order.id, status: newStatus, branchId: order.branchId });
+    }
+  }
+
   /**
    * Generates a unique, sequential order number for the branch/day.
    * Must be called inside an existing TypeORM transaction (em).
@@ -279,8 +313,7 @@ export class OrdersService {
    */
   private async generateOrderNumberTx(branchId: string, em: any): Promise<string> {
     const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
+    const prefix = `ORD-${today}-`;
 
     // Derive a stable bigint key from the branchId string.
     // abs() ensures positive value; the 'order_seq:' prefix namespaces the
@@ -292,9 +325,9 @@ export class OrdersService {
     await em.query(`SELECT pg_advisory_xact_lock($1)`, [lock_key]);
 
     const [{ count }] = await em.query(
-      `SELECT COUNT(*)::int AS count FROM orders WHERE branch_id = $1 AND created_at >= $2`,
-      [branchId, startOfDay],
+      `SELECT COUNT(*)::int AS count FROM orders WHERE branch_id = $1 AND order_number LIKE $2`,
+      [branchId, `${prefix}%`],
     );
-    return `ORD-${today}-${String(Number(count) + 1).padStart(4, '0')}`;
+    return `${prefix}${String(Number(count) + 1).padStart(4, '0')}`;
   }
 }
