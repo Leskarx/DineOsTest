@@ -1,5 +1,5 @@
 'use client';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch, apiPut, api } from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -31,52 +31,69 @@ function validatePan(v: string): string | null {
 
 // ─── Notification preference toggles ─────────────────────────────────────────
 const NOTIF_PREFS = [
-  { key: 'notifNewOrder',     label: 'New order placed',        sub: 'Receive email/SMS when a new order is created' },
-  { key: 'notifLowStock',     label: 'Low stock alerts',        sub: 'Get notified when inventory drops below minimum level' },
-  { key: 'notifShiftSummary', label: 'Shift close summary',     sub: 'Receive a summary report when a shift is closed' },
-  { key: 'notifDailyReport',  label: 'Daily sales report',      sub: 'Morning summary of previous day\'s sales emailed to you' },
-  { key: 'notifBillEmail',    label: 'Bill email confirmations', sub: 'CC yourself whenever a bill is emailed to a customer' },
+  { key: 'notifNewOrder',     label: 'New order placed',         sub: 'Receive email/SMS when a new order is created' },
+  { key: 'notifLowStock',     label: 'Low stock alerts',         sub: 'Get notified when inventory drops below minimum level' },
+  { key: 'notifShiftSummary', label: 'Shift close summary',      sub: 'Receive a summary report when a shift is closed' },
+  { key: 'notifDailyReport',  label: 'Daily sales report',       sub: "Morning summary of previous day's sales emailed to you" },
+  { key: 'notifBillEmail',    label: 'Bill email confirmations',  sub: 'CC yourself whenever a bill is emailed to a customer' },
 ];
 
 const TABS = [
-  { id: 'business',      label: 'Business Info',   icon: Building2 },
-  { id: 'gst',          label: 'GST & Tax',        icon: FileText },
-  { id: 'subscription', label: 'Subscription',     icon: CreditCard },
-  { id: 'payments',     label: 'Payments',         icon: Zap },
-  { id: 'printer',      label: 'Printer',          icon: Printer },
-  { id: 'notifications',label: 'Notifications',    icon: Bell },
-  { id: 'security',     label: 'Security',         icon: Monitor },
+  { id: 'business',      label: 'Business Info',  icon: Building2 },
+  { id: 'gst',           label: 'GST & Tax',       icon: FileText },
+  { id: 'subscription',  label: 'Subscription',    icon: CreditCard },
+  { id: 'payments',      label: 'Payments',        icon: Zap },
+  { id: 'printer',       label: 'Printer',         icon: Printer },
+  { id: 'notifications', label: 'Notifications',   icon: Bell },
+  { id: 'security',      label: 'Security',        icon: Monitor },
 ];
 
 export default function SettingsPage() {
   const qc = useQueryClient();
-  const [tab, setTab] = useState('business');
-  const [form, setForm] = useState<any>(null);
+  const [tab, setTab]               = useState('business');
+  const [form, setForm]             = useState<any>(null);
   const [logoUploading, setLogoUploading] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
   const { settings: printer, update: updatePrinter, loaded: printerLoaded } = usePrinterSettings();
 
-  // Validation states
   const gstinError = validateGstin(form?.gstin || '');
   const panError   = validatePan(form?.pan || '');
 
-  const { data: tenant } = useQuery({
+  // ── Fetch tenant — queryFn does NOT call setForm (side-effect free) ─────────
+  const { data: tenant, isLoading: tenantLoading } = useQuery({
     queryKey: ['tenant'],
-    queryFn: () => apiFetch('/api/v1/tenant').then((r) => { setForm(r.data); return r.data; }),
+    queryFn:  () => apiFetch('/api/v1/tenant').then((r) => r.data),
+    staleTime: 30_000,
   });
+
+  // ── Sync tenant → form only on first load or when tenant changes externally ─
+  // Using useEffect keeps the queryFn pure and prevents the loading flash.
+  useEffect(() => {
+    if (tenant && !form) {
+      setForm(tenant);
+    }
+  }, [tenant, form]);
 
   const { data: sub } = useQuery({
     queryKey: ['subscription'],
-    queryFn: () => apiFetch('/api/v1/subscriptions/current').then((r) => r.data),
+    queryFn:  () => apiFetch('/api/v1/subscriptions/current').then((r) => r.data),
   });
+
   const { data: plans } = useQuery({
     queryKey: ['plans'],
-    queryFn: () => apiFetch('/api/v1/subscriptions/plans').then((r) => r.data),
+    queryFn:  () => apiFetch('/api/v1/subscriptions/plans').then((r) => r.data),
   });
 
   const saveMutation = useMutation({
     mutationFn: () => apiPut('/api/v1/tenant', form),
-    onSuccess: () => { toast.success('Settings saved'); qc.invalidateQueries({ queryKey: ['tenant'] }); },
+    onSuccess: (res) => {
+      toast.success('Settings saved');
+      // Update form with the server response directly — no refetch needed
+      const updated = res?.data ?? res;
+      if (updated) setForm(updated);
+      // Update the cache without triggering a refetch
+      qc.setQueryData(['tenant'], updated);
+    },
     onError: () => toast.error('Save failed'),
   });
 
@@ -103,13 +120,16 @@ export default function SettingsPage() {
     }
   };
 
-  if (!form) {
+  // Show loading only on the very first load (form is null and tenant hasn't arrived yet)
+  if (tenantLoading && !form) {
     return (
       <div className="flex h-full items-center justify-center text-slate-400 gap-2">
         <Loader2 size={16} className="animate-spin" /> Loading settings…
       </div>
     );
   }
+
+  if (!form) return null;
 
   return (
     <div className="flex h-full">
@@ -129,7 +149,7 @@ export default function SettingsPage() {
 
       <div className="flex-1 overflow-y-auto p-6">
 
-        {/* ── Business Info ─────────────────────────────────────────────────── */}
+        {/* ── Business Info ──────────────────────────────────────────────────── */}
         {tab === 'business' && (
           <div className="max-w-lg space-y-4">
             <h2 className="text-lg font-bold text-white">Business Information</h2>
@@ -332,7 +352,9 @@ export default function SettingsPage() {
                   )}
                   <div className="font-bold text-white">{plan.name}</div>
                   <div className="text-amber-400 text-xl font-bold mt-1">
-                    {plan.priceMonthly > 0 ? <>₹{plan.priceMonthly}<span className="text-xs text-slate-500">/mo</span></> : 'Contact us'}
+                    {plan.priceMonthly > 0
+                      ? <><span>₹{plan.priceMonthly}</span><span className="text-xs text-slate-500">/mo</span></>
+                      : 'Contact us'}
                   </div>
                   <ul className="mt-3 space-y-1.5">
                     <li className="text-xs text-slate-400">
@@ -342,7 +364,7 @@ export default function SettingsPage() {
                       {plan.maxUsers === -1 ? 'Unlimited' : `Up to ${plan.maxUsers}`} users
                     </li>
                     <li className="text-xs text-slate-400">
-                      {plan.maxMenuItems === -1 ? 'Unlimited' : `${plan.maxMenuItems}`} menu items
+                      {plan.maxMenuItems === -1 ? 'Unlimited' : plan.maxMenuItems} menu items
                     </li>
                   </ul>
                   {sub.planId !== plan.id && (
@@ -356,12 +378,11 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* ── Printer Settings ─────────────────────────────────────────────── */}
+        {/* ── Printer Settings ──────────────────────────────────────────────── */}
         {tab === 'printer' && printerLoaded && (
           <div className="max-w-lg space-y-5">
             <h2 className="text-lg font-bold text-white">Thermal Printer Settings</h2>
 
-            {/* Paper width */}
             <div className="card space-y-3">
               <label className="label mb-0">Paper Width</label>
               <div className="flex gap-3">
@@ -385,12 +406,11 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            {/* Print method */}
             <div className="card space-y-3">
               <label className="label mb-0">Print Method</label>
               <div className="flex gap-3">
                 {([
-                  { id: 'browser', label: 'Browser Print', desc: 'Works on any browser' },
+                  { id: 'browser', label: 'Browser Print',    desc: 'Works on any browser' },
                   { id: 'serial',  label: 'Web Serial (USB)', desc: 'Chrome 89+ · direct ESC/POS' },
                 ] as const).map((m) => (
                   <button
@@ -411,12 +431,11 @@ export default function SettingsPage() {
               {printer.method === 'serial' && (
                 <div className="bg-slate-800 rounded-lg p-3 text-xs text-slate-400">
                   <p className="font-medium text-slate-300 mb-1">Web Serial API requirements</p>
-                  <p>Use Chrome 89+ or Edge. Grant serial port access when prompted. USB thermal printers are plug-and-play — no drivers needed.</p>
+                  <p>Use Chrome 89+ or Edge. Grant serial port access when prompted.</p>
                 </div>
               )}
             </div>
 
-            {/* Footer message */}
             <div className="card space-y-2">
               <h3 className="font-medium text-white">Receipt Footer</h3>
               <div>
@@ -447,12 +466,12 @@ export default function SettingsPage() {
 
             <div className="card bg-slate-800/50 text-xs text-slate-400 space-y-1">
               <p className="font-medium text-slate-300">Settings saved automatically</p>
-              <p>Printer preferences are stored in your browser and apply instantly to all receipts and KOT prints from this device.</p>
+              <p>Printer preferences are stored in your browser and apply instantly.</p>
             </div>
           </div>
         )}
 
-        {/* ── Notifications ────────────────────────────────────────────────── */}
+        {/* ── Notifications ─────────────────────────────────────────────────── */}
         {tab === 'notifications' && (
           <div className="max-w-lg space-y-4">
             <div>
@@ -460,7 +479,6 @@ export default function SettingsPage() {
               <p className="text-sm text-slate-400 mt-1">Control which events send you email or SMS alerts.</p>
             </div>
 
-            {/* Notification channel selectors */}
             <div className="card space-y-3">
               <h3 className="font-medium text-white text-sm">Notification channels</h3>
               <div className="grid grid-cols-2 gap-3">
@@ -487,7 +505,6 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            {/* Toggles */}
             <div className="card divide-y divide-slate-800/80">
               {NOTIF_PREFS.map(({ key, label, sub }) => (
                 <div key={key} className="flex items-center justify-between py-3 first:pt-0 last:pb-0 gap-4">
@@ -534,26 +551,25 @@ export default function SettingsPage() {
   );
 }
 
-/* ─── Security Tab (sessions) ──────────────────────────────────────────────── */
+/* ─── Security Tab ─────────────────────────────────────────────────────────── */
 function SecurityTab() {
   const qc = useQueryClient();
 
   const { data: sessions, isLoading } = useQuery({
     queryKey: ['auth-sessions'],
-    queryFn: () => apiFetch('/api/v1/auth/sessions').then((r) => r.data),
+    queryFn:  () => apiFetch('/api/v1/auth/sessions').then((r) => r.data),
   });
 
   const revokeOne = useMutation({
-    mutationFn: (sessionId: string) =>
-      api.delete(`/api/v1/auth/sessions/${sessionId}`),
-    onSuccess: () => { toast.success('Session revoked'); qc.invalidateQueries({ queryKey: ['auth-sessions'] }); },
-    onError: () => toast.error('Failed to revoke session'),
+    mutationFn: (sessionId: string) => api.delete(`/api/v1/auth/sessions/${sessionId}`),
+    onSuccess:  () => { toast.success('Session revoked'); qc.invalidateQueries({ queryKey: ['auth-sessions'] }); },
+    onError:    () => toast.error('Failed to revoke session'),
   });
 
   const revokeAll = useMutation({
     mutationFn: () => api.delete('/api/v1/auth/sessions'),
-    onSuccess: () => { toast.success('Signed out of all devices'); qc.invalidateQueries({ queryKey: ['auth-sessions'] }); },
-    onError: () => toast.error('Failed to sign out all devices'),
+    onSuccess:  () => { toast.success('Signed out of all devices'); qc.invalidateQueries({ queryKey: ['auth-sessions'] }); },
+    onError:    () => toast.error('Failed to sign out all devices'),
   });
 
   const sessionList: any[] = Array.isArray(sessions) ? sessions : [];
@@ -563,7 +579,7 @@ function SecurityTab() {
       <div>
         <h2 className="text-lg font-bold text-white">Active Sessions</h2>
         <p className="text-sm text-slate-400 mt-1">
-          Each entry is a device or browser that is currently signed in. Revoke any session you don&apos;t recognise.
+          Each entry is a device or browser currently signed in. Revoke any session you don&apos;t recognise.
         </p>
       </div>
 
@@ -594,7 +610,6 @@ function SecurityTab() {
               onClick={() => revokeOne.mutate(s.sessionId)}
               disabled={revokeOne.isPending}
               className="btn-ghost text-red-400 hover:text-red-300 p-1.5 flex-shrink-0"
-              title="Revoke this session"
             >
               <Trash2 size={14} />
             </button>
@@ -617,38 +632,29 @@ function SecurityTab() {
   );
 }
 
-/* ─── Payments Tab (Razorpay integration) ──────────────────────────────────── */
+/* ─── Payments Tab ─────────────────────────────────────────────────────────── */
 function PaymentsTab() {
   const qc = useQueryClient();
-  const [keyId,     setKeyId]     = useState('');
-  const [keySecret, setKeySecret] = useState('');
+  const [keyId,      setKeyId]      = useState('');
+  const [keySecret,  setKeySecret]  = useState('');
   const [showSecret, setShowSecret] = useState(false);
 
-  // Load current status
   const { data: rzp, isLoading } = useQuery<{
-    connected: boolean;
-    liveMode:  boolean;
-    keyId:     string | null;
+    connected:   boolean;
+    liveMode:    boolean;
+    keyId:       string | null;
     connectedAt: string | null;
   }>({
     queryKey: ['razorpay-status'],
     queryFn:  () => apiFetch('/api/v1/tenant/razorpay').then((r) => r.data),
   });
 
-  // Pre-fill keyId when editing
-  const handleEdit = () => {
-    setKeyId(rzp?.keyId ?? '');
-    setKeySecret('');
-  };
-
-  // Save & verify mutation
   const save = useMutation({
     mutationFn: () => api.post('/api/v1/tenant/razorpay', { keyId: keyId.trim(), keySecret: keySecret.trim() }),
     onSuccess:  () => { toast.success('Razorpay connected!'); qc.invalidateQueries({ queryKey: ['razorpay-status'] }); setKeySecret(''); },
     onError:    (e: any) => toast.error(e?.response?.data?.message ?? 'Verification failed — check your keys'),
   });
 
-  // Disconnect mutation
   const disconnect = useMutation({
     mutationFn: () => api.delete('/api/v1/tenant/razorpay'),
     onSuccess:  () => { toast.success('Razorpay disconnected'); qc.invalidateQueries({ queryKey: ['razorpay-status'] }); setKeyId(''); setKeySecret(''); },
@@ -671,15 +677,13 @@ function PaymentsTab() {
       <div>
         <h2 className="text-lg font-bold text-white">Razorpay Integration</h2>
         <p className="text-sm text-slate-400 mt-1">
-          Connect your Razorpay account to accept digital payments from customers — UPI, cards, netbanking and wallets.
+          Connect your Razorpay account to accept UPI, cards, netbanking and wallets.
         </p>
       </div>
 
-      {/* ── Status card ────────────────────────────────────────────────────── */}
       <div className={`card border ${isConnected ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-slate-700'}`}>
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-3">
-            {/* Razorpay logo placeholder */}
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-lg
               ${isConnected ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-500'}`}>
               R
@@ -692,9 +696,7 @@ function PaymentsTab() {
                     <CheckCircle2 size={11} /> Connected
                   </span>
                   <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase ${
-                    isLive
-                      ? 'bg-emerald-500/20 text-emerald-400'
-                      : 'bg-yellow-500/20 text-yellow-400'
+                    isLive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-yellow-500/20 text-yellow-400'
                   }`}>
                     {isLive ? 'Live' : 'Test Mode'}
                   </span>
@@ -739,7 +741,6 @@ function PaymentsTab() {
         )}
       </div>
 
-      {/* ── Key entry form ──────────────────────────────────────────────────── */}
       <div className="card space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-white">
@@ -755,7 +756,6 @@ function PaymentsTab() {
           </a>
         </div>
 
-        {/* Key ID */}
         <div className="space-y-1">
           <label className="label">Key ID</label>
           <input
@@ -773,7 +773,6 @@ function PaymentsTab() {
           )}
         </div>
 
-        {/* Key Secret */}
         <div className="space-y-1">
           <label className="label">Key Secret</label>
           <div className="relative">
@@ -811,17 +810,16 @@ function PaymentsTab() {
         </button>
       </div>
 
-      {/* ── Help ───────────────────────────────────────────────────────────── */}
       <div className="rounded-xl bg-slate-800/40 border border-slate-700/50 p-4 space-y-3 text-xs text-slate-400">
         <div className="font-semibold text-slate-300 text-sm">How to get your Razorpay API keys</div>
         <ol className="space-y-2 list-decimal list-inside">
           <li>Log in to your <a href="https://dashboard.razorpay.com" target="_blank" rel="noopener noreferrer" className="text-amber-400 hover:underline">Razorpay dashboard</a></li>
           <li>Go to <strong className="text-slate-300">Settings → API Keys</strong></li>
-          <li>Click <strong className="text-slate-300">Generate Key</strong> (or Regenerate if you already have one)</li>
+          <li>Click <strong className="text-slate-300">Generate Key</strong></li>
           <li>Copy the <strong className="text-slate-300">Key ID</strong> and <strong className="text-slate-300">Key Secret</strong> and paste them above</li>
         </ol>
         <div className="pt-1 border-t border-slate-700/60">
-          Use <span className="font-mono text-yellow-400">rzp_test_</span> keys while testing — switch to <span className="font-mono text-emerald-400">rzp_live_</span> when you&apos;re ready to go live.
+          Use <span className="font-mono text-yellow-400">rzp_test_</span> keys while testing — switch to <span className="font-mono text-emerald-400">rzp_live_</span> when ready to go live.
         </div>
       </div>
     </div>
