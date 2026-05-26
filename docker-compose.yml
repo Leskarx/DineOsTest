@@ -62,7 +62,6 @@ services:
     env_file: .env
     environment:
       # Override host names to match Docker service names
-      DB_HOST: postgres
       REDIS_HOST: redis
       # When using MinIO profile, point storage at it
       S3_ENDPOINT: ${S3_ENDPOINT:-}
