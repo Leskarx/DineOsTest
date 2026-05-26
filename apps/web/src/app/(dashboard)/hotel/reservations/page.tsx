@@ -21,9 +21,9 @@ import { api } from '@/lib/api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface Guest   { id: string; name: string; phone: string; email?: string }
-interface RoomType{ id: string; name: string; baseRate: number }
-interface Room    { id: string; roomNumber: string; floor: number; status: string; roomType: RoomType }
+interface Guest { id: string; name: string; phone: string; email?: string }
+interface RoomType { id: string; name: string; baseRate: number }
+interface Room { id: string; roomNumber: string; floor: number; status: string; roomType: RoomType }
 interface Reservation {
   id: string; status: string; checkInDate: string; checkOutDate: string;
   numNights: number; ratePerNight: number; totalAmount: number; advancePaid: number; balanceDue: number;
@@ -37,19 +37,19 @@ interface FolioCharge {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const STATUS_TABS = [
-  { value: '',            label: 'All' },
-  { value: 'confirmed',   label: 'Confirmed' },
-  { value: 'checked_in',  label: 'In House' },
+  { value: '', label: 'All' },
+  { value: 'confirmed', label: 'Confirmed' },
+  { value: 'checked_in', label: 'In House' },
   { value: 'checked_out', label: 'Checked Out' },
-  { value: 'cancelled',   label: 'Cancelled' },
+  { value: 'cancelled', label: 'Cancelled' },
 ];
 
 const STATUS_BADGE: Record<string, string> = {
-  confirmed:   'bg-amber-500/15 text-amber-400',
-  checked_in:  'bg-blue-500/15  text-blue-400',
+  confirmed: 'bg-amber-500/15 text-amber-400',
+  checked_in: 'bg-blue-500/15  text-blue-400',
   checked_out: 'bg-emerald-500/15 text-emerald-400',
-  cancelled:   'bg-red-500/15   text-red-400',
-  no_show:     'bg-slate-600/30 text-slate-400',
+  cancelled: 'bg-red-500/15   text-red-400',
+  no_show: 'bg-slate-600/30 text-slate-400',
 };
 
 const fmt = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -63,32 +63,84 @@ function NewReservationDrawer({ onClose, onCreated }: { onClose: () => void; onC
     advancePaid: 0, source: 'walk_in', specialRequests: '', notes: '',
   });
   const [guestSearch, setGuestSearch] = useState('');
-  const [selectedGuest, setSelectedGuest]   = useState<Guest | null>(null);
-  const [newGuest, setNewGuest]             = useState({ name: '', phone: '', email: '' });
-  const [useNewGuest, setUseNewGuest]       = useState(false);
-  const [selectedRoom, setSelectedRoom]     = useState<Room | null>(null);
-  const [rateOverride, setRateOverride]     = useState<string>('');
+  const [selectedGuest, setSelectedGuest] = useState<Guest | null>(null);
+  const [newGuest, setNewGuest] = useState({ name: '', phone: '', email: '' });
+  const [useNewGuest, setUseNewGuest] = useState(false);
+  const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
+  const [rateOverride, setRateOverride] = useState<string>('');
 
-  const { data: rooms } = useQuery<Room[]>({
+  const { data: rooms = [] } = useQuery<Room[]>({
     queryKey: ['hotel-rooms-available'],
-    queryFn:  () => api.get('/api/v1/hotel/rooms').then((r) => r.data),
+
+    queryFn: async () => {
+      const response = await api.get('/api/v1/hotel/rooms');
+
+      const d = response.data;
+
+      console.log('ROOMS API:', d);
+
+      // direct array
+      if (Array.isArray(d)) {
+        return d;
+      }
+
+      // wrapped { data: [] }
+      if (d && Array.isArray(d.data)) {
+        return d.data;
+      }
+
+      // wrapped { rooms: [] }
+      if (d && Array.isArray(d.rooms)) {
+        return d.rooms;
+      }
+
+      return [];
+    },
+
     staleTime: 30_000,
   });
 
-  const { data: guestResults } = useQuery<Guest[]>({
+  const { data: guestResults = [] } = useQuery<Guest[]>({
     queryKey: ['guest-search', guestSearch],
-    queryFn:  () => api.get(`/api/v1/hotel/guests?q=${encodeURIComponent(guestSearch)}`).then((r) => r.data),
-    enabled:  guestSearch.length >= 2,
+
+    queryFn: async () => {
+      const response = await api.get(
+        `/api/v1/hotel/guests?q=${encodeURIComponent(guestSearch)}`
+      );
+
+      const d = response.data;
+
+      console.log('GUEST API:', d);
+
+      // direct array
+      if (Array.isArray(d)) {
+        return d;
+      }
+
+      // wrapped { data: [] }
+      if (d && Array.isArray(d.data)) {
+        return d.data;
+      }
+
+      // wrapped { guests: [] }
+      if (d && Array.isArray(d.guests)) {
+        return d.guests;
+      }
+
+      return [];
+    },
+
+    enabled: guestSearch.length >= 2,
     staleTime: 10_000,
   });
 
   const nights = form.checkInDate && form.checkOutDate
     ? Math.max(1, Math.round((new Date(form.checkOutDate).getTime() - new Date(form.checkInDate).getTime()) / 86_400_000))
     : 0;
-  const rate   = rateOverride ? Number(rateOverride) : Number(selectedRoom?.roomType?.baseRate ?? 0);
+  const rate = rateOverride ? Number(rateOverride) : Number(selectedRoom?.roomType?.baseRate ?? 0);
   const subtotal = rate * nights;
-  const tax    = Math.round(subtotal * 0.12 * 100) / 100;
-  const total  = subtotal + tax;
+  const tax = Math.round(subtotal * 0.12 * 100) / 100;
+  const total = subtotal + tax;
 
   const qc = useQueryClient();
   const create = useMutation({
@@ -98,11 +150,11 @@ function NewReservationDrawer({ onClose, onCreated }: { onClose: () => void; onC
   });
 
   const handleSubmit = () => {
-    if (!form.roomId)                              return toast.error('Select a room');
-    if (!form.checkInDate || !form.checkOutDate)   return toast.error('Select dates');
-    if (!selectedGuest && !useNewGuest)            return toast.error('Select or enter a guest');
-    if (useNewGuest && !newGuest.name)             return toast.error('Guest name is required');
-    if (useNewGuest && !newGuest.phone)            return toast.error('Guest phone is required');
+    if (!form.roomId) return toast.error('Select a room');
+    if (!form.checkInDate || !form.checkOutDate) return toast.error('Select dates');
+    if (!selectedGuest && !useNewGuest) return toast.error('Select or enter a guest');
+    if (useNewGuest && !newGuest.name) return toast.error('Guest name is required');
+    if (useNewGuest && !newGuest.phone) return toast.error('Guest phone is required');
 
     create.mutate({
       ...form,
@@ -296,14 +348,14 @@ function FolioDrawer({ reservation, onClose }: { reservation: Reservation; onClo
 
   const { data: folio, isLoading } = useQuery<{ charges: FolioCharge[]; totalCharges: number; totalPaid: number; balance: number }>({
     queryKey: ['hotel-folio', reservation.id],
-    queryFn:  () => api.get(`/api/v1/hotel/reservations/${reservation.id}/folio`).then((r) => r.data),
+    queryFn: () => api.get(`/api/v1/hotel/reservations/${reservation.id}/folio`).then((r) => r.data),
     staleTime: 10_000,
   });
 
   const addCharge = useMutation({
     mutationFn: (body: any) => api.post(`/api/v1/hotel/reservations/${reservation.id}/folio/charges`, body).then((r) => r.data),
     onSuccess: () => { toast.success('Charge added'); qc.invalidateQueries({ queryKey: ['hotel-folio', reservation.id] }); setAddForm({ description: '', amount: '', chargeType: 'service' }); },
-    onError:   () => toast.error('Failed to add charge'),
+    onError: () => toast.error('Failed to add charge'),
   });
 
   return (
@@ -383,26 +435,76 @@ export default function ReservationsPage() {
   const searchParams = useSearchParams();
   const qc = useQueryClient();
 
-  const [status,   setStatus]   = useState(searchParams.get('status') ?? '');
-  const [search,   setSearch]   = useState('');
-  const [from,     setFrom]     = useState('');
-  const [to,       setTo]       = useState('');
-  const [page,     setPage]     = useState(1);
-  const [showNew,  setShowNew]  = useState(false);
+  const [status, setStatus] = useState(searchParams.get('status') ?? '');
+  const [search, setSearch] = useState('');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const [page, setPage] = useState(1);
+  const [showNew, setShowNew] = useState(false);
   const [folioRes, setFolioRes] = useState<Reservation | null>(null);
 
   useEffect(() => { setPage(1); }, [status, search, from, to]);
 
-  const { data, isLoading, refetch, isFetching } = useQuery<{ data: Reservation[]; total: number }>({
-    queryKey: ['hotel-reservations', status, search, from, to, page],
-    queryFn:  () => {
-      const p = new URLSearchParams({ page: String(page), limit: '25' });
+  const {
+    data,
+    isLoading,
+    refetch,
+    isFetching,
+  } = useQuery<{
+    data: Reservation[];
+    total: number;
+  }>({
+    queryKey: [
+      'hotel-reservations',
+      status,
+      search,
+      from,
+      to,
+      page,
+    ],
+
+    queryFn: async () => {
+      const p = new URLSearchParams({
+        page: String(page),
+        limit: '25',
+      });
+
       if (status) p.set('status', status);
       if (search) p.set('search', search);
-      if (from)   p.set('from', from);
-      if (to)     p.set('to', to);
-      return api.get(`/api/v1/hotel/reservations?${p}`).then((r) => r.data);
+      if (from) p.set('from', from);
+      if (to) p.set('to', to);
+
+      const response = await api.get(
+        `/api/v1/hotel/reservations?${p}`
+      );
+
+      const d = response.data;
+
+      console.log('RESERVATIONS API:', d);
+
+      // already correct shape
+      if (d?.data && Array.isArray(d.data)) {
+        return {
+          data: d.data,
+          total: Number(d.total ?? d.data.length),
+        };
+      }
+
+      // direct array response
+      if (Array.isArray(d)) {
+        return {
+          data: d,
+          total: d.length,
+        };
+      }
+
+      // fallback
+      return {
+        data: [],
+        total: 0,
+      };
     },
+
     staleTime: 30_000,
   });
 
@@ -412,8 +514,13 @@ export default function ReservationsPage() {
       .catch((e: any) => toast.error(e?.response?.data?.message ?? 'Action failed'));
   }, [qc]);
 
-  const reservations = data?.data ?? [];
-  const total = data?.total ?? 0;
+  const reservations = Array.isArray(data?.data)
+    ? data.data
+    : [];
+  const total =
+    typeof data?.total === 'number'
+      ? data.total
+      : reservations.length;
   const totalPages = Math.max(1, Math.ceil(total / 25));
 
   return (
@@ -458,7 +565,7 @@ export default function ReservationsPage() {
         </div>
         <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="input text-xs py-1.5 w-36" title="From" />
         <span className="text-slate-600 text-xs">–</span>
-        <input type="date" value={to}   onChange={(e) => setTo(e.target.value)}   className="input text-xs py-1.5 w-36" title="To" />
+        <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="input text-xs py-1.5 w-36" title="To" />
         {(from || to || search) && (
           <button onClick={() => { setFrom(''); setTo(''); setSearch(''); }} className="text-xs text-slate-500 hover:text-slate-300 flex items-center gap-1"><X size={12} /> Clear</button>
         )}
@@ -566,7 +673,7 @@ export default function ReservationsPage() {
         </div>
       )}
 
-      {showNew  && <NewReservationDrawer onClose={() => setShowNew(false)} onCreated={() => qc.invalidateQueries({ queryKey: ['hotel-reservations'] })} />}
+      {showNew && <NewReservationDrawer onClose={() => setShowNew(false)} onCreated={() => qc.invalidateQueries({ queryKey: ['hotel-reservations'] })} />}
       {folioRes && <FolioDrawer reservation={folioRes} onClose={() => setFolioRes(null)} />}
     </div>
   );
