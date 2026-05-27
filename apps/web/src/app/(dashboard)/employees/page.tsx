@@ -7,26 +7,78 @@ import { useAuthStore } from '@/store/auth.store';
 import { Plus, Edit2, UserX, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const ROLES = ['owner', 'manager', 'cashier', 'waiter', 'kitchen', 'inventory', 'housekeeping', 'receptionist'];
+// ─── Department + Role config ────────────────────────────────────────────────
+type Department = 'restaurant' | 'hotel' | 'both';
+
+const DEPARTMENT_LABELS: Record<Department, string> = {
+  restaurant: '🍽️ Restaurant',
+  hotel: '🏨 Hotel',
+  both: '🔄 Both',
+};
+
+const ROLES_BY_DEPARTMENT: Record<Department, string[]> = {
+  restaurant: ['manager', 'cashier', 'waiter', 'kitchen', 'inventory'],
+  hotel: ['manager', 'receptionist', 'housekeeping'],
+  both: ['owner', 'manager', 'cashier', 'waiter', 'kitchen', 'inventory', 'receptionist', 'housekeeping'],
+};
 
 const ROLE_COLORS: Record<string, string> = {
   owner: 'badge-yellow', manager: 'badge-blue', cashier: 'badge-green',
   waiter: 'badge-slate', kitchen: 'badge-red', inventory: 'badge-slate',
-  housekeeping: 'badge-blue', receptionist: 'badge-purple'
+  housekeeping: 'badge-blue', receptionist: 'badge-purple',
 };
+
+const ROLE_DEPARTMENT: Record<string, string> = {
+  owner: 'Both', manager: 'Both',
+  cashier: 'Restaurant', waiter: 'Restaurant', kitchen: 'Restaurant', inventory: 'Restaurant',
+  receptionist: 'Hotel', housekeeping: 'Hotel',
+};
+
+function detectDepartment(role: string): Department {
+  if (['cashier', 'waiter', 'kitchen', 'inventory'].includes(role)) return 'restaurant';
+  if (['receptionist', 'housekeeping'].includes(role)) return 'hotel';
+  return 'both';
+}
 
 export default function EmployeesPage() {
   const qc = useQueryClient();
   const { user } = useAuthStore();
   const [showForm, setShowForm] = useState(false);
   const [editUser, setEditUser] = useState<any>(null);
+  const [department, setDepartment] = useState<Department>('restaurant');
   const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phone: '', role: 'cashier', password: '', pin: '', employeeCode: '' });
 
   const { data: users } = useQuery({ queryKey: ['users'], queryFn: () => apiFetch('/api/v1/users').then((r) => r.data) });
 
   const saveMutation = useMutation({
-    mutationFn: () => editUser ? apiPut(`/api/v1/users/${editUser.id}`, form) : apiPost('/api/v1/users', form),
-    onSuccess: () => { toast.success('Employee saved'); qc.invalidateQueries({ queryKey: ['users'] }); setShowForm(false); setEditUser(null); setForm({ firstName: '', lastName: '', email: '', phone: '', role: 'cashier', password: '', pin: '', employeeCode: '' }); },
+    mutationFn: () => {
+      const payload: any = {
+        firstName: form.firstName,
+        lastName: form.lastName,
+        email: form.email,
+        phone: form.phone,
+        role: form.role,
+        pin: form.pin,
+        employeeCode: form.employeeCode,
+      };
+
+      // Only send password when creating or changing password
+      if (form.password) {
+        payload.password = form.password;
+      }
+
+      return editUser
+        ? apiPut(`/api/v1/users/${editUser.id}`, payload)
+        : apiPost('/api/v1/users', payload);
+    },
+    onSuccess: () => {
+      toast.success('Employee saved');
+      qc.invalidateQueries({ queryKey: ['users'] });
+      setShowForm(false);
+      setEditUser(null);
+      setDepartment('restaurant');
+      setForm({ firstName: '', lastName: '', email: '', phone: '', role: 'cashier', password: '', pin: '', employeeCode: '' });
+    },
     onError: (e: any) => toast.error(e.response?.data?.message || 'Failed'),
   });
 
@@ -36,6 +88,21 @@ export default function EmployeesPage() {
     onError: () => toast.error('Failed'),
   });
 
+  // When department changes, reset role to first available role in that department
+  const handleDepartmentChange = (dept: Department) => {
+    setDepartment(dept);
+    const availableRoles = ROLES_BY_DEPARTMENT[dept].filter(r =>
+      user?.role === 'owner' ? true : !['owner', 'manager'].includes(r)
+    );
+    if (availableRoles.length > 0 && !ROLES_BY_DEPARTMENT[dept].includes(form.role)) {
+      setForm({ ...form, role: availableRoles[0] });
+    }
+  };
+
+  const filteredRoles = ROLES_BY_DEPARTMENT[department].filter(r =>
+    user?.role === 'owner' ? true : !['owner', 'manager'].includes(r)
+  );
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -43,33 +110,40 @@ export default function EmployeesPage() {
           <h1 className="text-xl font-bold text-white">Employees</h1>
           <p className="text-sm text-slate-400">{users?.length || 0} active staff members</p>
         </div>
-        <button onClick={() => { setEditUser(null); setShowForm(true); }} className="btn-primary"><Plus size={14} /> Add Employee</button>
+        <button onClick={() => { setEditUser(null); setDepartment('restaurant'); setForm({ firstName: '', lastName: '', email: '', phone: '', role: 'cashier', password: '', pin: '', employeeCode: '' }); setShowForm(true); }} className="btn-primary"><Plus size={14} /> Add Employee</button>
       </div>
 
       <div className="card p-0 overflow-hidden">
         <table className="w-full">
-          <thead className="bg-slate-800/50"><tr><th className="th">Name</th><th className="th">Contact</th><th className="th">Role</th><th className="th">Employee Code</th><th className="th">Actions</th></tr></thead>
+          <thead className="bg-slate-800/50"><tr><th className="th">Name</th><th className="th">Contact</th><th className="th">Role</th><th className="th">Dept</th><th className="th">Employee Code</th><th className="th">Actions</th></tr></thead>
           <tbody>
-            {users?.map((user: any) => (
-              <tr key={user.id} className="table-row">
+            {users?.map((u: any) => (
+              <tr key={u.id} className="table-row">
                 <td className="td">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-white">{user.firstName?.[0]}{user.lastName?.[0]}</div>
-                    <div><div className="font-medium">{user.firstName} {user.lastName}</div></div>
+                    <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-white">{u.firstName?.[0]}{u.lastName?.[0]}</div>
+                    <div><div className="font-medium">{u.firstName} {u.lastName}</div></div>
                   </div>
                 </td>
-                <td className="td text-slate-400 text-xs"><div>{user.email}</div><div>{user.phone}</div></td>
-                <td className="td"><span className={ROLE_COLORS[user.role] || 'badge-slate'}>{user.role}</span></td>
-                <td className="td text-slate-400 font-mono">{user.employeeCode || '—'}</td>
+                <td className="td text-slate-400 text-xs"><div>{u.email}</div><div>{u.phone}</div></td>
+                <td className="td"><span className={ROLE_COLORS[u.role] || 'badge-slate'}>{u.role}</span></td>
+                <td className="td"><span className="text-xs text-slate-500">{ROLE_DEPARTMENT[u.role] || '—'}</span></td>
+                <td className="td text-slate-400 font-mono">{u.employeeCode || '—'}</td>
                 <td className="td">
                   <div className="flex gap-2">
-                    <button onClick={() => { setEditUser(user); setForm({ firstName: user.firstName, lastName: user.lastName || '', email: user.email || '', phone: user.phone || '', role: user.role, password: '', pin: user.pin || '', employeeCode: user.employeeCode || '' }); setShowForm(true); }} className="btn-ghost p-1.5"><Edit2 size={13} /></button>
-                    <button onClick={() => { if (confirm('Deactivate this employee?')) deactivateMutation.mutate(user.id); }} className="btn-ghost p-1.5 text-red-400 hover:text-red-300"><UserX size={13} /></button>
+                    <button onClick={() => {
+                      setEditUser(u);
+                      const dept = detectDepartment(u.role);
+                      setDepartment(dept);
+                      setForm({ firstName: u.firstName, lastName: u.lastName || '', email: u.email || '', phone: u.phone || '', role: u.role, password: '', pin: u.pin || '', employeeCode: u.employeeCode || '' });
+                      setShowForm(true);
+                    }} className="btn-ghost p-1.5"><Edit2 size={13} /></button>
+                    <button onClick={() => { if (confirm('Deactivate this employee?')) deactivateMutation.mutate(u.id); }} className="btn-ghost p-1.5 text-red-400 hover:text-red-300"><UserX size={13} /></button>
                   </div>
                 </td>
               </tr>
             ))}
-            {users?.length === 0 && <tr><td colSpan={5} className="text-center py-12 text-slate-500">No employees added yet</td></tr>}
+            {users?.length === 0 && <tr><td colSpan={6} className="text-center py-12 text-slate-500">No employees added yet</td></tr>}
           </tbody>
         </table>
       </div>
@@ -78,6 +152,29 @@ export default function EmployeesPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
           <div className="bg-slate-900 rounded-2xl border border-slate-700 w-full max-w-md p-6 space-y-4">
             <h3 className="font-bold text-white text-lg">{editUser ? 'Edit Employee' : 'Add Employee'}</h3>
+
+            {/* Department selector */}
+            <div>
+              <label className="label">Department *</label>
+              <div className="flex gap-2">
+                {(Object.keys(DEPARTMENT_LABELS) as Department[]).map((dept) => (
+                  <button
+                    key={dept}
+                    type="button"
+                    onClick={() => handleDepartmentChange(dept)}
+                    className={cn(
+                      'flex-1 py-2 px-3 rounded-lg text-sm font-medium border transition-all',
+                      department === dept
+                        ? 'bg-amber-500 text-slate-900 border-amber-500'
+                        : 'bg-slate-800 text-slate-400 border-slate-700 hover:border-slate-500'
+                    )}
+                  >
+                    {DEPARTMENT_LABELS[dept]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div><label className="label">First Name *</label><input className="input" value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} /></div>
               <div><label className="label">Last Name</label><input className="input" value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} /></div>
@@ -86,7 +183,7 @@ export default function EmployeesPage() {
               <div>
                 <label className="label">Role *</label>
                 <select className="input" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
-                  {ROLES.filter(r => user?.role === 'owner' ? true : !['owner', 'manager'].includes(r)).map((r) => <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
+                  {filteredRoles.map((r) => <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
                 </select>
               </div>
               <div><label className="label">Employee Code</label><input className="input" value={form.employeeCode} onChange={(e) => setForm({ ...form, employeeCode: e.target.value })} /></div>

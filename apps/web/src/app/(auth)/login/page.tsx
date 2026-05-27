@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { api } from '@/lib/api';
@@ -10,6 +11,7 @@ export default function LoginPage() {
   const login = useAuthStore((s) => s.login);
   const [form, setForm] = useState({ email: '', password: '', tenantId: '' });
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,8 +67,17 @@ export default function LoginPage() {
               <label className="label mb-0">Password</label>
               <a href="/forgot-password" className="text-xs text-amber-400 hover:text-amber-300 transition-colors">Forgot password?</a>
             </div>
-            <input className="input" type="password" placeholder="••••••••" value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })} required />
+            <div className="relative">
+              <input className="input pr-10" type={showPassword ? 'text' : 'password'} placeholder="••••••••" value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })} required />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
           </div>
           <button className="btn-primary w-full" disabled={loading}>
             {loading ? 'Signing in...' : 'Sign in'}
