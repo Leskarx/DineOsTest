@@ -38,15 +38,15 @@ const navSections: NavSection[] = [
     section: 'Hotel',
     items: [
       { href: '/hotel/dashboard', label: 'Dashboard', icon: BarChart3, roles: ['owner', 'manager'] },
-      { href: '/hotel', label: 'Front Desk', icon: Hotel, exact: true, roles: ['owner', 'manager', 'cashier'] },
-      { href: '/hotel/reservations', label: 'Reservations', icon: CalendarDays, roles: ['owner', 'manager'] },
+      { href: '/hotel', label: 'Front Desk', icon: Hotel, exact: true, roles: ['owner', 'manager', 'cashier', 'receptionist'] },
+      { href: '/hotel/reservations', label: 'Reservations', icon: CalendarDays, roles: ['owner', 'manager', 'receptionist'] },
       {
         href: '/hotel/rooms',
         label: 'Rooms',
         icon: BedDouble,
         roles: ['owner', 'manager']
       },
-      { href: '/hotel/housekeeping', label: 'Housekeeping', icon: SprayCan, roles: ['owner', 'manager', 'housekeeping'] },
+      { href: '/hotel/housekeeping', label: 'Housekeeping', icon: SprayCan, roles: ['owner', 'manager', 'housekeeping', 'receptionist'] },
     
       { href: '/hotel/billing', label: 'Billing', icon: Receipt, roles: ['owner', 'manager', 'cashier'] },
     ],
