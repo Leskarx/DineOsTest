@@ -13,7 +13,7 @@ type Department = 'restaurant' | 'hotel' | 'both';
 const DEPARTMENT_LABELS: Record<Department, string> = {
   restaurant: '🍽️ Restaurant',
   hotel: '🏨 Hotel',
-  both: '🔄 Both',
+  both: '🏢 Management HQ',
 };
 
 const ROLES_BY_DEPARTMENT: Record<Department, string[]> = {
@@ -30,7 +30,7 @@ const ROLE_COLORS: Record<string, string> = {
 };
 
 const ROLE_DEPARTMENT: Record<string, string> = {
-  owner: 'Both', manager: 'Both',
+  owner: 'Management', manager: 'Management',
   restaurant_manager: 'Restaurant', hotel_manager: 'Hotel',
   cashier: 'Restaurant', waiter: 'Restaurant', kitchen: 'Restaurant', inventory: 'Restaurant',
   receptionist: 'Hotel', housekeeping: 'Hotel',
@@ -148,7 +148,14 @@ export default function EmployeesPage() {
                   </div>
                 </td>
                 <td className="td text-slate-900 dark:text-slate-400 text-xs"><div>{u.email}</div><div>{u.phone}</div></td>
-                <td className="td"><span className={ROLE_COLORS[u.role] || 'badge-slate'}>{u.role}</span></td>
+                <td className="td">
+                  <span className={ROLE_COLORS[u.role] || 'badge-slate'}>
+                    {u.role === 'manager' ? 'Branch Manager' : 
+                     u.role === 'restaurant_manager' ? 'Restaurant Manager' : 
+                     u.role === 'hotel_manager' ? 'Hotel Manager' : 
+                     u.role.charAt(0).toUpperCase() + u.role.slice(1).replace('_', ' ')}
+                  </span>
+                </td>
                 <td className="td"><span className="text-xs text-slate-900 dark:text-slate-500">{ROLE_DEPARTMENT[u.role] || '—'}</span></td>
                 <td className="td text-slate-900 dark:text-slate-400 font-mono">{u.employeeCode || '—'}</td>
                 <td className="td">

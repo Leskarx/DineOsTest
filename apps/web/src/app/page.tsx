@@ -246,7 +246,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── Stats bar ──────────────────────────────────────────────────────── */}
-      <section className="border-y border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/40 py-8">
+      <section className="border-y border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-50/40 dark:bg-slate-900/40 py-8">
         <div className="max-w-4xl mx-auto px-5 grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
           {STATS.map(({ value, label }) => (
             <div key={label}>
@@ -280,7 +280,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── Pricing ────────────────────────────────────────────────────────── */}
-      <section id="pricing" className="py-20 px-5 bg-white dark:bg-slate-900/30">
+      <section id="pricing" className="py-20 px-5 bg-white dark:bg-slate-50/30 dark:bg-slate-900/30">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12 space-y-3">
             <h2 className="text-3xl font-bold text-slate-900 dark:text-white">Simple, transparent pricing</h2>
