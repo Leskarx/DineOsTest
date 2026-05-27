@@ -58,19 +58,19 @@ const TASK_TYPE_CONFIG: Record<HkTaskType, { label: string; icon: React.ElementT
   checkout_clean: { label: 'Checkout Clean', icon: SprayCan, color: 'text-violet-400' },
   stayover: { label: 'Stayover', icon: BedDouble, color: 'text-blue-400' },
   turndown: { label: 'Turndown', icon: BedDouble, color: 'text-indigo-400' },
-  inspection: { label: 'Inspection', icon: CheckCircle2, color: 'text-emerald-400' },
+  inspection: { label: 'Inspection', icon: CheckCircle2, color: 'text-emerald-600 dark:text-emerald-400' },
   maintenance: { label: 'Maintenance', icon: Wrench, color: 'text-orange-400' },
 };
 
 const PRIORITY_CONFIG: Record<HkPriority, { label: string; color: string; icon: React.ElementType }> = {
-  normal: { label: 'Normal', color: 'bg-slate-700/60 text-slate-400', icon: Clock },
-  high: { label: 'High', color: 'bg-amber-500/15 text-amber-400', icon: AlertTriangle },
-  urgent: { label: 'Urgent', color: 'bg-red-500/15 text-red-400', icon: Zap },
+  normal: { label: 'Normal', color: 'bg-slate-200 dark:bg-slate-700/60 text-slate-900 dark:text-slate-400', icon: Clock },
+  high: { label: 'High', color: 'bg-amber-100 dark:bg-amber-500/15 text-amber-600 dark:text-amber-400', icon: AlertTriangle },
+  urgent: { label: 'Urgent', color: 'bg-red-500/15 text-red-600 dark:text-red-400', icon: Zap },
 };
 
 const STATUS_COLUMNS: { status: HkStatus; label: string; nextStatus?: HkStatus; nextLabel?: string; color: string }[] = [
-  { status: 'pending', label: 'Pending', nextStatus: 'in_progress', nextLabel: 'Start', color: 'border-slate-700' },
-  { status: 'in_progress', label: 'In Progress', nextStatus: 'done', nextLabel: 'Mark Done', color: 'border-amber-500/40' },
+  { status: 'pending', label: 'Pending', nextStatus: 'in_progress', nextLabel: 'Start', color: 'border-slate-300 dark:border-slate-700' },
+  { status: 'in_progress', label: 'In Progress', nextStatus: 'done', nextLabel: 'Mark Done', color: 'border-amber-400 dark:border-amber-500/40' },
   { status: 'done', label: 'Done', color: 'border-emerald-500/40' },
 ];
 
@@ -93,18 +93,18 @@ function TaskCard({
 
   return (
     <div className={cn(
-      'bg-slate-900 border rounded-xl p-3 space-y-2.5 transition-opacity',
-      col?.color ?? 'border-slate-800',
+      'bg-white dark:bg-slate-900 border rounded-xl p-3 space-y-2.5 transition-opacity',
+      col?.color ?? 'border-slate-200 dark:border-slate-800',
       updating && 'opacity-60 pointer-events-none',
     )}>
       {/* Header row */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-1.5 min-w-0">
           <TaskIcon size={13} className={cn('flex-shrink-0', taskCfg.color)} />
-          <span className="text-sm font-semibold text-white">
+          <span className="text-sm font-semibold text-slate-900 dark:text-white">
             Room {task.room?.roomNumber ?? '—'}
           </span>
-          <span className="text-xs text-slate-500">·  Floor {task.room?.floor ?? '—'}</span>
+          <span className="text-xs text-slate-900 dark:text-slate-500">·  Floor {task.room?.floor ?? '—'}</span>
         </div>
         <span className={cn('flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-md flex-shrink-0', priCfg.color)}>
           <PriIcon size={9} />
@@ -114,7 +114,7 @@ function TaskCard({
 
       {/* Type + room type */}
       <div className="flex items-center gap-2">
-        <span className="text-xs text-slate-400">{taskCfg.label}</span>
+        <span className="text-xs text-slate-900 dark:text-slate-400">{taskCfg.label}</span>
         {task.room?.roomType?.name && (
           <span className="text-[10px] text-slate-600">· {task.room.roomType.name}</span>
         )}
@@ -122,7 +122,7 @@ function TaskCard({
 
       {/* Notes */}
       {task.notes && (
-        <p className="text-xs text-slate-500 leading-relaxed line-clamp-2">{task.notes}</p>
+        <p className="text-xs text-slate-900 dark:text-slate-500 leading-relaxed line-clamp-2">{task.notes}</p>
       )}
 
       {/* Assigned to */}
@@ -143,7 +143,7 @@ function TaskCard({
         <button
           onClick={() => onStatusChange(task.id, col.nextStatus!)}
           disabled={updating}
-          className="w-full flex items-center justify-center gap-1.5 text-xs py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
+          className="w-full flex items-center justify-center gap-1.5 text-xs py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 hover:bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:text-white transition-colors"
         >
           {updating ? <Loader2 size={11} className="animate-spin" /> : <ChevronRight size={11} />}
           {col.nextLabel}
@@ -217,17 +217,17 @@ function NewTaskModal({ date, onClose }: { date: string; onClose: () => void }) 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-sm p-5 space-y-4" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-sm p-5 space-y-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
-          <h3 className="text-base font-semibold text-white">New Task</h3>
-          <button onClick={onClose} className="p-1 text-slate-500 hover:text-slate-300">
+          <h3 className="text-base font-semibold text-slate-900 dark:text-white">New Task</h3>
+          <button onClick={onClose} className="p-1 text-slate-900 dark:text-slate-500 hover:text-slate-600 dark:text-slate-300">
             <X size={16} />
           </button>
         </div>
 
         {/* Room */}
         <div className="space-y-1">
-          <label className="text-xs text-slate-400">Room *</label>
+          <label className="text-xs text-slate-900 dark:text-slate-400">Room *</label>
           <select
             value={form.roomId}
             onChange={(e) => set('roomId', e.target.value)}
@@ -243,7 +243,7 @@ function NewTaskModal({ date, onClose }: { date: string; onClose: () => void }) 
         {/* Task type + priority */}
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1">
-            <label className="text-xs text-slate-400">Task Type</label>
+            <label className="text-xs text-slate-900 dark:text-slate-400">Task Type</label>
             <select value={form.taskType} onChange={(e) => set('taskType', e.target.value as HkTaskType)} className="input-field text-sm w-full">
               {Object.entries(TASK_TYPE_CONFIG).map(([v, c]) => (
                 <option key={v} value={v}>{c.label}</option>
@@ -251,7 +251,7 @@ function NewTaskModal({ date, onClose }: { date: string; onClose: () => void }) 
             </select>
           </div>
           <div className="space-y-1">
-            <label className="text-xs text-slate-400">Priority</label>
+            <label className="text-xs text-slate-900 dark:text-slate-400">Priority</label>
             <select value={form.priority} onChange={(e) => set('priority', e.target.value as HkPriority)} className="input-field text-sm w-full">
               {Object.entries(PRIORITY_CONFIG).map(([v, c]) => (
                 <option key={v} value={v}>{c.label}</option>
@@ -262,7 +262,7 @@ function NewTaskModal({ date, onClose }: { date: string; onClose: () => void }) 
 
         {/* Date */}
         <div className="space-y-1">
-          <label className="text-xs text-slate-400">Scheduled For</label>
+          <label className="text-xs text-slate-900 dark:text-slate-400">Scheduled For</label>
           <input
             type="date"
             value={form.scheduledFor}
@@ -273,7 +273,7 @@ function NewTaskModal({ date, onClose }: { date: string; onClose: () => void }) 
 
         {/* Assigned to */}
         <div className="space-y-1">
-          <label className="text-xs text-slate-400">Assigned To</label>
+          <label className="text-xs text-slate-900 dark:text-slate-400">Assigned To</label>
           <input
             type="text"
             placeholder="Staff name (optional)"
@@ -285,7 +285,7 @@ function NewTaskModal({ date, onClose }: { date: string; onClose: () => void }) 
 
         {/* Notes */}
         <div className="space-y-1">
-          <label className="text-xs text-slate-400">Notes</label>
+          <label className="text-xs text-slate-900 dark:text-slate-400">Notes</label>
           <textarea
             rows={2}
             placeholder="Any special instructions…"
@@ -304,7 +304,7 @@ function NewTaskModal({ date, onClose }: { date: string; onClose: () => void }) 
             {isPending ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
             Create Task
           </button>
-          <button onClick={onClose} className="px-4 py-2 text-sm bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors">
+          <button onClick={onClose} className="px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 hover:bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg transition-colors">
             Cancel
           </button>
         </div>
@@ -359,28 +359,28 @@ export default function HousekeepingPage() {
     <div className="flex flex-col h-full overflow-hidden">
 
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 flex-shrink-0">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-violet-500/15 flex items-center justify-center">
             <SprayCan size={16} className="text-violet-400" />
           </div>
           <div>
-            <h1 className="text-base font-semibold text-white">Housekeeping</h1>
-            <p className="text-xs text-slate-500">Room cleaning & maintenance tasks</p>
+            <h1 className="text-base font-semibold text-slate-900 dark:text-white">Housekeeping</h1>
+            <p className="text-xs text-slate-900 dark:text-slate-500">Room cleaning & maintenance tasks</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           {/* Date picker */}
-          <div className="flex items-center gap-1.5 bg-slate-800 rounded-lg px-3 py-1.5 text-sm text-slate-300">
-            <CalendarDays size={13} className="text-slate-500" />
+          <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800 rounded-lg px-3 py-1.5 text-sm text-slate-600 dark:text-slate-300">
+            <CalendarDays size={13} className="text-slate-900 dark:text-slate-500" />
             <input
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="bg-transparent outline-none text-sm text-slate-300 w-32"
+              className="bg-transparent outline-none text-sm text-slate-600 dark:text-slate-300 w-32"
             />
           </div>
-          <button onClick={() => refetch()} className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 transition-colors">
+          <button onClick={() => refetch()} className="p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 hover:bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-400 transition-colors">
             <RefreshCw size={13} />
           </button>
           {canCreate && (
@@ -392,7 +392,7 @@ export default function HousekeepingPage() {
       </div>
 
       {/* Summary bar */}
-      <div className="flex items-center gap-4 px-6 py-2.5 border-b border-slate-800/60 bg-slate-900/30 flex-shrink-0">
+      <div className="flex items-center gap-4 px-6 py-2.5 border-b border-slate-200 dark:border-slate-800/60 bg-white dark:bg-slate-900/30 flex-shrink-0">
         {STATUS_COLUMNS.map((col) => (
           <div key={col.status} className="flex items-center gap-1.5 text-xs">
             <span className={cn('w-2 h-2 rounded-full', {
@@ -400,8 +400,8 @@ export default function HousekeepingPage() {
               'bg-amber-500': col.status === 'in_progress',
               'bg-emerald-500': col.status === 'done',
             })} />
-            <span className="text-slate-400">{col.label}</span>
-            <span className="text-slate-500">({countFor(col.status)})</span>
+            <span className="text-slate-900 dark:text-slate-400">{col.label}</span>
+            <span className="text-slate-900 dark:text-slate-500">({countFor(col.status)})</span>
           </div>
         ))}
         <span className="text-slate-700 text-xs ml-auto">{safeTasks.length} total tasks for {format(new Date(date + 'T12:00:00'), 'MMM d, yyyy')}</span>
@@ -424,15 +424,15 @@ export default function HousekeepingPage() {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-0 h-full divide-x divide-slate-800">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-0 h-full divide-x divide-slate-200 dark:divide-slate-800">
             {STATUS_COLUMNS.map((col) => {
               const colTasks = safeTasks.filter((t) => t.status === col.status);
               return (
                 <div key={col.status} className="flex flex-col overflow-hidden">
                   {/* Column header */}
                   <div className={cn(
-                    'flex items-center justify-between px-4 py-3 border-b border-slate-800',
-                    'bg-slate-900/60',
+                    'flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-800',
+                    'bg-white dark:bg-slate-900/60',
                   )}>
                     <div className="flex items-center gap-2">
                       <span className={cn('w-2 h-2 rounded-full flex-shrink-0', {
@@ -440,9 +440,9 @@ export default function HousekeepingPage() {
                         'bg-amber-500': col.status === 'in_progress',
                         'bg-emerald-500': col.status === 'done',
                       })} />
-                      <span className="text-sm font-semibold text-white">{col.label}</span>
+                      <span className="text-sm font-semibold text-slate-900 dark:text-white">{col.label}</span>
                     </div>
-                    <span className="text-xs font-mono text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">
+                    <span className="text-xs font-mono text-slate-900 dark:text-slate-500 bg-slate-50 dark:bg-slate-800 px-2 py-0.5 rounded-full">
                       {colTasks.length}
                     </span>
                   </div>

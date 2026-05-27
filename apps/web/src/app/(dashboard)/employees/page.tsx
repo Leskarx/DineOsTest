@@ -129,28 +129,28 @@ export default function EmployeesPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-white">Employees</h1>
-          <p className="text-sm text-slate-400">{users?.length || 0} active staff members</p>
+          <h1 className="text-xl font-bold text-slate-900 dark:text-white">Employees</h1>
+          <p className="text-sm text-slate-900 dark:text-slate-400">{users?.length || 0} active staff members</p>
         </div>
         <button onClick={() => { setEditUser(null); setDepartment('restaurant'); setForm({ firstName: '', lastName: '', email: '', phone: '', role: 'cashier', password: '', pin: '', employeeCode: '', branchId: '' }); setShowForm(true); }} className="btn-primary"><Plus size={14} /> Add Employee</button>
       </div>
 
       <div className="card p-0 overflow-hidden">
         <table className="w-full">
-          <thead className="bg-slate-800/50"><tr><th className="th">Name</th><th className="th">Contact</th><th className="th">Role</th><th className="th">Dept</th><th className="th">Employee Code</th><th className="th">Actions</th></tr></thead>
+          <thead className="bg-slate-100/50 dark:bg-slate-800/50"><tr><th className="th">Name</th><th className="th">Contact</th><th className="th">Role</th><th className="th">Dept</th><th className="th">Employee Code</th><th className="th">Actions</th></tr></thead>
           <tbody>
             {users?.map((u: any) => (
               <tr key={u.id} className="table-row">
                 <td className="td">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-white">{u.firstName?.[0]}{u.lastName?.[0]}</div>
+                    <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-900 dark:text-white">{u.firstName?.[0]}{u.lastName?.[0]}</div>
                     <div><div className="font-medium">{u.firstName} {u.lastName}</div></div>
                   </div>
                 </td>
-                <td className="td text-slate-400 text-xs"><div>{u.email}</div><div>{u.phone}</div></td>
+                <td className="td text-slate-900 dark:text-slate-400 text-xs"><div>{u.email}</div><div>{u.phone}</div></td>
                 <td className="td"><span className={ROLE_COLORS[u.role] || 'badge-slate'}>{u.role}</span></td>
-                <td className="td"><span className="text-xs text-slate-500">{ROLE_DEPARTMENT[u.role] || '—'}</span></td>
-                <td className="td text-slate-400 font-mono">{u.employeeCode || '—'}</td>
+                <td className="td"><span className="text-xs text-slate-900 dark:text-slate-500">{ROLE_DEPARTMENT[u.role] || '—'}</span></td>
+                <td className="td text-slate-900 dark:text-slate-400 font-mono">{u.employeeCode || '—'}</td>
                 <td className="td">
                   <div className="flex gap-2">
                     <button onClick={() => {
@@ -160,20 +160,20 @@ export default function EmployeesPage() {
                       setForm({ firstName: u.firstName, lastName: u.lastName || '', email: u.email || '', phone: u.phone || '', role: u.role, password: '', pin: u.pin || '', employeeCode: u.employeeCode || '', branchId: u.branchId || '' });
                       setShowForm(true);
                     }} className="btn-ghost p-1.5"><Edit2 size={13} /></button>
-                    <button onClick={() => { if (confirm('Deactivate this employee?')) deactivateMutation.mutate(u.id); }} className="btn-ghost p-1.5 text-red-400 hover:text-red-300"><UserX size={13} /></button>
+                    <button onClick={() => { if (confirm('Deactivate this employee?')) deactivateMutation.mutate(u.id); }} className="btn-ghost p-1.5 text-red-600 dark:text-red-400 hover:text-red-300"><UserX size={13} /></button>
                   </div>
                 </td>
               </tr>
             ))}
-            {users?.length === 0 && <tr><td colSpan={6} className="text-center py-12 text-slate-500">No employees added yet</td></tr>}
+            {users?.length === 0 && <tr><td colSpan={6} className="text-center py-12 text-slate-900 dark:text-slate-500">No employees added yet</td></tr>}
           </tbody>
         </table>
       </div>
 
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="bg-slate-900 rounded-2xl border border-slate-700 w-full max-w-md p-6 space-y-4">
-            <h3 className="font-bold text-white text-lg">{editUser ? 'Edit Employee' : 'Add Employee'}</h3>
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-300 dark:border-slate-700 w-full max-w-md p-6 space-y-4">
+            <h3 className="font-bold text-slate-900 dark:text-white text-lg">{editUser ? 'Edit Employee' : 'Add Employee'}</h3>
 
             {/* Department selector */}
             <div>
@@ -188,7 +188,7 @@ export default function EmployeesPage() {
                       'flex-1 py-2 px-3 rounded-lg text-sm font-medium border transition-all',
                       department === dept
                         ? 'bg-amber-500 text-slate-900 border-amber-500'
-                        : 'bg-slate-800 text-slate-400 border-slate-700 hover:border-slate-500'
+                        : 'bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-400 border-slate-300 dark:border-slate-700 hover:border-slate-500'
                     )}
                   >
                     {DEPARTMENT_LABELS[dept]}
@@ -225,7 +225,7 @@ export default function EmployeesPage() {
                 </div>
               )}
               {user?.role === 'owner' && branchId && form.role !== 'owner' && (
-                <div className="col-span-2 mt-2 text-xs text-amber-400 bg-amber-400/10 p-2.5 rounded-lg border border-amber-400/20">
+                <div className="col-span-2 mt-2 text-xs text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-400/10 p-2.5 rounded-lg border border-amber-300 dark:border-amber-400/20">
                   This employee will be automatically assigned to your currently selected branch. Switch to "All Branches" to assign to a different location.
                 </div>
               )}

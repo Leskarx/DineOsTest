@@ -92,11 +92,11 @@ function ImagePicker({ value, onChange }: { value: string; onChange: (url: strin
     <div className="col-span-2">
       <label className="label">Item Image</label>
       {value ? (
-        <div className="relative w-full h-40 rounded-xl overflow-hidden border border-slate-700 group">
+        <div className="relative w-full h-40 rounded-xl overflow-hidden border border-slate-300 dark:border-slate-700 group">
           <Image src={normaliseImageUrl(value)} alt="Menu item" fill className="object-cover" unoptimized
             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
           <button type="button" onClick={() => onChange('')}
-            className="absolute top-2 right-2 p-1.5 rounded-full bg-slate-900/80 text-slate-300 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity">
+            className="absolute top-2 right-2 p-1.5 rounded-full bg-white dark:bg-slate-900/80 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:text-white opacity-0 group-hover:opacity-100 transition-opacity">
             <X size={14} />
           </button>
           <button type="button" onClick={() => inputRef.current?.click()}
@@ -110,12 +110,12 @@ function ImagePicker({ value, onChange }: { value: string; onChange: (url: strin
           onDragOver={(e) => e.preventDefault()}
           onClick={() => inputRef.current?.click()}
           className={cn(
-            'w-full h-32 rounded-xl border-2 border-dashed border-slate-700 flex flex-col items-center justify-center gap-2',
-            'text-slate-500 cursor-pointer hover:border-amber-600 hover:text-amber-500 transition-colors',
+            'w-full h-32 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 flex flex-col items-center justify-center gap-2',
+            'text-slate-900 dark:text-slate-500 cursor-pointer hover:border-amber-600 hover:text-amber-500 transition-colors',
             uploading && 'pointer-events-none opacity-60',
           )}>
           {uploading
-            ? <><Loader2 size={20} className="animate-spin text-amber-400" /><span className="text-xs">Uploading…</span></>
+            ? <><Loader2 size={20} className="animate-spin text-amber-600 dark:text-amber-400" /><span className="text-xs">Uploading…</span></>
             : <><ImagePlus size={20} /><span className="text-xs text-center px-4">Click or drag image<br /><span className="text-slate-600">JPG/PNG/WebP · max 5 MB</span></span></>}
         </div>
       )}
@@ -291,8 +291,8 @@ export default function MenuPage() {
     <div className="flex h-full">
 
       {/* ── Left sidebar ─────────────────────────────────────────────────────── */}
-      <aside className="w-48 flex-shrink-0 bg-slate-900 border-r border-slate-800 p-3 flex flex-col gap-1">
-        <div className="text-xs font-semibold text-slate-500 uppercase mb-2 px-2">Menu</div>
+      <aside className="w-48 flex-shrink-0 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 p-3 flex flex-col gap-1">
+        <div className="text-xs font-semibold text-slate-900 dark:text-slate-500 uppercase mb-2 px-2">Menu</div>
         <button onClick={() => setView('items')}
           className={cn('sidebar-link w-full', view === 'items' && 'sidebar-link-active')}>
           <ChevronRight size={14} /> Items
@@ -308,7 +308,7 @@ export default function MenuPage() {
 
         {view === 'items' && (
           <>
-            <div className="text-xs font-semibold text-slate-500 uppercase mt-4 mb-1 px-2">Filter by</div>
+            <div className="text-xs font-semibold text-slate-900 dark:text-slate-500 uppercase mt-4 mb-1 px-2">Filter by</div>
             <button onClick={() => setSelectedCat(null)}
               className={cn('sidebar-link w-full', !selectedCat && 'sidebar-link-active')}>
               All Items
@@ -329,9 +329,9 @@ export default function MenuPage() {
         {/* ════════════════ ITEMS VIEW ════════════════ */}
         {view === 'items' && (
           <>
-            <div className="p-4 border-b border-slate-800 flex items-center gap-3">
+            <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center gap-3">
               <div className="relative flex-1">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-900 dark:text-slate-400" />
                 <input className="input pl-8" placeholder="Search items…" value={search}
                   onChange={(e) => setSearch(e.target.value)} />
               </div>
@@ -350,38 +350,38 @@ export default function MenuPage() {
                       item.isVeg ? 'bg-emerald-500' : 'bg-red-500')} />
                   </div>
                   {(item.imageUrl || item.image_url) ? (
-                    <div className="relative w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 border border-slate-700">
+                    <div className="relative w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 border border-slate-300 dark:border-slate-700">
                       <Image src={normaliseImageUrl(item.imageUrl || item.image_url)} alt={item.name}
                         fill className="object-cover" unoptimized
                         onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                     </div>
                   ) : (
-                    <div className="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center flex-shrink-0 border border-slate-700">
+                    <div className="w-10 h-10 rounded-lg bg-slate-50 dark:bg-slate-800 flex items-center justify-center flex-shrink-0 border border-slate-300 dark:border-slate-700">
                       <ImagePlus size={14} className="text-slate-600" />
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-white truncate">{item.name}</div>
-                    <div className="text-xs text-slate-500">{item.sku || '—'}</div>
+                    <div className="font-medium text-slate-900 dark:text-white truncate">{item.name}</div>
+                    <div className="text-xs text-slate-900 dark:text-slate-500">{item.sku || '—'}</div>
                   </div>
-                  <div className="text-amber-400 font-bold whitespace-nowrap">₹{item.price}</div>
-                  <div className="text-xs text-slate-500">{item.gstRate?.rate ?? 0}% GST</div>
+                  <div className="text-amber-600 dark:text-amber-400 font-bold whitespace-nowrap">₹{item.price}</div>
+                  <div className="text-xs text-slate-900 dark:text-slate-500">{item.gstRate?.rate ?? 0}% GST</div>
                   <div className="flex items-center gap-2">
                     <button onClick={() => toggleMutation.mutate({ id: item.id, isActive: !item.isActive })}>
                       {item.isActive
-                        ? <ToggleRight size={20} className="text-emerald-400" />
-                        : <ToggleLeft size={20} className="text-slate-400" />}
+                        ? <ToggleRight size={20} className="text-emerald-600 dark:text-emerald-400" />
+                        : <ToggleLeft size={20} className="text-slate-900 dark:text-slate-400" />}
                     </button>
                     <button onClick={() => openEditItem(item)} className="btn-ghost p-1"><Edit2 size={14} /></button>
                     <button onClick={() => deleteItemMutation.mutate(item.id)}
-                      className="btn-ghost p-1 text-red-400 hover:text-red-300">
+                      className="btn-ghost p-1 text-red-600 dark:text-red-400 hover:text-red-300">
                       <Trash2 size={14} />
                     </button>
                   </div>
                 </div>
               ))}
               {filtered.length === 0 && (
-                <div className="text-center py-16 text-slate-500">No items found</div>
+                <div className="text-center py-16 text-slate-900 dark:text-slate-500">No items found</div>
               )}
             </div>
           </>
@@ -390,8 +390,8 @@ export default function MenuPage() {
         {/* ════════════════ CATEGORIES VIEW ════════════════ */}
         {view === 'categories' && (
           <>
-            <div className="p-4 border-b border-slate-800 flex items-center justify-between">
-              <h2 className="font-semibold text-white">Categories</h2>
+            <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+              <h2 className="font-semibold text-slate-900 dark:text-white">Categories</h2>
               <button onClick={() => { setEditCat(null); setCatForm(EMPTY_CAT_FORM); setShowCatForm(true); }}
                 className="btn-primary">
                 <Plus size={14} /> Add Category
@@ -401,29 +401,29 @@ export default function MenuPage() {
             <div className="flex-1 overflow-y-auto p-4 space-y-2">
               {categories?.map((cat: any) => (
                 <div key={cat.id} className="card flex items-center gap-4">
-                  <div className="w-4 h-4 rounded-full flex-shrink-0 border border-slate-600"
+                  <div className="w-4 h-4 rounded-full flex-shrink-0 border border-slate-300 dark:border-slate-600"
                     style={{ backgroundColor: cat.color || '#64748b' }} />
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-white">{cat.name}</div>
+                    <div className="font-medium text-slate-900 dark:text-white">{cat.name}</div>
                     {cat.description && (
-                      <div className="text-xs text-slate-500 truncate">{cat.description}</div>
+                      <div className="text-xs text-slate-900 dark:text-slate-500 truncate">{cat.description}</div>
                     )}
                   </div>
-                  <div className="text-xs text-slate-500">Sort: {cat.sortOrder}</div>
+                  <div className="text-xs text-slate-900 dark:text-slate-500">Sort: {cat.sortOrder}</div>
                   <div className="flex items-center gap-2">
                     <button onClick={() => openEditCat(cat)} className="btn-ghost p-1"><Edit2 size={14} /></button>
                     <button onClick={() => {
                       if (confirm(`Delete category "${cat.name}"? Items in this category will become uncategorised.`)) {
                         deleteCatMutation.mutate(cat.id);
                       }
-                    }} className="btn-ghost p-1 text-red-400 hover:text-red-300">
+                    }} className="btn-ghost p-1 text-red-600 dark:text-red-400 hover:text-red-300">
                       <Trash2 size={14} />
                     </button>
                   </div>
                 </div>
               ))}
               {(!categories || categories.length === 0) && (
-                <div className="text-center py-16 text-slate-500">No categories yet. Add one above.</div>
+                <div className="text-center py-16 text-slate-900 dark:text-slate-500">No categories yet. Add one above.</div>
               )}
             </div>
           </>
@@ -432,8 +432,8 @@ export default function MenuPage() {
         {/* ════════════════ GST RATES VIEW ════════════════ */}
         {view === 'gst' && (
           <>
-            <div className="p-4 border-b border-slate-800 flex items-center justify-between">
-              <h2 className="font-semibold text-white">GST Rates</h2>
+            <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+              <h2 className="font-semibold text-slate-900 dark:text-white">GST Rates</h2>
               <button onClick={() => { setEditGst(null); setGstForm(EMPTY_GST_FORM); setShowGstForm(true); }}
                 className="btn-primary">
                 <Plus size={14} /> Add GST Rate
@@ -443,12 +443,12 @@ export default function MenuPage() {
             <div className="flex-1 overflow-y-auto p-4 space-y-2">
               {gstRates?.map((gst: any) => (
                 <div key={gst.id} className="card flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center flex-shrink-0">
-                    <span className="text-amber-400 font-bold text-sm">{gst.rate}%</span>
+                  <div className="w-12 h-12 rounded-xl bg-amber-100 dark:bg-amber-500/10 border border-amber-300 dark:border-amber-500/20 flex items-center justify-center flex-shrink-0">
+                    <span className="text-amber-600 dark:text-amber-400 font-bold text-sm">{gst.rate}%</span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-white">{gst.name}</div>
-                    <div className="text-xs text-slate-500">
+                    <div className="font-medium text-slate-900 dark:text-white">{gst.name}</div>
+                    <div className="text-xs text-slate-900 dark:text-slate-500">
                       CGST {gst.cgstRate}% · SGST {gst.sgstRate}% · IGST {gst.igstRate}%
                       {gst.hsnSacCode && ` · HSN ${gst.hsnSacCode}`}
                     </div>
@@ -459,14 +459,14 @@ export default function MenuPage() {
                       if (confirm(`Delete GST rate "${gst.name}"?`)) {
                         deleteGstMutation.mutate(gst.id);
                       }
-                    }} className="btn-ghost p-1 text-red-400 hover:text-red-300">
+                    }} className="btn-ghost p-1 text-red-600 dark:text-red-400 hover:text-red-300">
                       <Trash2 size={14} />
                     </button>
                   </div>
                 </div>
               ))}
               {(!gstRates || gstRates.length === 0) && (
-                <div className="text-center py-16 text-slate-500">
+                <div className="text-center py-16 text-slate-900 dark:text-slate-500">
                   No GST rates found. They will be auto-created when you open this page.
                 </div>
               )}
@@ -478,10 +478,10 @@ export default function MenuPage() {
       {/* ── Item Form Modal ──────────────────────────────────────────────────── */}
       {showItemForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="bg-slate-900 rounded-2xl border border-slate-700 w-full max-w-md p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-300 dark:border-slate-700 w-full max-w-md p-6 space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between">
-              <h3 className="font-bold text-white">{editItem ? 'Edit Item' : 'Add Menu Item'}</h3>
-              <button onClick={() => setShowItemForm(false)} className="text-slate-500 hover:text-slate-300">
+              <h3 className="font-bold text-slate-900 dark:text-white">{editItem ? 'Edit Item' : 'Add Menu Item'}</h3>
+              <button onClick={() => setShowItemForm(false)} className="text-slate-900 dark:text-slate-500 hover:text-slate-600 dark:text-slate-300">
                 <X size={18} />
               </button>
             </div>
@@ -538,12 +538,12 @@ export default function MenuPage() {
                 <label className="label mb-0">Food type:</label>
                 <button type="button" onClick={() => setItemForm({ ...itemForm, isVeg: true })}
                   className={cn('px-3 py-1.5 rounded-lg text-xs font-medium border',
-                    itemForm.isVeg ? 'border-emerald-500 text-emerald-400 bg-emerald-900/20' : 'border-slate-600 text-slate-400')}>
+                    itemForm.isVeg ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/20' : 'border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-400')}>
                   🟢 Veg
                 </button>
                 <button type="button" onClick={() => setItemForm({ ...itemForm, isVeg: false })}
                   className={cn('px-3 py-1.5 rounded-lg text-xs font-medium border',
-                    !itemForm.isVeg ? 'border-red-500 text-red-400 bg-red-900/20' : 'border-slate-600 text-slate-400')}>
+                    !itemForm.isVeg ? 'border-red-500 text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/20' : 'border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-400')}>
                   🔴 Non-Veg
                 </button>
               </div>
@@ -566,10 +566,10 @@ export default function MenuPage() {
       {/* ── Category Form Modal ──────────────────────────────────────────────── */}
       {showCatForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="bg-slate-900 rounded-2xl border border-slate-700 w-full max-w-sm p-6 space-y-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-300 dark:border-slate-700 w-full max-w-sm p-6 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="font-bold text-white">{editCat ? 'Edit Category' : 'Add Category'}</h3>
-              <button onClick={() => setShowCatForm(false)} className="text-slate-500 hover:text-slate-300">
+              <h3 className="font-bold text-slate-900 dark:text-white">{editCat ? 'Edit Category' : 'Add Category'}</h3>
+              <button onClick={() => setShowCatForm(false)} className="text-slate-900 dark:text-slate-500 hover:text-slate-600 dark:text-slate-300">
                 <X size={18} />
               </button>
             </div>
@@ -591,7 +591,7 @@ export default function MenuPage() {
                   <div className="flex items-center gap-2">
                     <input type="color" value={catForm.color || '#64748b'}
                       onChange={(e) => setCatForm({ ...catForm, color: e.target.value })}
-                      className="w-10 h-9 rounded-lg border border-slate-700 bg-slate-800 cursor-pointer p-1" />
+                      className="w-10 h-9 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 cursor-pointer p-1" />
                     <input className="input flex-1" value={catForm.color}
                       onChange={(e) => setCatForm({ ...catForm, color: e.target.value })}
                       placeholder="#64748b" maxLength={7} />
@@ -622,10 +622,10 @@ export default function MenuPage() {
       {/* ── GST Rate Form Modal ──────────────────────────────────────────────── */}
       {showGstForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="bg-slate-900 rounded-2xl border border-slate-700 w-full max-w-sm p-6 space-y-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-300 dark:border-slate-700 w-full max-w-sm p-6 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="font-bold text-white">{editGst ? 'Edit GST Rate' : 'Add GST Rate'}</h3>
-              <button onClick={() => setShowGstForm(false)} className="text-slate-500 hover:text-slate-300">
+              <h3 className="font-bold text-slate-900 dark:text-white">{editGst ? 'Edit GST Rate' : 'Add GST Rate'}</h3>
+              <button onClick={() => setShowGstForm(false)} className="text-slate-900 dark:text-slate-500 hover:text-slate-600 dark:text-slate-300">
                 <X size={18} />
               </button>
             </div>
@@ -642,7 +642,7 @@ export default function MenuPage() {
                   value={gstForm.rate} placeholder="e.g. 5"
                   onChange={(e) => setGstForm({ ...gstForm, rate: e.target.value })} />
                 {gstForm.rate && (
-                  <p className="text-xs text-slate-500 mt-1">
+                  <p className="text-xs text-slate-900 dark:text-slate-500 mt-1">
                     CGST {(parseFloat(gstForm.rate) / 2).toFixed(2)}% ·
                     SGST {(parseFloat(gstForm.rate) / 2).toFixed(2)}% ·
                     IGST {parseFloat(gstForm.rate).toFixed(2)}%

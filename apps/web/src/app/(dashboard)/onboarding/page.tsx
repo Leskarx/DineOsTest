@@ -148,7 +148,7 @@ export default function OnboardingPage() {
   const isBusy = saveMutation.isPending;
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-4">
       <div className="w-full max-w-lg">
 
         {/* ── Header ── */}
@@ -156,8 +156,8 @@ export default function OnboardingPage() {
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-amber-500 mb-2">
             <span className="text-xl font-black text-slate-900">D</span>
           </div>
-          <h1 className="text-2xl font-bold text-white">Welcome to Dine&amp;Stay OS!</h1>
-          <p className="text-sm text-slate-400">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Welcome to Dine&amp;Stay OS!</h1>
+          <p className="text-sm text-slate-900 dark:text-slate-400">
             Let&apos;s set up your account in under 2 minutes.
           </p>
         </div>
@@ -173,16 +173,16 @@ export default function OnboardingPage() {
                   <div
                     className={cn(
                       'w-9 h-9 rounded-full flex items-center justify-center border-2 transition-colors',
-                      isDone   ? 'bg-emerald-500 border-emerald-500 text-white' :
+                      isDone   ? 'bg-emerald-500 border-emerald-500 text-slate-900 dark:text-white' :
                       isActive ? 'bg-amber-500 border-amber-500 text-slate-900' :
-                                 'bg-slate-900 border-slate-700 text-slate-600',
+                                 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-slate-600',
                     )}
                   >
                     {isDone ? <CheckCircle2 size={15} /> : <Icon size={15} />}
                   </div>
                   <span className={cn(
                     'text-[10px] font-medium whitespace-nowrap',
-                    isActive ? 'text-amber-400' : isDone ? 'text-emerald-400' : 'text-slate-600',
+                    isActive ? 'text-amber-600 dark:text-amber-400' : isDone ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-600',
                   )}>
                     {label}
                   </span>
@@ -190,7 +190,7 @@ export default function OnboardingPage() {
                 {i < STEPS.length - 1 && (
                   <div className={cn(
                     'w-12 h-0.5 mb-4 mx-1 transition-colors',
-                    i < step ? 'bg-emerald-500' : 'bg-slate-800',
+                    i < step ? 'bg-emerald-500' : 'bg-slate-50 dark:bg-slate-800',
                   )} />
                 )}
               </div>
@@ -199,14 +199,14 @@ export default function OnboardingPage() {
         </div>
 
         {/* ── Step panels ── */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-5">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 space-y-5">
 
           {/* Step 0 — Business type */}
           {step === 0 && (
             <>
               <div>
-                <h2 className="text-lg font-bold text-white">What type of business are you?</h2>
-                <p className="text-xs text-slate-500 mt-1">This helps us tailor the dashboard for you.</p>
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white">What type of business are you?</h2>
+                <p className="text-xs text-slate-900 dark:text-slate-500 mt-1">This helps us tailor the dashboard for you.</p>
               </div>
               <div className="grid grid-cols-1 gap-2">
                 {BUSINESS_TYPES.map(({ value, label }) => (
@@ -217,8 +217,8 @@ export default function OnboardingPage() {
                     className={cn(
                       'flex items-center gap-3 p-3 rounded-xl border text-left text-sm transition-colors',
                       form.businessType === value
-                        ? 'border-amber-500 bg-amber-500/10 text-white'
-                        : 'border-slate-700 hover:border-slate-600 text-slate-300',
+                        ? 'border-amber-500 bg-amber-100 dark:bg-amber-500/10 text-slate-900 dark:text-white'
+                        : 'border-slate-300 dark:border-slate-700 hover:border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300',
                     )}
                   >
                     <span className="text-lg">{label.split(' ')[0]}</span>
@@ -233,8 +233,8 @@ export default function OnboardingPage() {
           {step === 1 && (
             <>
               <div>
-                <h2 className="text-lg font-bold text-white">Where is your business located?</h2>
-                <p className="text-xs text-slate-500 mt-1">This appears on bills and GST invoices.</p>
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white">Where is your business located?</h2>
+                <p className="text-xs text-slate-900 dark:text-slate-500 mt-1">This appears on bills and GST invoices.</p>
               </div>
               <div className="space-y-4">
                 <div>
@@ -248,7 +248,7 @@ export default function OnboardingPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="label">City <span className="text-red-400">*</span></label>
+                    <label className="label">City <span className="text-red-600 dark:text-red-400">*</span></label>
                     <input
                       className="input"
                       placeholder="Bengaluru"
@@ -269,7 +269,7 @@ export default function OnboardingPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="label">State <span className="text-red-400">*</span></label>
+                  <label className="label">State <span className="text-red-600 dark:text-red-400">*</span></label>
                   <select
                     className="input"
                     value={form.state}
@@ -290,8 +290,8 @@ export default function OnboardingPage() {
           {step === 2 && (
             <>
               <div>
-                <h2 className="text-lg font-bold text-white">Tax &amp; legal details</h2>
-                <p className="text-xs text-slate-500 mt-1">Required for GST-compliant invoicing. You can skip and add later in Settings.</p>
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white">Tax &amp; legal details</h2>
+                <p className="text-xs text-slate-900 dark:text-slate-500 mt-1">Required for GST-compliant invoicing. You can skip and add later in Settings.</p>
               </div>
               <div className="space-y-4">
                 <div>
@@ -308,9 +308,9 @@ export default function OnboardingPage() {
                     maxLength={15}
                   />
                   {gstinError ? (
-                    <p className="text-xs text-red-400 mt-1">{gstinError}</p>
+                    <p className="text-xs text-red-600 dark:text-red-400 mt-1">{gstinError}</p>
                   ) : form.gstin && GSTIN_RE.test(form.gstin) ? (
-                    <p className="text-xs text-emerald-400 mt-1 flex items-center gap-1">
+                    <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1 flex items-center gap-1">
                       <CheckCircle2 size={11} /> Valid GSTIN
                     </p>
                   ) : null}
@@ -349,8 +349,8 @@ export default function OnboardingPage() {
                         className={cn(
                           'py-2 rounded-xl border text-sm font-medium transition-colors',
                           form.taxRegime === value
-                            ? 'border-amber-500 bg-amber-500/10 text-amber-300'
-                            : 'border-slate-700 text-slate-400 hover:border-slate-600',
+                            ? 'border-amber-500 bg-amber-100 dark:bg-amber-500/10 text-amber-600 dark:text-amber-300'
+                            : 'border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-400 hover:border-slate-300 dark:border-slate-600',
                         )}
                       >
                         {label}
@@ -366,10 +366,10 @@ export default function OnboardingPage() {
           {step === 3 && (
             <div className="text-center space-y-4 py-6">
               <div className="w-16 h-16 mx-auto rounded-full bg-emerald-500/20 flex items-center justify-center">
-                <CheckCircle2 size={32} className="text-emerald-400" />
+                <CheckCircle2 size={32} className="text-emerald-600 dark:text-emerald-400" />
               </div>
-              <h2 className="text-xl font-bold text-white">You&apos;re all set!</h2>
-              <p className="text-sm text-slate-400 max-w-xs mx-auto">
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white">You&apos;re all set!</h2>
+              <p className="text-sm text-slate-900 dark:text-slate-400 max-w-xs mx-auto">
                 Your Dine&amp;Stay OS account is ready. Your 14-day trial has started — no credit card needed.
               </p>
               <div className="text-xs text-slate-600 space-y-1 pt-2">
@@ -399,7 +399,7 @@ export default function OnboardingPage() {
                 <button
                   type="button"
                   onClick={handleSkip}
-                  className="text-xs text-slate-500 hover:text-slate-400 transition-colors"
+                  className="text-xs text-slate-900 dark:text-slate-500 hover:text-slate-900 dark:text-slate-400 transition-colors"
                 >
                   Skip setup
                 </button>

@@ -33,11 +33,11 @@ interface Subscription {
 
 function StatusBadge({ status }: { status: string }) {
   const cfg: Record<string, string> = {
-    active:    'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-    trial:     'bg-amber-500/15 text-amber-400 border-amber-500/30',
+    active:    'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
+    trial:     'bg-amber-100 dark:bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-500/30',
     past_due:  'bg-orange-500/15 text-orange-400 border-orange-500/30',
-    cancelled: 'bg-red-500/15 text-red-400 border-red-500/30',
-    paused:    'bg-slate-500/15 text-slate-400 border-slate-500/30',
+    cancelled: 'bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/30',
+    paused:    'bg-slate-500/15 text-slate-900 dark:text-slate-400 border-slate-500/30',
   };
   return (
     <span className={cn('text-[10px] px-2 py-0.5 rounded-full border font-medium capitalize', cfg[status] ?? cfg.paused)}>
@@ -71,13 +71,13 @@ function PlanModal({ sub, onClose }: { sub: Subscription; onClose: () => void })
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-sm p-6 space-y-4" onClick={e => e.stopPropagation()}>
+      <div className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-2xl w-full max-w-sm p-6 space-y-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-white">Override Plan — {sub.name}</h2>
-          <button onClick={onClose} className="p-1 text-slate-500 hover:text-slate-300"><X size={15} /></button>
+          <h2 className="text-sm font-semibold text-slate-900 dark:text-white">Override Plan — {sub.name}</h2>
+          <button onClick={onClose} className="p-1 text-slate-900 dark:text-slate-500 hover:text-slate-600 dark:text-slate-300"><X size={15} /></button>
         </div>
 
-        {err && <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{err}</p>}
+        {err && <p className="text-xs text-red-600 dark:text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{err}</p>}
 
         <div className="space-y-3">
           <div className="space-y-1">
@@ -109,7 +109,7 @@ function PlanModal({ sub, onClose }: { sub: Subscription; onClose: () => void })
             {isPending ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
             Apply Override
           </button>
-          <button onClick={onClose} className="px-4 py-2 text-sm bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors">
+          <button onClick={onClose} className="px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 hover:bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg transition-colors">
             Cancel
           </button>
         </div>
@@ -146,20 +146,20 @@ export default function SubscriptionsPage() {
     <div className="flex flex-col h-full overflow-hidden">
 
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 flex-shrink-0">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex-shrink-0">
         <div>
-          <h1 className="text-base font-semibold text-white">Subscriptions</h1>
-          <p className="text-xs text-slate-500">{total} subscription records</p>
+          <h1 className="text-base font-semibold text-slate-900 dark:text-white">Subscriptions</h1>
+          <p className="text-xs text-slate-900 dark:text-slate-500">{total} subscription records</p>
         </div>
-        <button onClick={() => refetch()} className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 transition-colors">
+        <button onClick={() => refetch()} className="p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 hover:bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-400 transition-colors">
           <RefreshCw size={13} />
         </button>
       </div>
 
       {/* Filters */}
-      <div className="px-6 py-3 border-b border-slate-800/60 flex-shrink-0 flex items-center gap-3">
+      <div className="px-6 py-3 border-b border-slate-200 dark:border-slate-800/60 flex-shrink-0 flex items-center gap-3">
         <div className="relative flex-1 max-w-xs">
-          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-900 dark:text-slate-500" />
           <input
             className="input-field w-full pl-8 py-1.5 text-sm"
             placeholder="Search tenant name or email…"
@@ -176,7 +176,7 @@ export default function SubscriptionsPage() {
                 'px-3 py-1 text-xs rounded-full border transition-colors capitalize',
                 statusFilter === s
                   ? 'bg-red-500/20 border-red-500/40 text-red-300'
-                  : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600',
+                  : 'bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-400 hover:border-slate-300 dark:border-slate-600',
               )}
             >
               {s || 'All'}
@@ -198,7 +198,7 @@ export default function SubscriptionsPage() {
           </div>
         ) : (
           <table className="w-full text-sm">
-            <thead className="sticky top-0 bg-slate-900 border-b border-slate-800">
+            <thead className="sticky top-0 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
               <tr>
                 <th className="th">Business</th>
                 <th className="th">Plan</th>
@@ -213,20 +213,20 @@ export default function SubscriptionsPage() {
               {rows.map(s => (
                 <tr key={s.tenant_id} className="table-row">
                   <td className="td">
-                    <div className="font-medium text-white">{s.name}</div>
-                    <div className="text-xs text-slate-500">{s.email}</div>
+                    <div className="font-medium text-slate-900 dark:text-white">{s.name}</div>
+                    <div className="text-xs text-slate-900 dark:text-slate-500">{s.email}</div>
                   </td>
-                  <td className="td text-slate-300">{s.plan_name ?? '—'}</td>
+                  <td className="td text-slate-600 dark:text-slate-300">{s.plan_name ?? '—'}</td>
                   <td className="td"><StatusBadge status={s.sub_status} /></td>
-                  <td className="td text-slate-300">
+                  <td className="td text-slate-600 dark:text-slate-300">
                     {s.mrr != null ? `₹${Number(s.mrr).toLocaleString('en-IN')}` : '—'}
                   </td>
-                  <td className="td text-xs text-slate-500">
+                  <td className="td text-xs text-slate-900 dark:text-slate-500">
                     {s.current_period_start
                       ? `${format(new Date(s.current_period_start), 'dd MMM')} – ${s.current_period_end ? format(new Date(s.current_period_end), 'dd MMM yyyy') : '—'}`
                       : '—'}
                   </td>
-                  <td className="td text-xs text-slate-500">
+                  <td className="td text-xs text-slate-900 dark:text-slate-500">
                     {s.sub_status === 'trial' && s.trial_ends_at ? format(new Date(s.trial_ends_at), 'dd MMM yyyy') : '—'}
                   </td>
                   <td className="td">
@@ -234,7 +234,7 @@ export default function SubscriptionsPage() {
                       <button
                         onClick={() => setEditing(s)}
                         title="Override plan"
-                        className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-700 hover:text-white transition-colors"
+                        className="p-1.5 rounded-lg text-slate-900 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-700 hover:text-slate-900 dark:text-white transition-colors"
                       >
                         <Pencil size={13} />
                       </button>
@@ -249,18 +249,18 @@ export default function SubscriptionsPage() {
 
       {/* Pagination */}
       {pages > 1 && (
-        <div className="flex items-center justify-between px-6 py-3 border-t border-slate-800 flex-shrink-0">
-          <span className="text-xs text-slate-500">
+        <div className="flex items-center justify-between px-6 py-3 border-t border-slate-200 dark:border-slate-800 flex-shrink-0">
+          <span className="text-xs text-slate-900 dark:text-slate-500">
             Showing {(page - 1) * limit + 1}–{Math.min(page * limit, total)} of {total}
           </span>
           <div className="flex items-center gap-1">
             <button onClick={() => setPage(p => p - 1)} disabled={page === 1}
-              className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 disabled:opacity-40 transition-colors">
+              className="p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 hover:bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-400 disabled:opacity-40 transition-colors">
               <ChevronLeft size={14} />
             </button>
-            <span className="text-xs text-slate-400 px-2">Page {page} of {pages}</span>
+            <span className="text-xs text-slate-900 dark:text-slate-400 px-2">Page {page} of {pages}</span>
             <button onClick={() => setPage(p => p + 1)} disabled={page === pages}
-              className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 disabled:opacity-40 transition-colors">
+              className="p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 hover:bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-400 disabled:opacity-40 transition-colors">
               <ChevronRight size={14} />
             </button>
           </div>

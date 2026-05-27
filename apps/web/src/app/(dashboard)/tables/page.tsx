@@ -11,10 +11,10 @@ import { cn } from '@/lib/utils';
 
 // ─── Status visuals ──────────────────────────────────────────────────────────
 const STATUS_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
-  available: { bg: 'bg-emerald-900/20 border-emerald-700', text: 'text-emerald-300', dot: 'bg-emerald-500' },
-  occupied:  { bg: 'bg-red-900/20 border-red-700',         text: 'text-red-300',     dot: 'bg-red-500' },
-  reserved:  { bg: 'bg-amber-900/20 border-amber-700',     text: 'text-amber-300',   dot: 'bg-amber-500' },
-  cleaning:  { bg: 'bg-slate-800 border-slate-700',        text: 'text-slate-400',   dot: 'bg-slate-500' },
+  available: { bg: 'bg-emerald-100 dark:bg-emerald-900/20 border-emerald-300 dark:border-emerald-700', text: 'text-emerald-600 dark:text-emerald-300', dot: 'bg-emerald-500' },
+  occupied:  { bg: 'bg-red-100 dark:bg-red-900/20 border-red-700',         text: 'text-red-300',     dot: 'bg-red-500' },
+  reserved:  { bg: 'bg-amber-100 dark:bg-amber-900/20 border-amber-700',     text: 'text-amber-600 dark:text-amber-300',   dot: 'bg-amber-500' },
+  cleaning:  { bg: 'bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-700',        text: 'text-slate-900 dark:text-slate-400',   dot: 'bg-slate-500' },
 };
 
 const STATUS_ICONS: Record<string, React.ReactNode> = {
@@ -159,21 +159,21 @@ export default function TablesPage() {
       {/* ── Page header ─────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-xl font-bold text-white">Table Management</h1>
-          <p className="text-sm text-slate-400">{tables?.length || 0} tables · {sections?.length || 0} sections</p>
+          <h1 className="text-xl font-bold text-slate-900 dark:text-white">Table Management</h1>
+          <p className="text-sm text-slate-900 dark:text-slate-400">{tables?.length || 0} tables · {sections?.length || 0} sections</p>
         </div>
         <div className="flex items-center gap-2">
           {/* Page tabs */}
-          <div className="flex gap-1 bg-slate-800 rounded-lg p-1">
+          <div className="flex gap-1 bg-slate-50 dark:bg-slate-800 rounded-lg p-1">
             <button
               onClick={() => setPageTab('floor')}
-              className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors', pageTab === 'floor' ? 'bg-amber-500 text-slate-900' : 'text-slate-400 hover:text-white')}
+              className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors', pageTab === 'floor' ? 'bg-amber-500 text-slate-900' : 'text-slate-900 dark:text-slate-400 hover:text-slate-900 dark:text-white')}
             >
               <LayoutGrid size={14} /> Floor Plan
             </button>
             <button
               onClick={() => setPageTab('sections')}
-              className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors', pageTab === 'sections' ? 'bg-amber-500 text-slate-900' : 'text-slate-400 hover:text-white')}
+              className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors', pageTab === 'sections' ? 'bg-amber-500 text-slate-900' : 'text-slate-900 dark:text-slate-400 hover:text-slate-900 dark:text-white')}
             >
               <Layers size={14} /> Sections
             </button>
@@ -206,7 +206,7 @@ export default function TablesPage() {
                   </span>
                   <div>
                     <div className={cn('text-lg font-bold', styles.text)}>{statusCounts[status] || 0}</div>
-                    <div className="text-xs text-slate-500 capitalize">{status}</div>
+                    <div className="text-xs text-slate-900 dark:text-slate-500 capitalize">{status}</div>
                   </div>
                 </div>
               );
@@ -216,10 +216,10 @@ export default function TablesPage() {
           {/* Section filter strip */}
           {(sections?.length ?? 0) > 0 && (
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs text-slate-500">Filter:</span>
+              <span className="text-xs text-slate-900 dark:text-slate-500">Filter:</span>
               <button
                 onClick={() => setFilterSection(null)}
-                className={cn('px-3 py-1 rounded-lg text-xs font-medium border transition-colors', !filterSection ? 'bg-amber-500 text-slate-900 border-amber-500' : 'border-slate-700 text-slate-400 hover:border-slate-500')}
+                className={cn('px-3 py-1 rounded-lg text-xs font-medium border transition-colors', !filterSection ? 'bg-amber-500 text-slate-900 border-amber-500' : 'border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-400 hover:border-slate-500')}
               >
                 All sections
               </button>
@@ -227,7 +227,7 @@ export default function TablesPage() {
                 <button
                   key={sec.id}
                   onClick={() => setFilterSection(filterSection === sec.id ? null : sec.id)}
-                  className={cn('px-3 py-1 rounded-lg text-xs font-medium border transition-colors', filterSection === sec.id ? 'bg-amber-500 text-slate-900 border-amber-500' : 'border-slate-700 text-slate-400 hover:border-slate-500')}
+                  className={cn('px-3 py-1 rounded-lg text-xs font-medium border transition-colors', filterSection === sec.id ? 'bg-amber-500 text-slate-900 border-amber-500' : 'border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-400 hover:border-slate-500')}
                 >
                   {sec.name}
                 </button>
@@ -237,7 +237,7 @@ export default function TablesPage() {
 
           {/* Tables grid */}
           {tablesLoading ? (
-            <div className="text-slate-400 text-sm">Loading tables…</div>
+            <div className="text-slate-900 dark:text-slate-400 text-sm">Loading tables…</div>
           ) : (
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3">
               {visibleTables.map((table: any) => {
@@ -249,22 +249,22 @@ export default function TablesPage() {
                       <span className={cn('w-2 h-2 rounded-full flex-shrink-0', styles.dot)} />
                     </div>
                     {table.sectionId && sectionMap[table.sectionId] && (
-                      <div className="text-xs text-slate-500 truncate">{sectionMap[table.sectionId]}</div>
+                      <div className="text-xs text-slate-900 dark:text-slate-500 truncate">{sectionMap[table.sectionId]}</div>
                     )}
-                    <div className="text-xs text-slate-500 flex items-center gap-1">
+                    <div className="text-xs text-slate-900 dark:text-slate-500 flex items-center gap-1">
                       <Users size={10} /> {table.capacity}
                     </div>
                     <select
                       value={table.status}
                       onChange={(e) => statusMutation.mutate({ id: table.id, status: e.target.value })}
-                      className="text-xs bg-black/20 border border-white/10 rounded px-1 py-0.5 text-slate-300 w-full"
+                      className="text-xs bg-black/20 border border-white/10 rounded px-1 py-0.5 text-slate-600 dark:text-slate-300 w-full"
                     >
                       {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
                     </select>
                     <div className="flex gap-1">
                       <button
                         onClick={() => openEditTable(table)}
-                        className="flex-1 text-xs py-1 rounded bg-black/20 hover:bg-black/30 text-slate-400"
+                        className="flex-1 text-xs py-1 rounded bg-black/20 hover:bg-black/30 text-slate-900 dark:text-slate-400"
                       >
                         <Edit2 size={10} className="inline" />
                       </button>
@@ -280,7 +280,7 @@ export default function TablesPage() {
                               <div className="flex gap-2">
                                 <button
                                   onClick={() => { toast.dismiss(t.id); deleteTableMutation.mutate(table.id); }}
-                                  className="px-3 py-1 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600"
+                                  className="px-3 py-1 text-sm bg-red-500 text-slate-900 dark:text-white rounded-lg hover:bg-red-600"
                                 >
                                   Delete
                                 </button>
@@ -294,7 +294,7 @@ export default function TablesPage() {
                             </div>
                           ), { duration: 10000 });
                         }}
-                        className="flex-1 text-xs py-1 rounded bg-black/20 hover:bg-red-900/30 text-red-400"
+                        className="flex-1 text-xs py-1 rounded bg-black/20 hover:bg-red-900/30 text-red-600 dark:text-red-400"
                       >
                         <Trash2 size={10} className="inline" />
                       </button>
@@ -304,9 +304,9 @@ export default function TablesPage() {
               })}
 
               {visibleTables.length === 0 && (
-                <div className="col-span-full text-center py-16 text-slate-500">
+                <div className="col-span-full text-center py-16 text-slate-900 dark:text-slate-500">
                   No tables{filterSection ? ' in this section' : ''}.{' '}
-                  <button onClick={openCreateTable} className="underline hover:text-slate-300">Add one</button>
+                  <button onClick={openCreateTable} className="underline hover:text-slate-600 dark:text-slate-300">Add one</button>
                 </div>
               )}
             </div>
@@ -318,7 +318,7 @@ export default function TablesPage() {
       {pageTab === 'sections' && (
         <div className="space-y-3">
           {(!sections || sections.length === 0) && (
-            <div className="text-center py-16 text-slate-500">
+            <div className="text-center py-16 text-slate-900 dark:text-slate-500">
               <Layers size={40} className="mx-auto mb-3 opacity-30" />
               <p>No sections yet. Sections let you group tables by floor, area or room.</p>
               <button onClick={openCreateSection} className="btn-primary mt-4">
@@ -331,21 +331,21 @@ export default function TablesPage() {
             const sectionTables = (tables || []).filter((t: any) => t.sectionId === sec.id);
             return (
               <div key={sec.id} className="card flex items-center gap-4">
-                <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center flex-shrink-0">
-                  <Layers size={18} className="text-amber-400" />
+                <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-500/10 border border-amber-300 dark:border-amber-500/30 flex items-center justify-center flex-shrink-0">
+                  <Layers size={18} className="text-amber-600 dark:text-amber-400" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-white">{sec.name}</div>
-                  {sec.description && <div className="text-xs text-slate-500 mt-0.5">{sec.description}</div>}
+                  <div className="font-semibold text-slate-900 dark:text-white">{sec.name}</div>
+                  {sec.description && <div className="text-xs text-slate-900 dark:text-slate-500 mt-0.5">{sec.description}</div>}
                   <div className="flex items-center gap-3 mt-1">
-                    <span className="text-xs text-slate-400">{sectionTables.length} tables</span>
+                    <span className="text-xs text-slate-900 dark:text-slate-400">{sectionTables.length} tables</span>
                     {sectionTables.length > 0 && (
-                      <span className="text-xs text-emerald-400">
+                      <span className="text-xs text-emerald-600 dark:text-emerald-400">
                         {sectionTables.filter((t: any) => t.status === 'available').length} available
                       </span>
                     )}
                     {sectionTables.filter((t: any) => t.status === 'occupied').length > 0 && (
-                      <span className="text-xs text-red-400">
+                      <span className="text-xs text-red-600 dark:text-red-400">
                         {sectionTables.filter((t: any) => t.status === 'occupied').length} occupied
                       </span>
                     )}
@@ -368,7 +368,7 @@ export default function TablesPage() {
                           <div className="flex gap-2">
                             <button
                               onClick={() => { toast.dismiss(t.id); deleteSectionMutation.mutate(sec.id); }}
-                              className="px-3 py-1 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600"
+                              className="px-3 py-1 text-sm bg-red-500 text-slate-900 dark:text-white rounded-lg hover:bg-red-600"
                             >
                               Delete
                             </button>
@@ -382,7 +382,7 @@ export default function TablesPage() {
                         </div>
                       ), { duration: 10000 });
                     }}
-                    className="btn-ghost p-1.5 text-red-400 hover:text-red-300"
+                    className="btn-ghost p-1.5 text-red-600 dark:text-red-400 hover:text-red-300"
                   >
                     <Trash2 size={14} />
                   </button>
@@ -396,10 +396,10 @@ export default function TablesPage() {
       {/* ── Table form modal ────────────────────────────────────────────── */}
       {showTableForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="bg-slate-900 rounded-2xl border border-slate-700 w-full max-w-sm p-6 space-y-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-300 dark:border-slate-700 w-full max-w-sm p-6 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="font-bold text-white">{editTable ? 'Edit Table' : 'Add Table'}</h3>
-              <button onClick={() => setShowTableForm(false)} className="text-slate-500 hover:text-slate-300"><X size={18} /></button>
+              <h3 className="font-bold text-slate-900 dark:text-white">{editTable ? 'Edit Table' : 'Add Table'}</h3>
+              <button onClick={() => setShowTableForm(false)} className="text-slate-900 dark:text-slate-500 hover:text-slate-600 dark:text-slate-300"><X size={18} /></button>
             </div>
             <div>
               <label className="label">Table Name / Number *</label>
@@ -435,11 +435,11 @@ export default function TablesPage() {
                 ))}
               </select>
               {(!sections || sections.length === 0) && (
-                <p className="text-xs text-slate-500 mt-1">
+                <p className="text-xs text-slate-900 dark:text-slate-500 mt-1">
                   <button
                     type="button"
                     onClick={() => { setShowTableForm(false); setPageTab('sections'); openCreateSection(); }}
-                    className="underline hover:text-slate-400"
+                    className="underline hover:text-slate-900 dark:text-slate-400"
                   >
                     Create a section first
                   </button>{' '}
@@ -470,10 +470,10 @@ export default function TablesPage() {
       {/* ── Section form modal ───────────────────────────────────────────── */}
       {showSectionForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="bg-slate-900 rounded-2xl border border-slate-700 w-full max-w-sm p-6 space-y-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-300 dark:border-slate-700 w-full max-w-sm p-6 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="font-bold text-white">{editSection ? 'Edit Section' : 'Add Section'}</h3>
-              <button onClick={() => setShowSectionForm(false)} className="text-slate-500 hover:text-slate-300"><X size={18} /></button>
+              <h3 className="font-bold text-slate-900 dark:text-white">{editSection ? 'Edit Section' : 'Add Section'}</h3>
+              <button onClick={() => setShowSectionForm(false)} className="text-slate-900 dark:text-slate-500 hover:text-slate-600 dark:text-slate-300"><X size={18} /></button>
             </div>
             <div>
               <label className="label">Section Name *</label>

@@ -26,17 +26,17 @@ function DenominationCount({ label, counts, onChange }: { label: string; counts:
   return (
     <div className="card space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="font-semibold text-white">{label}</h3>
-        <span className="text-amber-400 font-bold text-lg">₹{total.toLocaleString('en-IN')}</span>
+        <h3 className="font-semibold text-slate-900 dark:text-white">{label}</h3>
+        <span className="text-amber-600 dark:text-amber-400 font-bold text-lg">₹{total.toLocaleString('en-IN')}</span>
       </div>
       <div className="grid grid-cols-2 gap-2">
         {DENOMS.map((d) => (
           <div key={d.key} className="flex items-center gap-2">
-            <span className="text-xs text-slate-400 w-14">{d.label}</span>
+            <span className="text-xs text-slate-900 dark:text-slate-400 w-14">{d.label}</span>
             <input type="number" min={0} value={counts[d.key] || 0}
               onChange={(e) => onChange(d.key, parseInt(e.target.value) || 0)}
               className="input text-center py-1 text-sm w-16" />
-            <span className="text-xs text-slate-500 w-16 text-right">= ₹{((counts[d.key] || 0) * d.value).toLocaleString('en-IN')}</span>
+            <span className="text-xs text-slate-900 dark:text-slate-500 w-16 text-right">= ₹{((counts[d.key] || 0) * d.value).toLocaleString('en-IN')}</span>
           </div>
         ))}
       </div>
@@ -76,7 +76,7 @@ export default function ShiftsPage() {
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-white">Shift Management</h1>
+        <h1 className="text-xl font-bold text-slate-900 dark:text-white">Shift Management</h1>
         {!activeShift ? (
           <button onClick={() => setShowOpen(true)} className="btn-primary"><Unlock size={14} /> Open Shift</button>
         ) : (
@@ -89,8 +89,8 @@ export default function ShiftsPage() {
         <div className="card border-emerald-800/50 bg-emerald-900/10">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse" />
-            <h2 className="font-bold text-emerald-400">Active Shift — {activeShift.shiftNumber}</h2>
-            <span className="text-xs text-slate-400">Since {dayjs(activeShift.openedAt).format('h:mm A')}</span>
+            <h2 className="font-bold text-emerald-600 dark:text-emerald-400">Active Shift — {activeShift.shiftNumber}</h2>
+            <span className="text-xs text-slate-900 dark:text-slate-400">Since {dayjs(activeShift.openedAt).format('h:mm A')}</span>
           </div>
           <div className="grid grid-cols-4 gap-4">
             {[
@@ -99,16 +99,16 @@ export default function ShiftsPage() {
               { label: 'Cash Sales', value: `₹${Number(activeShift.cashSales || 0).toLocaleString('en-IN')}`, icon: IndianRupee },
               { label: 'Opening Cash', value: `₹${Number(activeShift.openingCash || 0).toLocaleString('en-IN')}`, icon: DollarSign },
             ].map(({ label, value, icon: Icon }) => (
-              <div key={label} className="bg-slate-800/50 rounded-lg p-3">
-                <div className="text-xs text-slate-400 mb-1">{label}</div>
-                <div className="text-lg font-bold text-white">{value}</div>
+              <div key={label} className="bg-slate-100/50 dark:bg-slate-800/50 rounded-lg p-3">
+                <div className="text-xs text-slate-900 dark:text-slate-400 mb-1">{label}</div>
+                <div className="text-lg font-bold text-slate-900 dark:text-white">{value}</div>
               </div>
             ))}
           </div>
         </div>
       )}
       {!activeShift && (
-        <div className="card text-center py-8 text-slate-500">
+        <div className="card text-center py-8 text-slate-900 dark:text-slate-500">
           <Lock size={32} className="mx-auto mb-2 opacity-30" />
           <p>No active shift. Open a shift to start accepting orders.</p>
         </div>
@@ -116,18 +116,18 @@ export default function ShiftsPage() {
 
       {/* Shift History */}
       <div className="card p-0 overflow-hidden">
-        <div className="px-4 py-3 border-b border-slate-800 font-semibold text-white">Shift History</div>
+        <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 font-semibold text-slate-900 dark:text-white">Shift History</div>
         <table className="w-full">
-          <thead className="bg-slate-800/50"><tr><th className="th">Shift</th><th className="th">Opened</th><th className="th">Closed</th><th className="th text-right">Sales</th><th className="th text-right">Cash</th><th className="th">Diff</th><th className="th">Status</th></tr></thead>
+          <thead className="bg-slate-100/50 dark:bg-slate-800/50"><tr><th className="th">Shift</th><th className="th">Opened</th><th className="th">Closed</th><th className="th text-right">Sales</th><th className="th text-right">Cash</th><th className="th">Diff</th><th className="th">Status</th></tr></thead>
           <tbody>
             {shifts?.map((s: any) => (
               <tr key={s.id} className="table-row cursor-pointer" onClick={() => setSelectedShift(s)}>
                 <td className="td font-medium">{s.shiftNumber}</td>
-                <td className="td text-xs text-slate-400">{dayjs(s.openedAt).format('D MMM, h:mm A')}</td>
-                <td className="td text-xs text-slate-400">{s.closedAt ? dayjs(s.closedAt).format('D MMM, h:mm A') : '—'}</td>
-                <td className="td text-right text-amber-400 font-medium">₹{Number(s.totalSales || 0).toLocaleString('en-IN')}</td>
+                <td className="td text-xs text-slate-900 dark:text-slate-400">{dayjs(s.openedAt).format('D MMM, h:mm A')}</td>
+                <td className="td text-xs text-slate-900 dark:text-slate-400">{s.closedAt ? dayjs(s.closedAt).format('D MMM, h:mm A') : '—'}</td>
+                <td className="td text-right text-amber-600 dark:text-amber-400 font-medium">₹{Number(s.totalSales || 0).toLocaleString('en-IN')}</td>
                 <td className="td text-right">₹{Number(s.cashSales || 0).toLocaleString('en-IN')}</td>
-                <td className={cn('td text-right font-mono', Number(s.cashDifference) < 0 ? 'text-red-400' : Number(s.cashDifference) > 0 ? 'text-emerald-400' : 'text-slate-400')}>
+                <td className={cn('td text-right font-mono', Number(s.cashDifference) < 0 ? 'text-red-600 dark:text-red-400' : Number(s.cashDifference) > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-slate-400')}>
                   {s.cashDifference !== null ? `${Number(s.cashDifference) > 0 ? '+' : ''}₹${Number(s.cashDifference).toFixed(2)}` : '—'}
                 </td>
                 <td className="td"><span className={s.status === 'open' ? 'badge-green' : 'badge-slate'}>{s.status}</span></td>
@@ -140,9 +140,9 @@ export default function ShiftsPage() {
       {/* Open Shift Modal */}
       {showOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 overflow-y-auto">
-          <div className="bg-slate-900 rounded-2xl border border-slate-700 w-full max-w-lg p-6 space-y-4 my-4">
-            <h3 className="font-bold text-white text-lg">Open New Shift</h3>
-            <p className="text-sm text-slate-400">Count the opening cash in the drawer</p>
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-300 dark:border-slate-700 w-full max-w-lg p-6 space-y-4 my-4">
+            <h3 className="font-bold text-slate-900 dark:text-white text-lg">Open New Shift</h3>
+            <p className="text-sm text-slate-900 dark:text-slate-400">Count the opening cash in the drawer</p>
             <DenominationCount label="Opening Cash" counts={openingCounts} onChange={(k, v) => setOpeningCounts((c) => ({ ...c, [k]: v }))} />
             <div className="flex gap-3">
               <button onClick={() => setShowOpen(false)} className="btn-secondary flex-1">Cancel</button>
@@ -157,16 +157,16 @@ export default function ShiftsPage() {
       {/* Close Shift Modal */}
       {showClose && activeShift && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 overflow-y-auto">
-          <div className="bg-slate-900 rounded-2xl border border-slate-700 w-full max-w-lg p-6 space-y-4 my-4">
-            <h3 className="font-bold text-white text-lg">Close Shift — {activeShift.shiftNumber}</h3>
-            <div className="bg-slate-800 rounded-xl p-4 grid grid-cols-2 gap-3 text-sm">
-              <div className="text-slate-400">Opening Cash</div><div className="text-white text-right font-medium">₹{Number(activeShift.openingCash).toLocaleString('en-IN')}</div>
-              <div className="text-slate-400">Cash Sales</div><div className="text-emerald-400 text-right font-medium">+₹{Number(activeShift.cashSales).toLocaleString('en-IN')}</div>
-              <div className="text-slate-400">Expected Total</div><div className="text-white text-right font-bold">₹{(Number(activeShift.openingCash) + Number(activeShift.cashSales)).toLocaleString('en-IN')}</div>
-              <div className="text-slate-400">You're counting</div><div className="text-amber-400 text-right font-bold">₹{closingTotal.toLocaleString('en-IN')}</div>
-              <div className="col-span-2 border-t border-slate-700 pt-2 flex justify-between font-bold">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-300 dark:border-slate-700 w-full max-w-lg p-6 space-y-4 my-4">
+            <h3 className="font-bold text-slate-900 dark:text-white text-lg">Close Shift — {activeShift.shiftNumber}</h3>
+            <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-4 grid grid-cols-2 gap-3 text-sm">
+              <div className="text-slate-900 dark:text-slate-400">Opening Cash</div><div className="text-slate-900 dark:text-white text-right font-medium">₹{Number(activeShift.openingCash).toLocaleString('en-IN')}</div>
+              <div className="text-slate-900 dark:text-slate-400">Cash Sales</div><div className="text-emerald-600 dark:text-emerald-400 text-right font-medium">+₹{Number(activeShift.cashSales).toLocaleString('en-IN')}</div>
+              <div className="text-slate-900 dark:text-slate-400">Expected Total</div><div className="text-slate-900 dark:text-white text-right font-bold">₹{(Number(activeShift.openingCash) + Number(activeShift.cashSales)).toLocaleString('en-IN')}</div>
+              <div className="text-slate-900 dark:text-slate-400">You're counting</div><div className="text-amber-600 dark:text-amber-400 text-right font-bold">₹{closingTotal.toLocaleString('en-IN')}</div>
+              <div className="col-span-2 border-t border-slate-300 dark:border-slate-700 pt-2 flex justify-between font-bold">
                 <span>Difference</span>
-                <span className={cn(closingTotal - (Number(activeShift.openingCash) + Number(activeShift.cashSales)) < 0 ? 'text-red-400' : 'text-emerald-400')}>
+                <span className={cn(closingTotal - (Number(activeShift.openingCash) + Number(activeShift.cashSales)) < 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400')}>
                   {closingTotal - (Number(activeShift.openingCash) + Number(activeShift.cashSales)) > 0 ? '+' : ''}
                   ₹{(closingTotal - (Number(activeShift.openingCash) + Number(activeShift.cashSales))).toFixed(2)}
                 </span>

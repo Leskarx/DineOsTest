@@ -65,14 +65,14 @@ function ItemPickerModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-      <div className="bg-slate-900 rounded-2xl border border-slate-700 w-full max-w-sm shadow-2xl">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-300 dark:border-slate-700 w-full max-w-sm shadow-2xl">
 
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-800">
           <div>
-            <h3 className="font-bold text-white">{item.name}</h3>
-            <span className="text-amber-400 text-sm font-semibold">₹{effectivePrice.toFixed(2)}</span>
+            <h3 className="font-bold text-slate-900 dark:text-white">{item.name}</h3>
+            <span className="text-amber-600 dark:text-amber-400 text-sm font-semibold">₹{effectivePrice.toFixed(2)}</span>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white p-1">
+          <button onClick={onClose} className="text-slate-900 dark:text-slate-400 hover:text-slate-900 dark:text-white p-1">
             <X size={16} />
           </button>
         </div>
@@ -88,7 +88,7 @@ function ItemPickerModal({
                       'px-3 py-2 rounded-lg border text-sm font-medium transition-all text-center min-w-[80px]',
                       selectedVar?.id === v.id
                         ? 'bg-amber-500 border-amber-500 text-slate-900'
-                        : 'border-slate-600 text-slate-300 hover:border-amber-500',
+                        : 'border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:border-amber-500',
                     )}>
                     <div>{v.name}</div>
                     <div className="text-xs font-bold mt-0.5">₹{v.price}</div>
@@ -100,18 +100,18 @@ function ItemPickerModal({
 
           <div>
             <label className="label mb-2">Quantity</label>
-            <div className="flex items-center gap-2 bg-slate-800 rounded-lg px-3 py-2">
+            <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 rounded-lg px-3 py-2">
               <button onClick={() => setQty(Math.max(1, qty - 1))}
-                className="w-7 h-7 rounded bg-slate-700 hover:bg-slate-600 flex items-center justify-center">
+                className="w-7 h-7 rounded bg-slate-200 dark:bg-slate-700 hover:bg-slate-600 flex items-center justify-center">
                 <Minus size={12} />
               </button>
               <input
-                className="flex-1 text-center bg-transparent text-white font-bold text-lg outline-none w-12"
+                className="flex-1 text-center bg-transparent text-slate-900 dark:text-white font-bold text-lg outline-none w-12"
                 type="number" min={1} value={qty}
                 onChange={(e) => setQty(Math.max(1, parseInt(e.target.value) || 1))}
               />
               <button onClick={() => setQty(qty + 1)}
-                className="w-7 h-7 rounded bg-slate-700 hover:bg-slate-600 flex items-center justify-center">
+                className="w-7 h-7 rounded bg-slate-200 dark:bg-slate-700 hover:bg-slate-600 flex items-center justify-center">
                 <Plus size={12} />
               </button>
             </div>
@@ -120,7 +120,7 @@ function ItemPickerModal({
                 <button key={n} onClick={() => setQty(n)}
                   className={cn(
                     'px-2.5 py-1 rounded text-xs font-medium transition-colors',
-                    qty === n ? 'bg-amber-500 text-slate-900' : 'bg-slate-800 text-slate-400 hover:text-white',
+                    qty === n ? 'bg-amber-500 text-slate-900' : 'bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-400 hover:text-slate-900 dark:text-white',
                   )}>
                   +{n}
                 </button>
@@ -163,9 +163,9 @@ function AdvanceOrderModal({
   const [dt, setDt] = useState('');
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-      <div className="bg-slate-900 rounded-2xl border border-slate-700 w-full max-w-xs p-6 space-y-4">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-300 dark:border-slate-700 w-full max-w-xs p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="font-bold text-white">Schedule Advance Order</h3>
+          <h3 className="font-bold text-slate-900 dark:text-white">Schedule Advance Order</h3>
           <button onClick={onClose} className="btn-ghost p-1"><X size={14} /></button>
         </div>
         <div>
@@ -415,11 +415,11 @@ export default function PosPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
 
         {/* Top bar */}
-        <div className="p-4 border-b border-slate-800 flex items-center gap-3 flex-wrap">
+        <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center gap-3 flex-wrap">
           <OrderTypeSelector value={orderType} onChange={setOrderType} />
 
           <div className="relative flex-1 min-w-[160px]">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-900 dark:text-slate-400" />
             <input
               className="input pl-8"
               placeholder="Search items or short code..."
@@ -430,7 +430,7 @@ export default function PosPage() {
 
           {orderType === 'dine_in' && (
             <button
-              className={cn('btn-secondary', tableId && 'border-amber-500 text-amber-400')}
+              className={cn('btn-secondary', tableId && 'border-amber-500 text-amber-600 dark:text-amber-400')}
               onClick={() => setShowTablePicker(true)}
             >
               <UtensilsCrossed size={14} />
@@ -445,13 +445,13 @@ export default function PosPage() {
             </button>
 
             {showOpenOrders && (
-              <div className="absolute right-0 top-full mt-1 w-72 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-40 overflow-hidden">
-                <div className="px-3 py-2 border-b border-slate-800 text-xs font-semibold text-slate-400 uppercase">
+              <div className="absolute right-0 top-full mt-1 w-72 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl shadow-2xl z-40 overflow-hidden">
+                <div className="px-3 py-2 border-b border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-900 dark:text-slate-400 uppercase">
                   Open Orders
                 </div>
                 <div className="max-h-64 overflow-y-auto">
                   {!openOrders?.length ? (
-                    <div className="py-6 text-center text-slate-500 text-sm">No open orders</div>
+                    <div className="py-6 text-center text-slate-900 dark:text-slate-500 text-sm">No open orders</div>
                   ) : openOrders.map((o: any) => (
                     <button
                       key={o.id}
@@ -493,15 +493,15 @@ export default function PosPage() {
                         }
                       }}
                       className={cn(
-                        'w-full text-left px-3 py-2.5 hover:bg-slate-800 transition-colors border-b border-slate-800/50 last:border-0',
-                        currentOrder === o.id && 'bg-amber-900/20',
+                        'w-full text-left px-3 py-2.5 hover:bg-slate-50 dark:bg-slate-800 transition-colors border-b border-slate-200 dark:border-slate-800/50 last:border-0',
+                        currentOrder === o.id && 'bg-amber-100 dark:bg-amber-900/20',
                       )}
                     >
                       <div className="flex items-center justify-between">
-                        <span className="text-amber-400 text-sm font-medium">{o.orderNumber}</span>
+                        <span className="text-amber-600 dark:text-amber-400 text-sm font-medium">{o.orderNumber}</span>
                         <span className="badge-slate capitalize text-xs">{o.status}</span>
                       </div>
-                      <div className="text-xs text-slate-400 mt-0.5">
+                      <div className="text-xs text-slate-900 dark:text-slate-400 mt-0.5">
                         {o.table?.name || o.type?.replace('_', ' ')} · ₹{Number(o.grandTotal || 0).toFixed(0)}
                       </div>
                     </button>
@@ -513,12 +513,12 @@ export default function PosPage() {
         </div>
 
         {/* Categories */}
-        <div className="flex gap-2 px-4 py-2 overflow-x-auto scrollbar-none border-b border-slate-800">
+        <div className="flex gap-2 px-4 py-2 overflow-x-auto scrollbar-none border-b border-slate-200 dark:border-slate-800">
           <button
             onClick={() => setSelectedCat(null)}
             className={cn(
               'px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors',
-              !selectedCat ? 'bg-amber-500 text-slate-900' : 'bg-slate-800 text-slate-400 hover:text-white',
+              !selectedCat ? 'bg-amber-500 text-slate-900' : 'bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-400 hover:text-slate-900 dark:text-white',
             )}
           >
             All Items
@@ -531,7 +531,7 @@ export default function PosPage() {
                 'px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors',
                 selectedCat === cat.id
                   ? 'bg-amber-500 text-slate-900'
-                  : 'bg-slate-800 text-slate-400 hover:text-white',
+                  : 'bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-400 hover:text-slate-900 dark:text-white',
               )}
             >
               {cat.name}
@@ -551,7 +551,7 @@ export default function PosPage() {
                 className="pos-item card-sm text-left hover:border-amber-500 active:scale-95 relative"
               >
                 <div className="flex items-start justify-between gap-1 mb-1">
-                  <span className="text-xs font-medium text-white leading-tight line-clamp-2">
+                  <span className="text-xs font-medium text-slate-900 dark:text-white leading-tight line-clamp-2">
                     {item.name}
                   </span>
                   <span className={cn(
@@ -564,9 +564,9 @@ export default function PosPage() {
                     )} />
                   </span>
                 </div>
-                <div className="text-xs text-amber-400 font-semibold">₹{item.price}</div>
+                <div className="text-xs text-amber-600 dark:text-amber-400 font-semibold">₹{item.price}</div>
                 {Number(gstRate) > 0 && (
-                  <div className="text-xs text-slate-500">+{gstRate}% GST</div>
+                  <div className="text-xs text-slate-900 dark:text-slate-500">+{gstRate}% GST</div>
                 )}
                 {activeVars.length > 0 && (
                   <div className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-blue-400" />
@@ -575,7 +575,7 @@ export default function PosPage() {
             );
           })}
           {filteredItems?.length === 0 && (
-            <div className="col-span-full flex flex-col items-center justify-center py-16 text-slate-500">
+            <div className="col-span-full flex flex-col items-center justify-center py-16 text-slate-900 dark:text-slate-500">
               <Search size={32} className="mb-3 opacity-30" />
               <p className="text-sm">No items found</p>
             </div>
@@ -584,14 +584,14 @@ export default function PosPage() {
       </div>
 
       {/* ── Right: Cart ───────────────────────────────────────────────────── */}
-      <div className="w-80 flex-shrink-0 flex flex-col border-l border-slate-800 bg-slate-900">
+      <div className="w-80 flex-shrink-0 flex flex-col border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
 
         {/* Cart header */}
-        <div className="p-4 border-b border-slate-800">
+        <div className="p-4 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-white">Current Order</h2>
+            <h2 className="font-semibold text-slate-900 dark:text-white">Current Order</h2>
             {cart.length > 0 && (
-              <button onClick={resetPosState} className="text-xs text-red-400 hover:text-red-300">
+              <button onClick={resetPosState} className="text-xs text-red-600 dark:text-red-400 hover:text-red-300">
                 Clear
               </button>
             )}
@@ -601,12 +601,12 @@ export default function PosPage() {
           {orderType === 'dine_in' && (
             <div className="mt-2 flex items-center gap-2">
               {tableId ? (
-                <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-400 text-xs font-medium">
+                <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-amber-100 dark:bg-amber-500/15 border border-amber-300 dark:border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs font-medium">
                   <UtensilsCrossed size={11} />
                   <span>{tableName}</span>
                   <button
                     onClick={() => setTable(null, null)}
-                    className="ml-0.5 text-amber-400/60 hover:text-amber-300"
+                    className="ml-0.5 text-amber-600 dark:text-amber-400/60 hover:text-amber-600 dark:text-amber-300"
                   >
                     <X size={10} />
                   </button>
@@ -614,7 +614,7 @@ export default function PosPage() {
               ) : (
                 <button
                   onClick={() => setShowTablePicker(true)}
-                  className="text-xs text-slate-500 hover:text-amber-400 flex items-center gap-1 transition-colors"
+                  className="text-xs text-slate-900 dark:text-slate-500 hover:text-amber-600 dark:text-amber-400 flex items-center gap-1 transition-colors"
                 >
                   <UtensilsCrossed size={11} /> Tap to assign table
                 </button>
@@ -625,10 +625,10 @@ export default function PosPage() {
           {/* Order number badge */}
           {currentOrder && currentOrderNumber && (
             <div className="mt-1.5 flex items-center gap-2">
-              <span className="px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 text-amber-400 text-xs font-bold">
+              <span className="px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-500/15 border border-amber-300 dark:border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs font-bold">
                 {currentOrderNumber}
               </span>
-              <span className="text-xs text-slate-500">Editing existing order</span>
+              <span className="text-xs text-slate-900 dark:text-slate-500">Editing existing order</span>
             </div>
           )}
 
@@ -641,8 +641,8 @@ export default function PosPage() {
                   className={cn(
                     'flex items-center gap-1.5 px-2 py-1 rounded-lg border text-xs font-medium transition-all',
                     isComplimentary
-                      ? 'bg-emerald-600/20 border-emerald-600 text-emerald-400'
-                      : 'border-slate-700 text-slate-500 hover:border-slate-500',
+                      ? 'bg-emerald-600/20 border-emerald-600 text-emerald-600 dark:text-emerald-400'
+                      : 'border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-500 hover:border-slate-500',
                   )}
                 >
                   <Gift size={11} /> Complimentary
@@ -653,7 +653,7 @@ export default function PosPage() {
                     'flex items-center gap-1.5 px-2 py-1 rounded-lg border text-xs font-medium transition-all',
                     isSalesReturn
                       ? 'bg-orange-600/20 border-orange-600 text-orange-400'
-                      : 'border-slate-700 text-slate-500 hover:border-slate-500',
+                      : 'border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-500 hover:border-slate-500',
                   )}
                 >
                   <RotateCcw size={11} /> Return
@@ -666,7 +666,7 @@ export default function PosPage() {
                 'flex items-center gap-1.5 px-2 py-1 rounded-lg border text-xs font-medium transition-all',
                 scheduledAt
                   ? 'bg-blue-600/20 border-blue-600 text-blue-400'
-                  : 'border-slate-700 text-slate-500 hover:border-slate-500',
+                  : 'border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-500 hover:border-slate-500',
               )}
             >
               <Clock size={11} />
@@ -686,24 +686,24 @@ export default function PosPage() {
             </div>
           ) : cart.map((item: any) => {
             const borderColor = !item.alreadySent
-              ? 'border-amber-500/40'
+              ? 'border-amber-400 dark:border-amber-500/40'
               : item.kdsStatus === 'ready'     ? 'border-emerald-500/50'
               : item.kdsStatus === 'preparing' ? 'border-blue-500/40'
-              : 'border-slate-700/50';
+              : 'border-slate-200/50 dark:border-slate-700/50';
 
             return (
               <div
                 key={item.cartKey}
                 className={cn(
                   'rounded-lg p-3 border',
-                  item.alreadySent ? 'bg-slate-800/50' : 'bg-slate-800',
+                  item.alreadySent ? 'bg-slate-100/50 dark:bg-slate-800/50' : 'bg-slate-50 dark:bg-slate-800',
                   borderColor,
                 )}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-sm text-white leading-tight">{item.name}</span>
+                      <span className="text-sm text-slate-900 dark:text-white leading-tight">{item.name}</span>
                       {item.variationName && (
                         <span className="text-xs text-blue-400">({item.variationName})</span>
                       )}
@@ -711,7 +711,7 @@ export default function PosPage() {
 
                     {item.alreadySent ? (
                       item.kdsStatus === 'ready' ? (
-                        <span className="inline-flex items-center gap-1 text-xs text-emerald-400 font-semibold mt-0.5">
+                        <span className="inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 font-semibold mt-0.5">
                           <CheckCircle2 size={11} /> Ready
                         </span>
                       ) : item.kdsStatus === 'preparing' ? (
@@ -719,14 +719,14 @@ export default function PosPage() {
                           <ChefHat size={11} /> Preparing...
                         </span>
                       ) : item.kdsStatus === 'completed' ? (
-                        <span className="inline-flex items-center gap-1 text-xs text-slate-400 mt-0.5">
+                        <span className="inline-flex items-center gap-1 text-xs text-slate-900 dark:text-slate-400 mt-0.5">
                           <CheckCircle2 size={11} /> Served
                         </span>
                       ) : (
-                        <span className="text-xs text-slate-500 mt-0.5 block">⏳ Sent to kitchen</span>
+                        <span className="text-xs text-slate-900 dark:text-slate-500 mt-0.5 block">⏳ Sent to kitchen</span>
                       )
                     ) : (
-                      <span className="text-xs text-amber-400 font-semibold mt-0.5 block">
+                      <span className="text-xs text-amber-600 dark:text-amber-400 font-semibold mt-0.5 block">
                         ● New — pending KOT
                       </span>
                     )}
@@ -735,7 +735,7 @@ export default function PosPage() {
                   {!item.alreadySent && (
                     <button
                       onClick={() => removeItem(item.cartKey)}
-                      className="text-slate-500 hover:text-red-400 flex-shrink-0"
+                      className="text-slate-900 dark:text-slate-500 hover:text-red-600 dark:text-red-400 flex-shrink-0"
                     >
                       <Trash2 size={12} />
                     </button>
@@ -747,16 +747,16 @@ export default function PosPage() {
                     {!item.alreadySent && (
                       <button
                         onClick={() => updateQty(item.cartKey, item.qty - 1)}
-                        className="w-6 h-6 rounded bg-slate-700 hover:bg-slate-600 flex items-center justify-center"
+                        className="w-6 h-6 rounded bg-slate-200 dark:bg-slate-700 hover:bg-slate-600 flex items-center justify-center"
                       >
                         <Minus size={10} />
                       </button>
                     )}
-                    <span className="text-sm text-white w-4 text-center">{item.qty}</span>
+                    <span className="text-sm text-slate-900 dark:text-white w-4 text-center">{item.qty}</span>
                     {!item.alreadySent && (
                       <button
                         onClick={() => updateQty(item.cartKey, item.qty + 1)}
-                        className="w-6 h-6 rounded bg-slate-700 hover:bg-slate-600 flex items-center justify-center"
+                        className="w-6 h-6 rounded bg-slate-200 dark:bg-slate-700 hover:bg-slate-600 flex items-center justify-center"
                       >
                         <Plus size={10} />
                       </button>
@@ -764,7 +764,7 @@ export default function PosPage() {
                   </div>
                   <span className={cn(
                     'text-sm font-medium',
-                    item.alreadySent ? 'text-slate-500' : 'text-amber-400',
+                    item.alreadySent ? 'text-slate-900 dark:text-slate-500' : 'text-amber-600 dark:text-amber-400',
                   )}>
                     ₹{(item.price * item.qty).toFixed(2)}
                   </span>
@@ -776,12 +776,12 @@ export default function PosPage() {
 
         {/* Totals + actions */}
         {cart.length > 0 && (
-          <div className="p-4 border-t border-slate-800 space-y-3">
+          <div className="p-4 border-t border-slate-200 dark:border-slate-800 space-y-3">
 
             {/* Discount */}
-            <div className="flex items-center gap-2 bg-slate-800 rounded-lg px-3 py-2">
-              <Tag size={13} className="text-emerald-400 flex-shrink-0" />
-              <span className="text-xs text-slate-400 flex-1">Discount</span>
+            <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 rounded-lg px-3 py-2">
+              <Tag size={13} className="text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+              <span className="text-xs text-slate-900 dark:text-slate-400 flex-1">Discount</span>
               <div className="flex items-center gap-1">
                 {[0, 5, 10, 15, 20].map((pct) => (
                   <button
@@ -795,8 +795,8 @@ export default function PosPage() {
                     className={cn(
                       'text-xs px-1.5 py-0.5 rounded transition-colors',
                       discountPercent === pct
-                        ? 'bg-emerald-600 text-white'
-                        : 'text-slate-400 hover:text-white',
+                        ? 'bg-emerald-600 text-slate-900 dark:text-white'
+                        : 'text-slate-900 dark:text-slate-400 hover:text-slate-900 dark:text-white',
                     )}
                   >
                     {pct}%
@@ -807,28 +807,28 @@ export default function PosPage() {
 
             {/* Totals */}
             <div className="space-y-1 text-sm">
-              <div className="flex justify-between text-slate-400">
+              <div className="flex justify-between text-slate-900 dark:text-slate-400">
                 <span>Subtotal</span>
                 <span>₹{subtotal.toFixed(2)}</span>
               </div>
               {discountAmount > 0 && (
-                <div className="flex justify-between text-emerald-400">
+                <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
                   <span>Discount ({discountPercent}%)</span>
                   <span>-₹{discountAmount.toFixed(2)}</span>
                 </div>
               )}
-              <div className="flex justify-between text-slate-400">
+              <div className="flex justify-between text-slate-900 dark:text-slate-400">
                 <span>GST</span>
                 <span>₹{gstTotal.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between text-white font-bold text-base border-t border-slate-700 pt-2">
+              <div className="flex justify-between text-slate-900 dark:text-white font-bold text-base border-t border-slate-300 dark:border-slate-700 pt-2">
                 <span>Total</span>
-                <span className={cn(isComplimentary && 'line-through text-slate-500')}>
+                <span className={cn(isComplimentary && 'line-through text-slate-900 dark:text-slate-500')}>
                   ₹{billingGrandTotal.toFixed(2)}
                 </span>
               </div>
               {isComplimentary && (
-                <div className="text-right text-emerald-400 text-sm font-bold">
+                <div className="text-right text-emerald-600 dark:text-emerald-400 text-sm font-bold">
                   ₹0.00 (Complimentary)
                 </div>
               )}

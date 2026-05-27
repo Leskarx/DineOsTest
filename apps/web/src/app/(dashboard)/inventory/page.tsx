@@ -50,14 +50,14 @@ export default function InventoryPage() {
   return (
     <div className="p-6 space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-white">Inventory</h1>
+        <h1 className="text-xl font-bold text-slate-900 dark:text-white">Inventory</h1>
         <button onClick={() => setShowItemForm(true)} className="btn-primary"><Plus size={14} /> Add Item</button>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-slate-800 rounded-lg p-1 w-fit">
+      <div className="flex gap-1 bg-slate-50 dark:bg-slate-800 rounded-lg p-1 w-fit">
         {(['items', 'alerts', 'ledger'] as const).map((t) => (
-          <button key={t} onClick={() => setTab(t)} className={cn('px-4 py-1.5 rounded-md text-sm font-medium transition-colors capitalize', tab === t ? 'bg-amber-500 text-slate-900' : 'text-slate-400 hover:text-white')}>
+          <button key={t} onClick={() => setTab(t)} className={cn('px-4 py-1.5 rounded-md text-sm font-medium transition-colors capitalize', tab === t ? 'bg-amber-500 text-slate-900' : 'text-slate-900 dark:text-slate-400 hover:text-slate-900 dark:text-white')}>
             {t === 'alerts' ? `⚠️ Alerts${alerts?.length ? ` (${alerts.length})` : ''}` : t}
           </button>
         ))}
@@ -82,7 +82,7 @@ export default function InventoryPage() {
                   'px-3 py-1 rounded-full text-xs font-medium border transition-colors',
                   stockFilter === key
                     ? 'bg-amber-500 text-slate-900 border-amber-500'
-                    : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500',
+                    : 'bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-400 hover:border-slate-500',
                 )}
               >
                 {label}
@@ -92,7 +92,7 @@ export default function InventoryPage() {
 
           <div className="card overflow-hidden p-0">
             <table className="w-full">
-              <thead className="bg-slate-800/50">
+              <thead className="bg-slate-100/50 dark:bg-slate-800/50">
                 <tr>
                   <th className="th">Item</th><th className="th">SKU</th><th className="th text-right">Stock</th>
                   <th className="th text-right">Min Level</th><th className="th">Status</th><th className="th">Actions</th>
@@ -117,9 +117,9 @@ export default function InventoryPage() {
                     return (
                       <tr key={item.id} className="table-row">
                         <td className="td font-medium">{item.name}</td>
-                        <td className="td text-slate-500">{item.sku || '—'}</td>
+                        <td className="td text-slate-900 dark:text-slate-500">{item.sku || '—'}</td>
                         <td className="td text-right font-mono">{item._stockAmt.toFixed(2)}</td>
-                        <td className="td text-right text-slate-500">{item._minAmt}</td>
+                        <td className="td text-right text-slate-900 dark:text-slate-500">{item._minAmt}</td>
                         <td className="td"><span className={s.badge}>{s.label}</span></td>
                         <td className="td">
                           <div className="flex gap-2">
@@ -143,13 +143,13 @@ export default function InventoryPage() {
       {/* Alerts */}
       {tab === 'alerts' && (
         <div className="space-y-2">
-          {alerts?.length === 0 && <div className="text-center py-12 text-slate-500">✅ All stock levels are adequate</div>}
+          {alerts?.length === 0 && <div className="text-center py-12 text-slate-900 dark:text-slate-500">✅ All stock levels are adequate</div>}
           {alerts?.map((item: any) => (
-            <div key={item.id} className="card flex items-center gap-4 border-red-800/50">
-              <AlertTriangle size={18} className="text-red-400 flex-shrink-0" />
+            <div key={item.id} className="card flex items-center gap-4 border-red-300 dark:border-red-800/50">
+              <AlertTriangle size={18} className="text-red-600 dark:text-red-400 flex-shrink-0" />
               <div className="flex-1">
-                <div className="font-medium text-white">{item.name}</div>
-                <div className="text-xs text-slate-400">Current: {item.current_stock} | Min: {item.min_stock_level}</div>
+                <div className="font-medium text-slate-900 dark:text-white">{item.name}</div>
+                <div className="text-xs text-slate-900 dark:text-slate-400">Current: {item.current_stock} | Min: {item.min_stock_level}</div>
               </div>
               <span className="badge-red">{item.stock_status?.replace('_', ' ')}</span>
               <button onClick={() => { setSelectedItem({ id: item.id, name: item.name }); setShowTxnForm(true); }} className="btn-secondary text-xs">Restock</button>
@@ -166,25 +166,25 @@ export default function InventoryPage() {
               <option value="">— Select item —</option>
               {items?.map((i: any) => <option key={i.id} value={i.id}>{i.name}</option>)}
             </select>
-            {selectedItem && <span className="text-sm text-slate-400">Stock: <span className="text-white font-bold">{Number(selectedItem.currentStock).toFixed(2)}</span></span>}
+            {selectedItem && <span className="text-sm text-slate-900 dark:text-slate-400">Stock: <span className="text-slate-900 dark:text-white font-bold">{Number(selectedItem.currentStock).toFixed(2)}</span></span>}
           </div>
           {ledger && (
             <div className="card overflow-hidden p-0">
               <table className="w-full text-sm">
-                <thead className="bg-slate-800/50">
+                <thead className="bg-slate-100/50 dark:bg-slate-800/50">
                   <tr><th className="th">Date</th><th className="th">Type</th><th className="th text-right">Qty</th><th className="th text-right">Cost</th><th className="th text-right">Balance</th><th className="th">Notes</th></tr>
                 </thead>
                 <tbody>
                   {ledger.map((row: any) => (
                     <tr key={row.id} className="table-row">
-                      <td className="td text-xs text-slate-400">{new Date(row.createdAt).toLocaleString('en-IN')}</td>
+                      <td className="td text-xs text-slate-900 dark:text-slate-400">{new Date(row.createdAt).toLocaleString('en-IN')}</td>
                       <td className="td"><span className="badge-slate capitalize">{row.type}</span></td>
-                      <td className={cn('td text-right font-mono', ['sale', 'waste'].includes(row.type) ? 'text-red-400' : 'text-emerald-400')}>
+                      <td className={cn('td text-right font-mono', ['sale', 'waste'].includes(row.type) ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400')}>
                         {['sale', 'waste'].includes(row.type) ? '-' : '+'}{row.quantity}
                       </td>
-                      <td className="td text-right text-slate-400">₹{row.unitCost || 0}</td>
+                      <td className="td text-right text-slate-900 dark:text-slate-400">₹{row.unitCost || 0}</td>
                       <td className="td text-right font-mono font-bold">{Number(row.balanceAfter).toFixed(2)}</td>
-                      <td className="td text-slate-500 text-xs">{row.notes || '—'}</td>
+                      <td className="td text-slate-900 dark:text-slate-500 text-xs">{row.notes || '—'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -197,8 +197,8 @@ export default function InventoryPage() {
       {/* Transaction Modal */}
       {showTxnForm && selectedItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="bg-slate-900 rounded-2xl border border-slate-700 w-full max-w-sm p-6 space-y-4">
-            <h3 className="font-bold text-white">Stock Transaction — {selectedItem.name}</h3>
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-300 dark:border-slate-700 w-full max-w-sm p-6 space-y-4">
+            <h3 className="font-bold text-slate-900 dark:text-white">Stock Transaction — {selectedItem.name}</h3>
             <div>
               <label className="label">Transaction Type</label>
               <select className="input" value={txnForm.type} onChange={(e) => setTxnForm({ ...txnForm, type: e.target.value })}>
@@ -221,8 +221,8 @@ export default function InventoryPage() {
       {/* Create Item Modal */}
       {showItemForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="bg-slate-900 rounded-2xl border border-slate-700 w-full max-w-sm p-6 space-y-4">
-            <h3 className="font-bold text-white">Add Inventory Item</h3>
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-300 dark:border-slate-700 w-full max-w-sm p-6 space-y-4">
+            <h3 className="font-bold text-slate-900 dark:text-white">Add Inventory Item</h3>
             <div><label className="label">Name *</label><input className="input" value={itemForm.name} onChange={(e) => setItemForm({ ...itemForm, name: e.target.value })} /></div>
             <div><label className="label">SKU</label><input className="input" value={itemForm.sku} onChange={(e) => setItemForm({ ...itemForm, sku: e.target.value })} /></div>
             <div className="grid grid-cols-2 gap-3">

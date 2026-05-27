@@ -33,8 +33,8 @@ export default function RegisterPage() {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-amber-500 mb-4">
             <span className="text-2xl font-black text-slate-900">D</span>
           </div>
-          <h1 className="text-2xl font-bold text-white">Start Free Trial</h1>
-          <p className="text-slate-400 text-sm mt-1">14 days free, no credit card required</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Start Free Trial</h1>
+          <p className="text-slate-900 dark:text-slate-400 text-sm mt-1">14 days free, no credit card required</p>
         </div>
 
         <form onSubmit={handleSubmit} className="card space-y-4">
@@ -61,17 +61,17 @@ export default function RegisterPage() {
           <button className="btn-primary w-full" disabled={loading}>
             {loading ? 'Creating account...' : 'Start Free Trial'}
           </button>
-          <p className="text-center text-xs text-slate-500">
+          <p className="text-center text-xs text-slate-900 dark:text-slate-500">
             By registering you agree to our{' '}
-            <a href="/terms" target="_blank" className="text-amber-400 hover:underline">Terms of Service</a>
+            <a href="/terms" target="_blank" className="text-amber-600 dark:text-amber-400 hover:underline">Terms of Service</a>
             {' '}and{' '}
-            <a href="/privacy" target="_blank" className="text-amber-400 hover:underline">Privacy Policy</a>
+            <a href="/privacy" target="_blank" className="text-amber-600 dark:text-amber-400 hover:underline">Privacy Policy</a>
           </p>
         </form>
 
-        <p className="text-center text-sm text-slate-500 mt-4">
+        <p className="text-center text-sm text-slate-900 dark:text-slate-500 mt-4">
           Already have an account?{' '}
-          <a href="/login" className="text-amber-400 hover:text-amber-300">Sign in →</a>
+          <a href="/login" className="text-amber-600 dark:text-amber-400 hover:text-amber-600 dark:text-amber-300">Sign in →</a>
         </p>
       </div>
     </div>

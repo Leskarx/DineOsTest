@@ -2,11 +2,12 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
+import { useTheme } from 'next-themes';
 import { useAuthStore } from '@/store/auth.store';
 import {
   LayoutDashboard, ShoppingCart, Monitor, Layout, BookOpen, Package,
   Receipt, Clock, BarChart3, Users, Building2, Settings, LogOut,
-  Wifi, WifiOff, Shield, Hotel, CalendarDays, SprayCan, BedDouble,
+  Wifi, WifiOff, Shield, Hotel, CalendarDays, SprayCan, BedDouble, Sun, Moon
 } from 'lucide-react';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { cn } from '@/lib/utils';
@@ -72,6 +73,7 @@ const navSections: NavSection[] = [
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { theme, setTheme } = useTheme();
   const { user, accessToken, logout, branchId } = useAuthStore();
   const [hydrated, setHydrated] = useState(false);
   const isOnline = useOnlineStatus();
@@ -98,17 +100,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="flex h-screen bg-slate-950 overflow-hidden">
+    <div className="flex h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">
       {/* Sidebar */}
-      <aside className="w-56 flex-shrink-0 flex flex-col bg-slate-900 border-r border-slate-800">
-        <div className="p-4 border-b border-slate-800">
+      <aside className="w-56 flex-shrink-0 flex flex-col bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800">
+        <div className="p-4 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center flex-shrink-0">
               <span className="text-sm font-black text-slate-900">D</span>
             </div>
             <div className="min-w-0">
-              <div className="text-sm font-semibold text-white truncate">Dine&Stay OS</div>
-              <div className="text-xs text-slate-500 truncate">{user?.email}</div>
+              <div className="text-sm font-semibold text-slate-900 dark:text-white truncate">Dine&Stay OS</div>
+              <div className="text-xs text-slate-900 dark:text-slate-500 truncate">{user?.email}</div>
             </div>
           </div>
         </div>
@@ -159,27 +161,31 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           })}
         </nav>
 
-        <div className="p-3 border-t border-slate-800 space-y-2">
-          <div className="flex items-center gap-2 px-2 py-2 bg-slate-800/40 rounded-lg border border-slate-700/50">
-            <div className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
+        <div className="p-3 border-t border-slate-200 dark:border-slate-800 space-y-2">
+          <div className="flex items-center gap-2 px-2 py-2 bg-slate-100/40 dark:bg-slate-800/40 rounded-lg border border-slate-200/50 dark:border-slate-700/50">
+            <div className="w-7 h-7 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-900 dark:text-white flex-shrink-0">
               {user?.firstName?.[0]}{user?.lastName?.[0]}
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-xs font-medium text-white truncate">{user?.firstName} {user?.lastName}</div>
-              <div className="text-[10px] text-amber-400/90 capitalize truncate font-semibold">
+              <div className="text-xs font-medium text-slate-900 dark:text-white truncate">{user?.firstName} {user?.lastName}</div>
+              <div className="text-[10px] text-amber-600 dark:text-amber-400/90 capitalize truncate font-semibold">
                 {user?.role === 'manager' ? 'Branch Manager' : user?.role?.replace('_', ' ')}
               </div>
             </div>
           </div>
 
-          <div className={cn('flex items-center gap-2 text-xs px-2 py-1 rounded', isOnline ? 'text-emerald-400' : 'text-amber-400')}>
+          <div className={cn('flex items-center gap-2 text-xs px-2 py-1 rounded', isOnline ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400')}>
             {isOnline ? <Wifi size={12} /> : <WifiOff size={12} />}
             <span>{isOnline ? 'Online' : 'Offline — syncing queued'}</span>
           </div>
-          <button onClick={() => { logout(); router.replace('/login'); }} className="sidebar-link w-full text-red-400 hover:text-red-300">
-            <LogOut size={16} />
-            <span>Sign out</span>
-          </button>
+          <div className="flex gap-2">
+            <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="sidebar-link flex-1 justify-center text-slate-500 hover:text-amber-500 dark:text-slate-400 dark:hover:text-amber-600 dark:text-amber-400" title="Toggle Theme">
+              {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+            </button>
+            <button onClick={() => { logout(); router.replace('/login'); }} className="sidebar-link flex-1 justify-center text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300" title="Sign out">
+              <LogOut size={16} />
+            </button>
+          </div>
         </div>
       </aside>
 

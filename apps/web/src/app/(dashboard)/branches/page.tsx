@@ -41,13 +41,13 @@ function BranchForm({ editBranch, onClose, onSaved }: { editBranch?: any; onClos
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
-      <div className="bg-slate-900 rounded-2xl border border-slate-700 w-full max-w-md p-6 space-y-4" onClick={e => e.stopPropagation()}>
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-300 dark:border-slate-700 w-full max-w-md p-6 space-y-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between">
-          <h3 className="font-bold text-white text-lg">{editBranch ? 'Edit Branch' : 'Add Branch'}</h3>
-          <button onClick={onClose} className="p-1 text-slate-500 hover:text-slate-300"><X size={16} /></button>
+          <h3 className="font-bold text-slate-900 dark:text-white text-lg">{editBranch ? 'Edit Branch' : 'Add Branch'}</h3>
+          <button onClick={onClose} className="p-1 text-slate-900 dark:text-slate-500 hover:text-slate-600 dark:text-slate-300"><X size={16} /></button>
         </div>
 
-        {err && <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{err}</p>}
+        {err && <p className="text-xs text-red-600 dark:text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{err}</p>}
 
         <div className="grid grid-cols-2 gap-3">
           <div className="col-span-2">
@@ -117,8 +117,8 @@ export default function BranchesPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-white">Branch Management</h1>
-          <p className="text-sm text-slate-400">
+          <h1 className="text-xl font-bold text-slate-900 dark:text-white">Branch Management</h1>
+          <p className="text-sm text-slate-900 dark:text-slate-400">
             {branches?.length || 0} / {limits?.maxBranches === -1 ? '∞' : limits?.maxBranches || '—'} branches
           </p>
         </div>
@@ -128,7 +128,7 @@ export default function BranchesPage() {
               <Plus size={14} /> Add Branch
             </button>
           ) : (
-            <span className="text-sm text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-2 rounded-lg">
+            <span className="text-sm text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-500/10 border border-amber-300 dark:border-amber-500/20 px-3 py-2 rounded-lg">
               Branch limit reached — upgrade plan
             </span>
           )
@@ -146,16 +146,16 @@ export default function BranchesPage() {
             return (
               <div key={branch.id} className={cn(
                 'card border-2 transition-all flex flex-col',
-                isActive ? 'border-amber-500 bg-amber-500/5' : 'border-slate-700 hover:border-slate-600',
+                isActive ? 'border-amber-500 bg-amber-50 dark:bg-amber-500/5' : 'border-slate-300 dark:border-slate-700 hover:border-slate-300 dark:border-slate-600',
               )}>
                 {/* Top row */}
                 <div className="flex items-start justify-between mb-3">
-                  <div className="w-10 h-10 rounded-xl bg-slate-700 flex items-center justify-center">
-                    <Building2 size={20} className={isActive ? 'text-amber-400' : 'text-slate-400'} />
+                  <div className="w-10 h-10 rounded-xl bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
+                    <Building2 size={20} className={isActive ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-slate-400'} />
                   </div>
                   <div className="flex items-center gap-2">
                     {branch.isHq && (
-                      <span className="flex items-center gap-1 text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">
+                      <span className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-500/10 border border-amber-300 dark:border-amber-500/20 px-2 py-0.5 rounded-full">
                         <Star size={10} /> HQ
                       </span>
                     )}
@@ -164,22 +164,22 @@ export default function BranchesPage() {
                 </div>
 
                 {/* Info */}
-                <h3 className="font-bold text-white">{branch.name}</h3>
-                <p className="text-xs text-slate-500 font-mono mt-0.5">{branch.code}</p>
-                <p className="text-xs text-slate-500 mt-0.5">{typeLabel}</p>
+                <h3 className="font-bold text-slate-900 dark:text-white">{branch.name}</h3>
+                <p className="text-xs text-slate-900 dark:text-slate-500 font-mono mt-0.5">{branch.code}</p>
+                <p className="text-xs text-slate-900 dark:text-slate-500 mt-0.5">{typeLabel}</p>
                 {branch.address && (
-                  <div className="flex items-start gap-1 text-xs text-slate-400 mt-1.5">
+                  <div className="flex items-start gap-1 text-xs text-slate-900 dark:text-slate-400 mt-1.5">
                     <MapPin size={10} className="mt-0.5 flex-shrink-0" />
                     <span className="line-clamp-2">{branch.address}</span>
                   </div>
                 )}
                 {branch.phone && (
-                  <div className="flex items-center gap-1 text-xs text-slate-400 mt-1">
+                  <div className="flex items-center gap-1 text-xs text-slate-900 dark:text-slate-400 mt-1">
                     <Phone size={10} /> {branch.phone}
                   </div>
                 )}
                 {branch.gstin && (
-                  <div className="text-xs text-slate-500 font-mono mt-1">GSTIN: {branch.gstin}</div>
+                  <div className="text-xs text-slate-900 dark:text-slate-500 font-mono mt-1">GSTIN: {branch.gstin}</div>
                 )}
 
                 {/* Actions */}
@@ -190,15 +190,15 @@ export default function BranchesPage() {
                       className={cn(
                         'flex-1 text-xs py-1.5 rounded-lg transition-colors font-medium',
                         isActive
-                          ? 'bg-amber-500/20 text-amber-400 cursor-default'
-                          : 'bg-slate-700 hover:bg-slate-600 text-slate-300',
+                          ? 'bg-amber-200 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 cursor-default'
+                          : 'bg-slate-200 dark:bg-slate-700 hover:bg-slate-600 text-slate-600 dark:text-slate-300',
                       )}
                       disabled={isActive}
                     >
                       {isActive ? '✓ Selected' : 'Switch To'}
                     </button>
                   ) : (
-                    <div className="flex-1 flex items-center gap-1.5 text-xs py-1.5 px-3 rounded-lg bg-slate-800/50 text-slate-600 cursor-not-allowed">
+                    <div className="flex-1 flex items-center gap-1.5 text-xs py-1.5 px-3 rounded-lg bg-slate-100/50 dark:bg-slate-800/50 text-slate-600 cursor-not-allowed">
                       <Lock size={10} />
                       <span>Branch locked</span>
                     </div>

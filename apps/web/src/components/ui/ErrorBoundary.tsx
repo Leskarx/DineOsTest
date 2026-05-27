@@ -39,7 +39,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
     if (inline) {
       return (
-        <div className="flex items-center gap-2 p-3 rounded-xl bg-red-900/20 border border-red-800 text-sm text-red-400">
+        <div className="flex items-center gap-2 p-3 rounded-xl bg-red-100 dark:bg-red-900/20 border border-red-300 dark:border-red-800 text-sm text-red-600 dark:text-red-400">
           <AlertTriangle size={14} className="flex-shrink-0" />
           <span>{section ? `${section} failed to load` : 'Something went wrong'}</span>
           <button onClick={this.reset} className="ml-auto flex items-center gap-1 hover:text-red-300 transition-colors">
@@ -51,13 +51,13 @@ export class ErrorBoundary extends Component<Props, State> {
 
     return (
       <div className="flex flex-col items-center justify-center min-h-64 p-8 text-center">
-        <div className="w-16 h-16 rounded-2xl bg-red-900/20 border border-red-800 flex items-center justify-center mb-4">
-          <AlertTriangle size={28} className="text-red-400" />
+        <div className="w-16 h-16 rounded-2xl bg-red-100 dark:bg-red-900/20 border border-red-300 dark:border-red-800 flex items-center justify-center mb-4">
+          <AlertTriangle size={28} className="text-red-600 dark:text-red-400" />
         </div>
-        <h3 className="text-white font-bold text-lg mb-1">
+        <h3 className="text-slate-900 dark:text-white font-bold text-lg mb-1">
           {section ? `${section} failed to load` : 'Something went wrong'}
         </h3>
-        <p className="text-slate-400 text-sm max-w-sm mb-6">
+        <p className="text-slate-900 dark:text-slate-400 text-sm max-w-sm mb-6">
           {process.env.NODE_ENV === 'development'
             ? error.message
             : 'An unexpected error occurred. Refresh the page or try again.'}

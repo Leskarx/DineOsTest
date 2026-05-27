@@ -130,13 +130,13 @@ export default function ReportsPage() {
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-xl font-bold text-white">Reports & Analytics</h1>
+        <h1 className="text-xl font-bold text-slate-900 dark:text-white">Reports & Analytics</h1>
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-2 text-sm">
-            <span className="text-slate-400">From</span>
+            <span className="text-slate-900 dark:text-slate-400">From</span>
             <input type="date" className="input py-1.5" value={from}
               onChange={(e) => setFrom(e.target.value)} max={to} />
-            <span className="text-slate-400">To</span>
+            <span className="text-slate-900 dark:text-slate-400">To</span>
             <input type="date" className="input py-1.5" value={to}
               onChange={(e) => setTo(e.target.value)}
               min={from} max={dayjs().format('YYYY-MM-DD')} />
@@ -156,14 +156,14 @@ export default function ReportsPage() {
       </div>
 
       {/* ── Tabs ───────────────────────────────────────────────────────────── */}
-      <div className="flex gap-1 bg-slate-800 rounded-lg p-1 flex-wrap">
+      <div className="flex gap-1 bg-slate-50 dark:bg-slate-800 rounded-lg p-1 flex-wrap">
         {TABS.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
             onClick={() => setTab(id as ReportTab)}
             className={cn(
               'flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium transition-colors',
-              tab === id ? 'bg-amber-500 text-slate-900' : 'text-slate-400 hover:text-white',
+              tab === id ? 'bg-amber-500 text-slate-900' : 'text-slate-900 dark:text-slate-400 hover:text-slate-900 dark:text-white',
             )}
           >
             <Icon size={14} /> {label}
@@ -188,7 +188,7 @@ export default function ReportsPage() {
           </div>
 
           <div className="card">
-            <h2 className="text-sm font-semibold text-slate-300 mb-4">Daily Sales</h2>
+            <h2 className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-4">Daily Sales</h2>
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={dailySales?.map((d: any) => ({
                 date:  dayjs(d.date).format('D MMM'),
@@ -196,10 +196,10 @@ export default function ReportsPage() {
                 tax:   Number(d.total_tax),
                 bills: Number(d.total_bills),
               })) || []}>
-                <XAxis dataKey="date" tick={{ fill: '#94a3b8', fontSize: 11 }} />
-                <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} tickFormatter={(v) => `₹${v}`} />
+                <XAxis dataKey="date" tick={{ fill: 'var(--chart-axis-text)', fontSize: 11 }} />
+                <YAxis tick={{ fill: 'var(--chart-axis-text)', fontSize: 11 }} tickFormatter={(v) => `₹${v}`} />
                 <Tooltip
-                  contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8 }}
+                  contentStyle={{ background: 'var(--chart-tooltip-bg)', border: '1px solid var(--chart-tooltip-border)', borderRadius: 8, color: 'var(--chart-tooltip-text)' }}
                   formatter={(v: any) => `₹${Number(v).toLocaleString('en-IN')}`}
                 />
                 <Bar dataKey="sales" fill="#f59e0b" radius={[4, 4, 0, 0]} name="Sales" />
@@ -210,7 +210,7 @@ export default function ReportsPage() {
 
           <div className="card p-0 overflow-hidden">
             <table className="w-full text-sm">
-              <thead className="bg-slate-800/50">
+              <thead className="bg-slate-100/50 dark:bg-slate-800/50">
                 <tr>
                   <th className="th">Date</th>
                   <th className="th text-right">Bills</th>
@@ -225,13 +225,13 @@ export default function ReportsPage() {
                   <tr key={d.date} className="table-row">
                     <td className="td">{dayjs(d.date).format('D MMM YYYY')}</td>
                     <td className="td text-right">{d.total_bills}</td>
-                    <td className="td text-right font-medium text-amber-400">
+                    <td className="td text-right font-medium text-amber-600 dark:text-amber-400">
                       {fmt(Number(d.gross_sales))}
                     </td>
-                    <td className="td text-right text-red-400">
+                    <td className="td text-right text-red-600 dark:text-red-400">
                       {fmt(Number(d.total_discount || 0))}
                     </td>
-                    <td className="td text-right text-slate-400">
+                    <td className="td text-right text-slate-900 dark:text-slate-400">
                       {fmt(Number(d.total_tax || 0))}
                     </td>
                     <td className="td text-right font-bold">
@@ -241,7 +241,7 @@ export default function ReportsPage() {
                 ))}
                 {!dailySales?.length && (
                   <tr>
-                    <td colSpan={6} className="td text-center text-slate-500 py-8">
+                    <td colSpan={6} className="td text-center text-slate-900 dark:text-slate-500 py-8">
                       No data for selected period
                     </td>
                   </tr>
@@ -257,7 +257,7 @@ export default function ReportsPage() {
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-6">
             <div className="card">
-              <h2 className="text-sm font-semibold text-slate-300 mb-4">Revenue by Item</h2>
+              <h2 className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-4">Revenue by Item</h2>
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart
                   data={itemSales?.slice(0, 10).map((i: any) => ({
@@ -266,12 +266,12 @@ export default function ReportsPage() {
                   })) || []}
                   layout="vertical"
                 >
-                  <XAxis type="number" tick={{ fill: '#94a3b8', fontSize: 10 }}
+                  <XAxis type="number" tick={{ fill: 'var(--chart-axis-text)', fontSize: 10 }}
                     tickFormatter={(v) => `₹${v}`} />
                   <YAxis type="category" dataKey="name"
-                    tick={{ fill: '#94a3b8', fontSize: 10 }} width={80} />
+                    tick={{ fill: 'var(--chart-axis-text)', fontSize: 10 }} width={80} />
                   <Tooltip
-                    contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8 }}
+                    contentStyle={{ background: 'var(--chart-tooltip-bg)', border: '1px solid var(--chart-tooltip-border)', borderRadius: 8, color: 'var(--chart-tooltip-text)' }}
                     formatter={(v: any) => `₹${Number(v).toLocaleString('en-IN')}`}
                   />
                   <Bar dataKey="revenue" fill="#f59e0b" radius={[0, 4, 4, 0]} />
@@ -281,7 +281,7 @@ export default function ReportsPage() {
 
             <div className="card p-0 overflow-hidden">
               <table className="w-full text-sm">
-                <thead className="bg-slate-800/50">
+                <thead className="bg-slate-100/50 dark:bg-slate-800/50">
                   <tr>
                     <th className="th">#</th>
                     <th className="th">Item</th>
@@ -292,17 +292,17 @@ export default function ReportsPage() {
                 <tbody>
                   {itemSales?.map((item: any, i: number) => (
                     <tr key={item.menu_item_id || i} className="table-row">
-                      <td className="td text-slate-500">{i + 1}</td>
+                      <td className="td text-slate-900 dark:text-slate-500">{i + 1}</td>
                       <td className="td font-medium">{item.item_name}</td>
                       <td className="td text-right">{Number(item.total_qty).toFixed(0)}</td>
-                      <td className="td text-right text-amber-400 font-medium">
+                      <td className="td text-right text-amber-600 dark:text-amber-400 font-medium">
                         {fmt(Number(item.total_revenue))}
                       </td>
                     </tr>
                   ))}
                   {!itemSales?.length && (
                     <tr>
-                      <td colSpan={4} className="td text-center text-slate-500 py-8">
+                      <td colSpan={4} className="td text-center text-slate-900 dark:text-slate-500 py-8">
                         No data for selected period
                       </td>
                     </tr>
@@ -318,7 +318,7 @@ export default function ReportsPage() {
       {tab === 'payments' && (
         <div className="grid grid-cols-2 gap-6">
           <div className="card">
-            <h2 className="text-sm font-semibold text-slate-300 mb-4">Payment Mix</h2>
+            <h2 className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-4">Payment Mix</h2>
             <ResponsiveContainer width="100%" height={220}>
               <PieChart>
                 <Pie
@@ -340,7 +340,7 @@ export default function ReportsPage() {
 
           <div className="card p-0 overflow-hidden">
             <table className="w-full text-sm">
-              <thead className="bg-slate-800/50">
+              <thead className="bg-slate-100/50 dark:bg-slate-800/50">
                 <tr>
                   <th className="th">Method</th>
                   <th className="th text-right">Transactions</th>
@@ -358,14 +358,14 @@ export default function ReportsPage() {
                       </span>
                     </td>
                     <td className="td text-right">{p.transaction_count}</td>
-                    <td className="td text-right font-bold text-amber-400">
+                    <td className="td text-right font-bold text-amber-600 dark:text-amber-400">
                       {fmt(Number(p.total_amount))}
                     </td>
                   </tr>
                 ))}
                 {!payments?.length && (
                   <tr>
-                    <td colSpan={3} className="td text-center text-slate-500 py-8">
+                    <td colSpan={3} className="td text-center text-slate-900 dark:text-slate-500 py-8">
                       No data for selected period
                     </td>
                   </tr>
@@ -381,7 +381,7 @@ export default function ReportsPage() {
         <div className="space-y-4">
           <div className="card p-0 overflow-hidden">
             <table className="w-full text-sm">
-              <thead className="bg-slate-800/50">
+              <thead className="bg-slate-100/50 dark:bg-slate-800/50">
                 <tr>
                   <th className="th">Month</th>
                   <th className="th text-right">Invoices</th>
@@ -397,12 +397,12 @@ export default function ReportsPage() {
                 {gstReport?.map((row: any) => (
                   <tr key={row.month} className="table-row">
                     <td className="td font-medium">{dayjs(row.month).format('MMMM YYYY')}</td>
-                    <td className="td text-right text-slate-400">{row.total_invoices}</td>
+                    <td className="td text-right text-slate-900 dark:text-slate-400">{row.total_invoices}</td>
                     <td className="td text-right">{fmt(Number(row.taxable_value))}</td>
                     <td className="td text-right text-blue-400">{fmt(Number(row.cgst))}</td>
                     <td className="td text-right text-purple-400">{fmt(Number(row.sgst))}</td>
-                    <td className="td text-right text-emerald-400">{fmt(Number(row.igst))}</td>
-                    <td className="td text-right font-bold text-amber-400">
+                    <td className="td text-right text-emerald-600 dark:text-emerald-400">{fmt(Number(row.igst))}</td>
+                    <td className="td text-right font-bold text-amber-600 dark:text-amber-400">
                       {fmt(Number(row.total_tax))}
                     </td>
                     <td className="td text-right font-bold">{fmt(Number(row.gross_value))}</td>
@@ -410,14 +410,14 @@ export default function ReportsPage() {
                 ))}
                 {!gstReport?.length && (
                   <tr>
-                    <td colSpan={8} className="td text-center text-slate-500 py-8">
+                    <td colSpan={8} className="td text-center text-slate-900 dark:text-slate-500 py-8">
                       No data for selected period
                     </td>
                   </tr>
                 )}
               </tbody>
               {gstReport?.length > 0 && (
-                <tfoot className="bg-slate-800/80">
+                <tfoot className="bg-slate-50 dark:bg-slate-800/80">
                   <tr>
                     <td className="td font-bold">TOTAL</td>
                     <td className="td text-right font-bold">
@@ -432,10 +432,10 @@ export default function ReportsPage() {
                     <td className="td text-right font-bold text-purple-400">
                       {fmt(gstReport.reduce((s: number, r: any) => s + Number(r.sgst), 0))}
                     </td>
-                    <td className="td text-right font-bold text-emerald-400">
+                    <td className="td text-right font-bold text-emerald-600 dark:text-emerald-400">
                       {fmt(gstReport.reduce((s: number, r: any) => s + Number(r.igst), 0))}
                     </td>
-                    <td className="td text-right font-bold text-amber-400">
+                    <td className="td text-right font-bold text-amber-600 dark:text-amber-400">
                       {fmt(gstReport.reduce((s: number, r: any) => s + Number(r.total_tax), 0))}
                     </td>
                     <td className="td text-right font-bold">
@@ -446,9 +446,9 @@ export default function ReportsPage() {
               )}
             </table>
           </div>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-900 dark:text-slate-500">
             * GSTR-1 / GSTR-3B summary. Verify with your CA before filing.
-            Use the <strong className="text-slate-300">GSTR-1 JSON</strong> button above to
+            Use the <strong className="text-slate-600 dark:text-slate-300">GSTR-1 JSON</strong> button above to
             download GST portal-ready JSON.
           </p>
         </div>
@@ -480,7 +480,7 @@ export default function ReportsPage() {
 
           <div className="card p-0 overflow-hidden">
             <table className="w-full text-sm">
-              <thead className="bg-slate-800/50">
+              <thead className="bg-slate-100/50 dark:bg-slate-800/50">
                 <tr>
                   <th className="th">Shift</th>
                   <th className="th">Cashier</th>
@@ -505,32 +505,32 @@ export default function ReportsPage() {
                         expandedShift === s.shift_id ? null : s.shift_id,
                       )}
                     >
-                      <td className="td font-medium text-amber-400">{s.shift_number}</td>
+                      <td className="td font-medium text-amber-600 dark:text-amber-400">{s.shift_number}</td>
                       <td className="td">{s.cashier_name?.trim() || '—'}</td>
-                      <td className="td text-slate-400">
+                      <td className="td text-slate-900 dark:text-slate-400">
                         {s.opened_at ? dayjs(s.opened_at).format('D MMM, HH:mm') : '—'}
                       </td>
-                      <td className="td text-slate-400">
+                      <td className="td text-slate-900 dark:text-slate-400">
                         {s.closed_at ? dayjs(s.closed_at).format('D MMM, HH:mm') : '—'}
                       </td>
                       <td className="td text-right">{s.total_orders}</td>
                       <td className="td text-right">{fmt(Number(s.cash_sales))}</td>
                       <td className="td text-right">{fmt(Number(s.upi_sales))}</td>
                       <td className="td text-right">{fmt(Number(s.card_sales))}</td>
-                      <td className="td text-right font-bold text-amber-400">
+                      <td className="td text-right font-bold text-amber-600 dark:text-amber-400">
                         {fmt(Number(s.total_sales))}
                       </td>
                       <td className="td text-center">
                         <span className={cn(
                           'text-xs px-2 py-0.5 rounded-full font-medium',
                           s.status === 'closed'
-                            ? 'bg-slate-700 text-slate-400'
-                            : 'bg-emerald-500/20 text-emerald-400',
+                            ? 'bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-400'
+                            : 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400',
                         )}>
                           {s.status}
                         </span>
                       </td>
-                      <td className="td text-slate-500">
+                      <td className="td text-slate-900 dark:text-slate-500">
                         {expandedShift === s.shift_id
                           ? <ChevronUp size={14} />
                           : <ChevronDown size={14} />}
@@ -538,47 +538,47 @@ export default function ReportsPage() {
                     </tr>
 
                     {expandedShift === s.shift_id && (
-                      <tr key={`${s.shift_id}-expanded`} className="bg-slate-800/30">
+                      <tr key={`${s.shift_id}-expanded`} className="bg-slate-50 dark:bg-slate-800/30">
                         <td colSpan={11} className="px-6 py-3">
                           <div className="grid grid-cols-4 gap-4 text-xs">
                             <div>
-                              <div className="text-slate-500 mb-1">Opening Cash</div>
+                              <div className="text-slate-900 dark:text-slate-500 mb-1">Opening Cash</div>
                               <div className="font-medium">{fmt(Number(s.opening_cash || 0))}</div>
                             </div>
                             <div>
-                              <div className="text-slate-500 mb-1">Closing Cash</div>
+                              <div className="text-slate-900 dark:text-slate-500 mb-1">Closing Cash</div>
                               <div className="font-medium">{fmt(Number(s.closing_cash || 0))}</div>
                             </div>
                             <div>
-                              <div className="text-slate-500 mb-1">Complimentary</div>
-                              <div className="font-medium text-emerald-400">
+                              <div className="text-slate-900 dark:text-slate-500 mb-1">Complimentary</div>
+                              <div className="font-medium text-emerald-600 dark:text-emerald-400">
                                 {fmt(Number(s.complimentary || 0))}
                               </div>
                             </div>
                             <div>
-                              <div className="text-slate-500 mb-1">Wallet Sales</div>
+                              <div className="text-slate-900 dark:text-slate-500 mb-1">Wallet Sales</div>
                               <div className="font-medium">{fmt(Number(s.wallet_sales || 0))}</div>
                             </div>
                             <div>
-                              <div className="text-slate-500 mb-1">CGST Collected</div>
+                              <div className="text-slate-900 dark:text-slate-500 mb-1">CGST Collected</div>
                               <div className="font-medium text-blue-400">
                                 {fmt(Number(s.total_cgst || 0))}
                               </div>
                             </div>
                             <div>
-                              <div className="text-slate-500 mb-1">SGST Collected</div>
+                              <div className="text-slate-900 dark:text-slate-500 mb-1">SGST Collected</div>
                               <div className="font-medium text-purple-400">
                                 {fmt(Number(s.total_sgst || 0))}
                               </div>
                             </div>
                             <div>
-                              <div className="text-slate-500 mb-1">IGST Collected</div>
-                              <div className="font-medium text-emerald-400">
+                              <div className="text-slate-900 dark:text-slate-500 mb-1">IGST Collected</div>
+                              <div className="font-medium text-emerald-600 dark:text-emerald-400">
                                 {fmt(Number(s.total_igst || 0))}
                               </div>
                             </div>
                             <div>
-                              <div className="text-slate-500 mb-1">Credit Sales</div>
+                              <div className="text-slate-900 dark:text-slate-500 mb-1">Credit Sales</div>
                               <div className="font-medium text-orange-400">
                                 {fmt(Number(s.credit_sales || 0))}
                               </div>
@@ -591,7 +591,7 @@ export default function ReportsPage() {
                 ))}
                 {!shiftReport?.length && (
                   <tr>
-                    <td colSpan={11} className="td text-center text-slate-500 py-8">
+                    <td colSpan={11} className="td text-center text-slate-900 dark:text-slate-500 py-8">
                       No shifts found for selected period
                     </td>
                   </tr>
@@ -628,7 +628,7 @@ export default function ReportsPage() {
 
           <div className="card p-0 overflow-hidden">
             <table className="w-full text-sm">
-              <thead className="bg-slate-800/50">
+              <thead className="bg-slate-100/50 dark:bg-slate-800/50">
                 <tr>
                   <th className="th">#</th>
                   <th className="th">Waiter</th>
@@ -645,25 +645,25 @@ export default function ReportsPage() {
               <tbody>
                 {waiterReport?.map((w: any, i: number) => (
                   <tr key={w.waiter_id} className="table-row">
-                    <td className="td text-slate-500">{i + 1}</td>
+                    <td className="td text-slate-900 dark:text-slate-500">{i + 1}</td>
                     <td className="td font-medium">{w.waiter_name?.trim() || '—'}</td>
-                    <td className="td text-slate-400">{w.employee_code || '—'}</td>
+                    <td className="td text-slate-900 dark:text-slate-400">{w.employee_code || '—'}</td>
                     <td className="td text-right">{w.total_orders}</td>
-                    <td className="td text-right text-slate-400">{w.dine_in_orders}</td>
-                    <td className="td text-right text-slate-400">{w.takeaway_orders}</td>
+                    <td className="td text-right text-slate-900 dark:text-slate-400">{w.dine_in_orders}</td>
+                    <td className="td text-right text-slate-900 dark:text-slate-400">{w.takeaway_orders}</td>
                     <td className="td text-right">{w.tables_served}</td>
                     <td className="td text-right">{fmt(Number(w.avg_order_value))}</td>
                     <td className="td text-right">
                       {Math.round(Number(w.avg_turnaround_min || 0))} min
                     </td>
-                    <td className="td text-right font-bold text-amber-400">
+                    <td className="td text-right font-bold text-amber-600 dark:text-amber-400">
                       {fmt(Number(w.total_revenue))}
                     </td>
                   </tr>
                 ))}
                 {!waiterReport?.length && (
                   <tr>
-                    <td colSpan={10} className="td text-center text-slate-500 py-8">
+                    <td colSpan={10} className="td text-center text-slate-900 dark:text-slate-500 py-8">
                       No waiter data for selected period
                     </td>
                   </tr>

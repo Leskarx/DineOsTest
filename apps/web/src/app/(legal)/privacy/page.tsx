@@ -12,8 +12,8 @@ const EMAIL        = 'privacy@dinestay.app';
 export default function PrivacyPage() {
   return (
     <article className="prose prose-invert prose-slate max-w-none">
-      <h1 className="text-3xl font-bold text-white mb-2">Privacy Policy</h1>
-      <p className="text-slate-400 text-sm mb-10">Last updated: {LAST_UPDATED}</p>
+      <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">Privacy Policy</h1>
+      <p className="text-slate-900 dark:text-slate-400 text-sm mb-10">Last updated: {LAST_UPDATED}</p>
 
       <Section title="1. Introduction">
         <p>
@@ -29,28 +29,28 @@ export default function PrivacyPage() {
       </Section>
 
       <Section title="2. Data We Collect">
-        <h3 className="text-white font-medium mb-2">2a. Account &amp; Business Data</h3>
+        <h3 className="text-slate-900 dark:text-white font-medium mb-2">2a. Account &amp; Business Data</h3>
         <ul>
           <li>Name, email address, phone number, business name, and GSTIN of account holders.</li>
           <li>Billing address and payment method metadata (we do not store full card numbers).</li>
           <li>Profile photos or business logos uploaded by you.</li>
         </ul>
 
-        <h3 className="text-white font-medium mb-2 mt-4">2b. Operational Data</h3>
+        <h3 className="text-slate-900 dark:text-white font-medium mb-2 mt-4">2b. Operational Data</h3>
         <ul>
           <li>Orders, bills, menu items, inventory records, and shift data entered into the Service.</li>
           <li>Customer names and contact details optionally entered during billing.</li>
           <li>Staff records including names, roles, and employee codes.</li>
         </ul>
 
-        <h3 className="text-white font-medium mb-2 mt-4">2c. Usage &amp; Technical Data</h3>
+        <h3 className="text-slate-900 dark:text-white font-medium mb-2 mt-4">2c. Usage &amp; Technical Data</h3>
         <ul>
           <li>IP addresses, browser type, device identifiers, and access timestamps (server logs).</li>
           <li>Service usage patterns (features accessed, pages visited) — collected in aggregate.</li>
           <li>Error reports and crash diagnostics (collected when you report an issue).</li>
         </ul>
 
-        <h3 className="text-white font-medium mb-2 mt-4">2d. Data We Do NOT Collect</h3>
+        <h3 className="text-slate-900 dark:text-white font-medium mb-2 mt-4">2d. Data We Do NOT Collect</h3>
         <ul>
           <li>Full payment card numbers (processed by Razorpay, not stored by us).</li>
           <li>Government ID documents (Aadhaar, Passport) — we only collect GSTIN/PAN for invoicing.</li>
@@ -61,12 +61,12 @@ export default function PrivacyPage() {
       <Section title="3. How We Use Your Data">
         <table className="w-full text-sm border-collapse">
           <thead>
-            <tr className="border-b border-slate-700">
-              <th className="text-left py-2 pr-4 text-slate-300">Purpose</th>
-              <th className="text-left py-2 text-slate-300">Legal Basis (GDPR)</th>
+            <tr className="border-b border-slate-300 dark:border-slate-700">
+              <th className="text-left py-2 pr-4 text-slate-600 dark:text-slate-300">Purpose</th>
+              <th className="text-left py-2 text-slate-600 dark:text-slate-300">Legal Basis (GDPR)</th>
             </tr>
           </thead>
-          <tbody className="text-slate-400">
+          <tbody className="text-slate-900 dark:text-slate-400">
             {[
               ['Providing and operating the Service', 'Contract performance'],
               ['Processing subscription payments', 'Contract performance'],
@@ -77,7 +77,7 @@ export default function PrivacyPage() {
               ['Complying with legal obligations (GST, tax)', 'Legal obligation'],
               ['Marketing communications (opt-in only)', 'Consent'],
             ].map(([purpose, basis]) => (
-              <tr key={purpose} className="border-b border-slate-800">
+              <tr key={purpose} className="border-b border-slate-200 dark:border-slate-800">
                 <td className="py-2 pr-4">{purpose}</td>
                 <td className="py-2">{basis}</td>
               </tr>
@@ -89,7 +89,7 @@ export default function PrivacyPage() {
       <Section title="4. Data Sharing">
         <p>We share your data with the following categories of third parties, under strict contractual obligations:</p>
         <ul>
-          <li><strong>Razorpay</strong> — Payment processing. <a href="https://razorpay.com/privacy/" className="text-amber-400 hover:underline" target="_blank" rel="noopener noreferrer">Their privacy policy</a>.</li>
+          <li><strong>Razorpay</strong> — Payment processing. <a href="https://razorpay.com/privacy/" className="text-amber-600 dark:text-amber-400 hover:underline" target="_blank" rel="noopener noreferrer">Their privacy policy</a>.</li>
           <li><strong>MSG91</strong> — OTP and SMS delivery.</li>
           <li><strong>SMTP provider</strong> (configured by you) — Email delivery.</li>
           <li><strong>Cloud infrastructure</strong> (VPS/hosting provider you choose) — Data hosting.</li>
@@ -120,7 +120,7 @@ export default function PrivacyPage() {
         </ul>
         <p>
           To exercise any of these rights, email us at{' '}
-          <a href={`mailto:${EMAIL}`} className="text-amber-400 hover:underline">{EMAIL}</a>.
+          <a href={`mailto:${EMAIL}`} className="text-amber-600 dark:text-amber-400 hover:underline">{EMAIL}</a>.
           We will respond within 30 days.
         </p>
       </Section>
@@ -178,10 +178,10 @@ export default function PrivacyPage() {
         <p>
           For privacy-related queries, complaints, or to exercise your rights:
         </p>
-        <address className="not-italic text-slate-400">
-          <strong className="text-slate-300">Data Protection Officer</strong><br />
+        <address className="not-italic text-slate-900 dark:text-slate-400">
+          <strong className="text-slate-600 dark:text-slate-300">Data Protection Officer</strong><br />
           {COMPANY}<br />
-          Email: <a href={`mailto:${EMAIL}`} className="text-amber-400 hover:underline">{EMAIL}</a><br />
+          Email: <a href={`mailto:${EMAIL}`} className="text-amber-600 dark:text-amber-400 hover:underline">{EMAIL}</a><br />
           Response time: within 30 days of receipt
         </address>
         <p className="mt-3">
@@ -197,8 +197,8 @@ export default function PrivacyPage() {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="mb-8">
-      <h2 className="text-lg font-semibold text-white mb-3">{title}</h2>
-      <div className="text-slate-400 leading-relaxed space-y-3 text-sm">{children}</div>
+      <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-3">{title}</h2>
+      <div className="text-slate-900 dark:text-slate-400 leading-relaxed space-y-3 text-sm">{children}</div>
     </section>
   );
 }

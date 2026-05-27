@@ -203,11 +203,11 @@ export function BillingModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="bg-slate-900 rounded-2xl border border-slate-700 w-full max-w-lg shadow-2xl max-h-[90vh] flex flex-col">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-300 dark:border-slate-700 w-full max-w-lg shadow-2xl max-h-[90vh] flex flex-col">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 flex-shrink-0">
-          <h2 className="text-lg font-bold text-white">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex-shrink-0">
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white">
             {billed ? 'Bill Generated ✓' : 'Generate Bill'}
           </h2>
           <button onClick={onClose} className="btn-ghost p-1">
@@ -219,17 +219,17 @@ export function BillingModal({
           {billed ? (
             <div className="p-6 space-y-4">
               <div className="flex flex-col items-center gap-3 py-4">
-                <CheckCircle size={48} className="text-emerald-400" />
+                <CheckCircle size={48} className="text-emerald-600 dark:text-emerald-400" />
                 <div className="text-center">
-                  <div className="text-white font-bold text-xl">₹{round2(finalTotal).toFixed(2)}</div>
-                  <div className="text-slate-400 text-sm">Bill #{billData?.billNumber}</div>
+                  <div className="text-slate-900 dark:text-white font-bold text-xl">₹{round2(finalTotal).toFixed(2)}</div>
+                  <div className="text-slate-900 dark:text-slate-400 text-sm">Bill #{billData?.billNumber}</div>
                   {method === 'cash' && change > 0 && (
-                    <div className="mt-2 text-amber-400 font-semibold text-lg">
+                    <div className="mt-2 text-amber-600 dark:text-amber-400 font-semibold text-lg">
                       Change: ₹{round2(change).toFixed(2)}
                     </div>
                   )}
                 </div>
-                <div className="text-xs text-slate-500 text-center">
+                <div className="text-xs text-slate-900 dark:text-slate-500 text-center">
                   {amountInWords(round2(finalTotal))}
                 </div>
               </div>
@@ -247,38 +247,38 @@ export function BillingModal({
             <div className="p-6 space-y-5">
 
               {/* Summary */}
-              <div className="bg-slate-800 rounded-xl p-4 space-y-2 text-sm">
-                <div className="flex justify-between text-slate-400">
+              <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-4 space-y-2 text-sm">
+                <div className="flex justify-between text-slate-900 dark:text-slate-400">
                   <span>Subtotal</span>
                   <span>₹{subtotal.toFixed(2)}</span>
                 </div>
 
                 {discountAmount > 0 && (
-                  <div className="flex justify-between text-emerald-400">
+                  <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
                     <span>Discount ({discountPercent}%)</span>
                     <span>-₹{round2(discountAmount).toFixed(2)}</span>
                   </div>
                 )}
 
-                <div className="flex justify-between text-slate-400">
+                <div className="flex justify-between text-slate-900 dark:text-slate-400">
                   <span>GST</span>
                   <span>₹{gstTotal.toFixed(2)}</span>
                 </div>
 
                 {defaultRoundOff !== 0 && !manualOverride && (
-                  <div className="flex justify-between text-slate-400">
+                  <div className="flex justify-between text-slate-900 dark:text-slate-400">
                     <span>Round Off</span>
                     <span>{defaultRoundOff > 0 ? '+' : ''}₹{Math.abs(defaultRoundOff).toFixed(2)}</span>
                   </div>
                 )}
 
-                <div className="flex justify-between text-white font-bold text-base border-t border-slate-700 pt-2">
+                <div className="flex justify-between text-slate-900 dark:text-white font-bold text-base border-t border-slate-300 dark:border-slate-700 pt-2">
                   <span>Grand Total</span>
                   <span>₹{round2(finalTotal).toFixed(2)}</span>
                 </div>
 
                 {manualOverride && Math.abs(finalTotal - defaultPayable) > 0.01 && (
-                  <div className="flex justify-between text-amber-400 text-xs">
+                  <div className="flex justify-between text-amber-600 dark:text-amber-400 text-xs">
                     <span>Adjusted Total</span>
                     <span>₹{round2(finalTotal).toFixed(2)}</span>
                   </div>
@@ -289,10 +289,10 @@ export function BillingModal({
               <div>
                 <label className="label">
                   Charge Amount
-                  <span className="text-slate-500 font-normal ml-1">(edit if needed)</span>
+                  <span className="text-slate-900 dark:text-slate-500 font-normal ml-1">(edit if needed)</span>
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">₹</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-900 dark:text-slate-400 text-sm">₹</span>
                   <input
                     className="input pl-7 text-lg font-bold"
                     type="number"
@@ -310,7 +310,7 @@ export function BillingModal({
 
                 {manualOverride && (
                   <button
-                    className="text-xs text-slate-500 hover:text-slate-300 mt-1"
+                    className="text-xs text-slate-900 dark:text-slate-500 hover:text-slate-600 dark:text-slate-300 mt-1"
                     onClick={() => {
                       setFinalTotal(defaultPayable);
                       setManualOverride(false);
@@ -362,8 +362,8 @@ export function BillingModal({
                     className={cn(
                       'text-xs px-2 py-1 rounded',
                       isSplit
-                        ? 'bg-amber-500/20 text-amber-400'
-                        : 'text-slate-400 hover:text-white'
+                        ? 'bg-amber-200 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400'
+                        : 'text-slate-900 dark:text-slate-400 hover:text-slate-900 dark:text-white'
                     )}
                   >
                     Split Payment
@@ -378,8 +378,8 @@ export function BillingModal({
                       className={cn(
                         'flex flex-col items-center gap-1 rounded-xl py-3 text-xs font-medium transition-all border',
                         method === m.id && !isSplit
-                          ? 'border-amber-500 bg-amber-500/10 text-amber-400'
-                          : 'border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-600',
+                          ? 'border-amber-500 bg-amber-100 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                          : 'border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-400 hover:border-slate-300 dark:border-slate-600',
                       )}
                     >
                       <span className="text-lg">{m.icon}</span>
@@ -401,11 +401,11 @@ export function BillingModal({
                   />
 
                   {change >= 0 ? (
-                    <div className="mt-1 text-sm text-amber-400">
+                    <div className="mt-1 text-sm text-amber-600 dark:text-amber-400">
                       Change: ₹{round2(change).toFixed(2)}
                     </div>
                   ) : (
-                    <div className="mt-1 text-sm text-red-400">
+                    <div className="mt-1 text-sm text-red-600 dark:text-red-400">
                       Short by ₹{Math.abs(round2(change)).toFixed(2)}
                     </div>
                   )}
@@ -423,7 +423,7 @@ export function BillingModal({
                         <button
                           key={amt}
                           onClick={() => setCashEntered(formatInputAmount(amt))}
-                          className="text-xs px-2 py-1 rounded bg-slate-700 hover:bg-slate-600 text-slate-300"
+                          className="text-xs px-2 py-1 rounded bg-slate-200 dark:bg-slate-700 hover:bg-slate-600 text-slate-600 dark:text-slate-300"
                         >
                           ₹{amt}
                         </button>
@@ -437,7 +437,7 @@ export function BillingModal({
 
         {/* Footer */}
         {!billed && (
-          <div className="px-6 pb-6 pt-2 border-t border-slate-800 flex-shrink-0">
+          <div className="px-6 pb-6 pt-2 border-t border-slate-200 dark:border-slate-800 flex-shrink-0">
             <button
               onClick={() => billMutation.mutate()}
               disabled={

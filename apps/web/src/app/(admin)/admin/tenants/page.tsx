@@ -38,11 +38,11 @@ interface Tenant {
 
 function SubBadge({ status }: { status?: string }) {
   const cfg: Record<string, string> = {
-    active:    'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-    trial:     'bg-amber-500/15 text-amber-400 border-amber-500/30',
+    active:    'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
+    trial:     'bg-amber-100 dark:bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-500/30',
     past_due:  'bg-orange-500/15 text-orange-400 border-orange-500/30',
-    cancelled: 'bg-red-500/15 text-red-400 border-red-500/30',
-    paused:    'bg-slate-500/15 text-slate-400 border-slate-500/30',
+    cancelled: 'bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/30',
+    paused:    'bg-slate-500/15 text-slate-900 dark:text-slate-400 border-slate-500/30',
   };
   return (
     <span className={cn('text-[10px] px-2 py-0.5 rounded-full border font-medium capitalize', cfg[status ?? ''] ?? cfg.paused)}>
@@ -77,17 +77,17 @@ function AddBusinessModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md p-6 space-y-5" onClick={e => e.stopPropagation()}>
+      <div className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-2xl w-full max-w-md p-6 space-y-5" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold text-white">Add New Business</h2>
-          <button onClick={onClose} className="p-1 text-slate-500 hover:text-slate-300"><X size={16} /></button>
+          <h2 className="text-base font-semibold text-slate-900 dark:text-white">Add New Business</h2>
+          <button onClick={onClose} className="p-1 text-slate-900 dark:text-slate-500 hover:text-slate-600 dark:text-slate-300"><X size={16} /></button>
         </div>
 
-        {err && <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{err}</p>}
+        {err && <p className="text-xs text-red-600 dark:text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{err}</p>}
 
         {/* Business info */}
         <div className="space-y-3">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Business Details</p>
+          <p className="text-xs font-semibold text-slate-900 dark:text-slate-500 uppercase tracking-wider">Business Details</p>
           <div className="space-y-1">
             <label className="label">Business Name *</label>
             <input className="input-field w-full" placeholder="e.g. Spice Garden Restaurant" value={form.name} onChange={e => set('name', e.target.value)} />
@@ -127,7 +127,7 @@ function AddBusinessModal({ onClose }: { onClose: () => void }) {
 
         {/* Owner account */}
         <div className="space-y-3">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+          <p className="text-xs font-semibold text-slate-900 dark:text-slate-500 uppercase tracking-wider">
             Owner Account <span className="text-slate-600 font-normal normal-case">(optional)</span>
           </p>
           <div className="grid grid-cols-2 gap-3">
@@ -151,7 +151,7 @@ function AddBusinessModal({ onClose }: { onClose: () => void }) {
             {isPending ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
             Create Business
           </button>
-          <button onClick={onClose} className="px-4 py-2 text-sm bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors">
+          <button onClick={onClose} className="px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 hover:bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg transition-colors">
             Cancel
           </button>
         </div>
@@ -219,13 +219,13 @@ export default function TenantsPage() {
     <div className="flex flex-col h-full overflow-hidden">
 
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 flex-shrink-0">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex-shrink-0">
         <div>
-          <h1 className="text-base font-semibold text-white">Tenants</h1>
-          <p className="text-xs text-slate-500">{total} businesses on the platform</p>
+          <h1 className="text-base font-semibold text-slate-900 dark:text-white">Tenants</h1>
+          <p className="text-xs text-slate-900 dark:text-slate-500">{total} businesses on the platform</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => refetch()} className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 transition-colors">
+          <button onClick={() => refetch()} className="p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 hover:bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-400 transition-colors">
             <RefreshCw size={13} />
           </button>
           <button onClick={() => setShowAdd(true)} className="btn-primary text-xs flex items-center gap-1.5">
@@ -235,9 +235,9 @@ export default function TenantsPage() {
       </div>
 
       {/* Search */}
-      <div className="px-6 py-3 border-b border-slate-800/60 flex-shrink-0">
+      <div className="px-6 py-3 border-b border-slate-200 dark:border-slate-800/60 flex-shrink-0">
         <div className="relative max-w-sm">
-          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-900 dark:text-slate-500" />
           <input
             className="input-field w-full pl-8 py-1.5 text-sm"
             placeholder="Search by name, email or slug…"
@@ -260,7 +260,7 @@ export default function TenantsPage() {
           </div>
         ) : (
           <table className="w-full text-sm">
-            <thead className="sticky top-0 bg-slate-900 border-b border-slate-800">
+            <thead className="sticky top-0 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
               <tr>
                 <th className="th">Business</th>
                 <th className="th">Contact</th>
@@ -277,38 +277,38 @@ export default function TenantsPage() {
               {tenants.map(t => (
                 <tr key={t.id} className={cn('table-row', !t.is_active && 'opacity-50')}>
                   <td className="td">
-                    <div className="font-medium text-white">{t.name}</div>
-                    <div className="text-xs text-slate-500">{t.slug}</div>
+                    <div className="font-medium text-slate-900 dark:text-white">{t.name}</div>
+                    <div className="text-xs text-slate-900 dark:text-slate-500">{t.slug}</div>
                   </td>
                   <td className="td">
                     <div>{t.email}</div>
-                    {t.phone && <div className="text-xs text-slate-500">{t.phone}</div>}
+                    {t.phone && <div className="text-xs text-slate-900 dark:text-slate-500">{t.phone}</div>}
                   </td>
                   <td className="td">
                     <SubBadge status={t.sub_status} />
-                    {t.plan_name && <div className="text-[10px] text-slate-500 mt-0.5">{t.plan_name}</div>}
+                    {t.plan_name && <div className="text-[10px] text-slate-900 dark:text-slate-500 mt-0.5">{t.plan_name}</div>}
                   </td>
                   <td className="td text-center">
                     <span className="flex items-center justify-center gap-1">
-                      <Users size={11} className="text-slate-500" />{t.user_count}
+                      <Users size={11} className="text-slate-900 dark:text-slate-500" />{t.user_count}
                     </span>
                   </td>
                   <td className="td text-center">
                     <span className="flex items-center justify-center gap-1">
-                      <GitBranch size={11} className="text-slate-500" />{t.branch_count}
+                      <GitBranch size={11} className="text-slate-900 dark:text-slate-500" />{t.branch_count}
                     </span>
                   </td>
                   <td className="td text-center">
                     <span className="flex items-center justify-center gap-1">
-                      <ShoppingBag size={11} className="text-slate-500" />{t.orders_30d}
+                      <ShoppingBag size={11} className="text-slate-900 dark:text-slate-500" />{t.orders_30d}
                     </span>
                   </td>
                   <td className="td">
-                    <span className={cn('text-xs font-medium', t.is_active ? 'text-emerald-400' : 'text-slate-500')}>
+                    <span className={cn('text-xs font-medium', t.is_active ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-slate-500')}>
                       {t.is_active ? 'Active' : 'Suspended'}
                     </span>
                   </td>
-                  <td className="td text-xs text-slate-500">
+                  <td className="td text-xs text-slate-900 dark:text-slate-500">
                     {format(new Date(t.created_at), 'dd MMM yyyy')}
                   </td>
                   <td className="td">
@@ -320,8 +320,8 @@ export default function TenantsPage() {
                         className={cn(
                           'p-1.5 rounded-lg transition-colors',
                           t.is_active
-                            ? 'text-amber-400 hover:bg-amber-500/15'
-                            : 'text-emerald-400 hover:bg-emerald-500/15',
+                            ? 'text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:bg-amber-500/15'
+                            : 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/15',
                         )}
                       >
                         {toggling === t.id
@@ -333,7 +333,7 @@ export default function TenantsPage() {
                         onClick={() => handleDelete(t)}
                         disabled={deleting === t.id}
                         title="Delete permanently"
-                        className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/15 transition-colors"
+                        className="p-1.5 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-500/15 transition-colors"
                       >
                         {deleting === t.id
                           ? <Loader2 size={13} className="animate-spin" />
@@ -351,18 +351,18 @@ export default function TenantsPage() {
 
       {/* Pagination */}
       {pages > 1 && (
-        <div className="flex items-center justify-between px-6 py-3 border-t border-slate-800 flex-shrink-0">
-          <span className="text-xs text-slate-500">
+        <div className="flex items-center justify-between px-6 py-3 border-t border-slate-200 dark:border-slate-800 flex-shrink-0">
+          <span className="text-xs text-slate-900 dark:text-slate-500">
             Showing {(page - 1) * limit + 1}–{Math.min(page * limit, total)} of {total}
           </span>
           <div className="flex items-center gap-1">
             <button onClick={() => setPage(p => p - 1)} disabled={page === 1}
-              className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 disabled:opacity-40 transition-colors">
+              className="p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 hover:bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-400 disabled:opacity-40 transition-colors">
               <ChevronLeft size={14} />
             </button>
-            <span className="text-xs text-slate-400 px-2">Page {page} of {pages}</span>
+            <span className="text-xs text-slate-900 dark:text-slate-400 px-2">Page {page} of {pages}</span>
             <button onClick={() => setPage(p => p + 1)} disabled={page === pages}
-              className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 disabled:opacity-40 transition-colors">
+              className="p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 hover:bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-400 disabled:opacity-40 transition-colors">
               <ChevronRight size={14} />
             </button>
           </div>

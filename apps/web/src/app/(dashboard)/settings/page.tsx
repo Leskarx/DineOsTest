@@ -123,7 +123,7 @@ export default function SettingsPage() {
   // Show loading only on the very first load (form is null and tenant hasn't arrived yet)
   if (tenantLoading && !form) {
     return (
-      <div className="flex h-full items-center justify-center text-slate-400 gap-2">
+      <div className="flex h-full items-center justify-center text-slate-900 dark:text-slate-400 gap-2">
         <Loader2 size={16} className="animate-spin" /> Loading settings…
       </div>
     );
@@ -134,8 +134,8 @@ export default function SettingsPage() {
   return (
     <div className="flex h-full">
       {/* Sidebar */}
-      <aside className="w-52 flex-shrink-0 border-r border-slate-800 p-3 space-y-1">
-        <div className="text-xs font-semibold text-slate-500 uppercase mb-3 px-2">Settings</div>
+      <aside className="w-52 flex-shrink-0 border-r border-slate-200 dark:border-slate-800 p-3 space-y-1">
+        <div className="text-xs font-semibold text-slate-900 dark:text-slate-500 uppercase mb-3 px-2">Settings</div>
         {TABS.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
@@ -152,13 +152,13 @@ export default function SettingsPage() {
         {/* ── Business Info ──────────────────────────────────────────────────── */}
         {tab === 'business' && (
           <div className="max-w-lg space-y-4">
-            <h2 className="text-lg font-bold text-white">Business Information</h2>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Business Information</h2>
 
             {/* Logo */}
             <div className="card space-y-3">
               <label className="label mb-0">Business Logo</label>
               <div className="flex items-center gap-4">
-                <div className="w-20 h-20 rounded-xl border-2 border-dashed border-slate-600 flex items-center justify-center bg-slate-800 overflow-hidden flex-shrink-0">
+                <div className="w-20 h-20 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-600 flex items-center justify-center bg-slate-50 dark:bg-slate-800 overflow-hidden flex-shrink-0">
                   {form.logoUrl
                     ? <img src={form.logoUrl} alt="Logo" className="w-full h-full object-contain" />
                     : <Image size={24} className="text-slate-600" />}
@@ -176,12 +176,12 @@ export default function SettingsPage() {
                   {form.logoUrl && (
                     <button
                       onClick={() => setForm((f: any) => ({ ...f, logoUrl: null }))}
-                      className="btn-ghost w-full text-xs text-red-400"
+                      className="btn-ghost w-full text-xs text-red-600 dark:text-red-400"
                     >
                       <X size={12} /> Remove Logo
                     </button>
                   )}
-                  <p className="text-xs text-slate-500">JPG, PNG or WebP · Max 5 MB</p>
+                  <p className="text-xs text-slate-900 dark:text-slate-500">JPG, PNG or WebP · Max 5 MB</p>
                 </div>
               </div>
             </div>
@@ -234,7 +234,7 @@ export default function SettingsPage() {
         {/* ── GST & Tax ─────────────────────────────────────────────────────── */}
         {tab === 'gst' && (
           <div className="max-w-lg space-y-4">
-            <h2 className="text-lg font-bold text-white">GST & Tax Settings</h2>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">GST & Tax Settings</h2>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="label">GSTIN</label>
@@ -246,12 +246,12 @@ export default function SettingsPage() {
                   placeholder="27AAPFU0939F1ZV"
                 />
                 {form.gstin && gstinError && (
-                  <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
+                  <p className="text-xs text-red-600 dark:text-red-400 mt-1 flex items-center gap-1">
                     <AlertTriangle size={10} /> {gstinError}
                   </p>
                 )}
                 {form.gstin && !gstinError && (
-                  <p className="text-xs text-emerald-400 mt-1 flex items-center gap-1">
+                  <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1 flex items-center gap-1">
                     <CheckCircle2 size={10} /> Valid GSTIN
                   </p>
                 )}
@@ -267,7 +267,7 @@ export default function SettingsPage() {
                   placeholder="AAPFU0939F"
                 />
                 {form.pan && panError && (
-                  <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
+                  <p className="text-xs text-red-600 dark:text-red-400 mt-1 flex items-center gap-1">
                     <AlertTriangle size={10} /> {panError}
                   </p>
                 )}
@@ -287,13 +287,13 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            <div className="bg-slate-800 rounded-xl p-4 text-sm text-slate-400">
-              <p className="font-medium text-white mb-2">India GST Slabs for Restaurants</p>
+            <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-4 text-sm text-slate-900 dark:text-slate-400">
+              <p className="font-medium text-slate-900 dark:text-white mb-2">India GST Slabs for Restaurants</p>
               <ul className="space-y-1">
-                <li>• <span className="text-white">0%</span> — Packaged food (non-branded)</li>
-                <li>• <span className="text-white">5%</span> — Standalone / non-AC restaurants</li>
-                <li>• <span className="text-white">18%</span> — AC restaurants / liquor license</li>
-                <li>• <span className="text-white">28%</span> — Alcohol, aerated drinks</li>
+                <li>• <span className="text-slate-900 dark:text-white">0%</span> — Packaged food (non-branded)</li>
+                <li>• <span className="text-slate-900 dark:text-white">5%</span> — Standalone / non-AC restaurants</li>
+                <li>• <span className="text-slate-900 dark:text-white">18%</span> — AC restaurants / liquor license</li>
+                <li>• <span className="text-slate-900 dark:text-white">28%</span> — Alcohol, aerated drinks</li>
               </ul>
             </div>
 
@@ -310,14 +310,14 @@ export default function SettingsPage() {
         {/* ── Subscription ──────────────────────────────────────────────────── */}
         {tab === 'subscription' && sub && (
           <div className="max-w-xl space-y-6">
-            <h2 className="text-lg font-bold text-white">Subscription</h2>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Subscription</h2>
 
             {/* Current plan card */}
             <div className="card border-amber-700/40 bg-amber-900/10">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="font-bold text-white text-xl">{sub.plan?.name}</div>
-                  <div className="text-slate-400 text-sm">
+                  <div className="font-bold text-slate-900 dark:text-white text-xl">{sub.plan?.name}</div>
+                  <div className="text-slate-900 dark:text-slate-400 text-sm">
                     {sub.plan?.priceMonthly > 0 ? `₹${sub.plan.priceMonthly}/month` : 'Custom pricing'}
                   </div>
                 </div>
@@ -329,7 +329,7 @@ export default function SettingsPage() {
                 </span>
               </div>
               {sub.status === 'trial' && sub.trialEndsAt && (
-                <p className="text-xs text-slate-400 mt-3">
+                <p className="text-xs text-slate-900 dark:text-slate-400 mt-3">
                   Trial ends: {new Date(sub.trialEndsAt).toLocaleDateString('en-IN', { dateStyle: 'long' })}
                 </p>
               )}
@@ -342,28 +342,28 @@ export default function SettingsPage() {
                   key={plan.id}
                   className={cn(
                     'card border-2 transition-all',
-                    sub.planId === plan.id ? 'border-amber-500' : 'border-slate-700 hover:border-slate-600',
+                    sub.planId === plan.id ? 'border-amber-500' : 'border-slate-300 dark:border-slate-700 hover:border-slate-300 dark:border-slate-600',
                   )}
                 >
                   {sub.planId === plan.id && (
-                    <div className="text-xs text-amber-400 font-semibold mb-2 flex items-center gap-1">
+                    <div className="text-xs text-amber-600 dark:text-amber-400 font-semibold mb-2 flex items-center gap-1">
                       <CheckCircle2 size={12} /> Current plan
                     </div>
                   )}
-                  <div className="font-bold text-white">{plan.name}</div>
-                  <div className="text-amber-400 text-xl font-bold mt-1">
+                  <div className="font-bold text-slate-900 dark:text-white">{plan.name}</div>
+                  <div className="text-amber-600 dark:text-amber-400 text-xl font-bold mt-1">
                     {plan.priceMonthly > 0
-                      ? <><span>₹{plan.priceMonthly}</span><span className="text-xs text-slate-500">/mo</span></>
+                      ? <><span>₹{plan.priceMonthly}</span><span className="text-xs text-slate-900 dark:text-slate-500">/mo</span></>
                       : 'Contact us'}
                   </div>
                   <ul className="mt-3 space-y-1.5">
-                    <li className="text-xs text-slate-400">
+                    <li className="text-xs text-slate-900 dark:text-slate-400">
                       {plan.maxBranches === -1 ? 'Unlimited' : `Up to ${plan.maxBranches}`} branches
                     </li>
-                    <li className="text-xs text-slate-400">
+                    <li className="text-xs text-slate-900 dark:text-slate-400">
                       {plan.maxUsers === -1 ? 'Unlimited' : `Up to ${plan.maxUsers}`} users
                     </li>
-                    <li className="text-xs text-slate-400">
+                    <li className="text-xs text-slate-900 dark:text-slate-400">
                       {plan.maxMenuItems === -1 ? 'Unlimited' : plan.maxMenuItems} menu items
                     </li>
                   </ul>
@@ -381,7 +381,7 @@ export default function SettingsPage() {
         {/* ── Printer Settings ──────────────────────────────────────────────── */}
         {tab === 'printer' && printerLoaded && (
           <div className="max-w-lg space-y-5">
-            <h2 className="text-lg font-bold text-white">Thermal Printer Settings</h2>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Thermal Printer Settings</h2>
 
             <div className="card space-y-3">
               <label className="label mb-0">Paper Width</label>
@@ -393,8 +393,8 @@ export default function SettingsPage() {
                     className={cn(
                       'flex-1 py-2.5 rounded-xl border text-sm font-medium transition-all',
                       printer.width === w
-                        ? 'border-amber-500 text-amber-400 bg-amber-900/10'
-                        : 'border-slate-600 text-slate-400 hover:border-slate-500',
+                        ? 'border-amber-500 text-amber-600 dark:text-amber-400 bg-amber-900/10'
+                        : 'border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-400 hover:border-slate-500',
                     )}
                   >
                     {w}mm
@@ -419,8 +419,8 @@ export default function SettingsPage() {
                     className={cn(
                       'flex-1 py-2.5 rounded-xl border text-sm font-medium transition-all text-left px-3',
                       printer.method === m.id
-                        ? 'border-amber-500 text-amber-400 bg-amber-900/10'
-                        : 'border-slate-600 text-slate-400 hover:border-slate-500',
+                        ? 'border-amber-500 text-amber-600 dark:text-amber-400 bg-amber-900/10'
+                        : 'border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-400 hover:border-slate-500',
                     )}
                   >
                     {m.label}
@@ -429,15 +429,15 @@ export default function SettingsPage() {
                 ))}
               </div>
               {printer.method === 'serial' && (
-                <div className="bg-slate-800 rounded-lg p-3 text-xs text-slate-400">
-                  <p className="font-medium text-slate-300 mb-1">Web Serial API requirements</p>
+                <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-3 text-xs text-slate-900 dark:text-slate-400">
+                  <p className="font-medium text-slate-600 dark:text-slate-300 mb-1">Web Serial API requirements</p>
                   <p>Use Chrome 89+ or Edge. Grant serial port access when prompted.</p>
                 </div>
               )}
             </div>
 
             <div className="card space-y-2">
-              <h3 className="font-medium text-white">Receipt Footer</h3>
+              <h3 className="font-medium text-slate-900 dark:text-white">Receipt Footer</h3>
               <div>
                 <label className="label">Thank You Message</label>
                 <input
@@ -452,7 +452,7 @@ export default function SettingsPage() {
                   onClick={() => updatePrinter({ beepOnPrint: !printer.beepOnPrint })}
                   className={cn(
                     'relative w-9 h-5 rounded-full transition-colors cursor-pointer',
-                    printer.beepOnPrint ? 'bg-amber-500' : 'bg-slate-700',
+                    printer.beepOnPrint ? 'bg-amber-500' : 'bg-slate-200 dark:bg-slate-700',
                   )}
                 >
                   <span className={cn(
@@ -460,12 +460,12 @@ export default function SettingsPage() {
                     printer.beepOnPrint && 'translate-x-4',
                   )} />
                 </div>
-                <span className="text-sm text-slate-300">Beep printer on print</span>
+                <span className="text-sm text-slate-600 dark:text-slate-300">Beep printer on print</span>
               </label>
             </div>
 
-            <div className="card bg-slate-800/50 text-xs text-slate-400 space-y-1">
-              <p className="font-medium text-slate-300">Settings saved automatically</p>
+            <div className="card bg-slate-100/50 dark:bg-slate-800/50 text-xs text-slate-900 dark:text-slate-400 space-y-1">
+              <p className="font-medium text-slate-600 dark:text-slate-300">Settings saved automatically</p>
               <p>Printer preferences are stored in your browser and apply instantly.</p>
             </div>
           </div>
@@ -475,12 +475,12 @@ export default function SettingsPage() {
         {tab === 'notifications' && (
           <div className="max-w-lg space-y-4">
             <div>
-              <h2 className="text-lg font-bold text-white">Notifications</h2>
-              <p className="text-sm text-slate-400 mt-1">Control which events send you email or SMS alerts.</p>
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">Notifications</h2>
+              <p className="text-sm text-slate-900 dark:text-slate-400 mt-1">Control which events send you email or SMS alerts.</p>
             </div>
 
             <div className="card space-y-3">
-              <h3 className="font-medium text-white text-sm">Notification channels</h3>
+              <h3 className="font-medium text-slate-900 dark:text-white text-sm">Notification channels</h3>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="label">Notification email</label>
@@ -505,19 +505,19 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            <div className="card divide-y divide-slate-800/80">
+            <div className="card divide-y divide-slate-200 dark:divide-slate-800/80">
               {NOTIF_PREFS.map(({ key, label, sub }) => (
                 <div key={key} className="flex items-center justify-between py-3 first:pt-0 last:pb-0 gap-4">
                   <div>
-                    <div className="text-sm font-medium text-white">{label}</div>
-                    <div className="text-xs text-slate-500 mt-0.5">{sub}</div>
+                    <div className="text-sm font-medium text-slate-900 dark:text-white">{label}</div>
+                    <div className="text-xs text-slate-900 dark:text-slate-500 mt-0.5">{sub}</div>
                   </div>
                   <button
                     type="button"
                     onClick={() => setForm((f: any) => ({ ...f, [key]: !f[key] }))}
                     className={cn(
                       'relative flex-shrink-0 w-10 h-6 rounded-full transition-colors',
-                      form[key] ? 'bg-amber-500' : 'bg-slate-700',
+                      form[key] ? 'bg-amber-500' : 'bg-slate-200 dark:bg-slate-700',
                     )}
                     aria-checked={!!form[key]}
                     role="switch"
@@ -577,26 +577,26 @@ function SecurityTab() {
   return (
     <div className="max-w-lg space-y-5">
       <div>
-        <h2 className="text-lg font-bold text-white">Active Sessions</h2>
-        <p className="text-sm text-slate-400 mt-1">
+        <h2 className="text-lg font-bold text-slate-900 dark:text-white">Active Sessions</h2>
+        <p className="text-sm text-slate-900 dark:text-slate-400 mt-1">
           Each entry is a device or browser currently signed in. Revoke any session you don&apos;t recognise.
         </p>
       </div>
 
-      <div className="card divide-y divide-slate-800/60">
+      <div className="card divide-y divide-slate-200 dark:divide-slate-800/60">
         {isLoading ? (
-          <div className="py-8 text-center text-slate-500 text-sm">Loading sessions…</div>
+          <div className="py-8 text-center text-slate-900 dark:text-slate-500 text-sm">Loading sessions…</div>
         ) : sessionList.length === 0 ? (
-          <div className="py-8 text-center text-slate-500 text-sm">No active sessions found</div>
+          <div className="py-8 text-center text-slate-900 dark:text-slate-500 text-sm">No active sessions found</div>
         ) : sessionList.map((s: any) => (
           <div key={s.sessionId} className="flex items-start justify-between gap-4 py-3 first:pt-0 last:pb-0">
             <div className="flex items-start gap-3 min-w-0">
-              <Monitor size={16} className="text-slate-400 flex-shrink-0 mt-0.5" />
+              <Monitor size={16} className="text-slate-900 dark:text-slate-400 flex-shrink-0 mt-0.5" />
               <div className="min-w-0">
-                <div className="text-sm text-white font-medium truncate">
+                <div className="text-sm text-slate-900 dark:text-white font-medium truncate">
                   {s.userAgent?.split('(')[0]?.trim() || 'Unknown device'}
                 </div>
-                <div className="text-xs text-slate-500 mt-0.5">
+                <div className="text-xs text-slate-900 dark:text-slate-500 mt-0.5">
                   IP: {s.ip} · Signed in {new Date(s.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                 </div>
                 {s.lastSeenAt && (
@@ -609,7 +609,7 @@ function SecurityTab() {
             <button
               onClick={() => revokeOne.mutate(s.sessionId)}
               disabled={revokeOne.isPending}
-              className="btn-ghost text-red-400 hover:text-red-300 p-1.5 flex-shrink-0"
+              className="btn-ghost text-red-600 dark:text-red-400 hover:text-red-300 p-1.5 flex-shrink-0"
             >
               <Trash2 size={14} />
             </button>
@@ -663,7 +663,7 @@ function PaymentsTab() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center gap-2 text-slate-500 text-sm py-10">
+      <div className="flex items-center gap-2 text-slate-900 dark:text-slate-500 text-sm py-10">
         <Loader2 size={16} className="animate-spin" /> Loading…
       </div>
     );
@@ -675,34 +675,34 @@ function PaymentsTab() {
   return (
     <div className="max-w-lg space-y-6">
       <div>
-        <h2 className="text-lg font-bold text-white">Razorpay Integration</h2>
-        <p className="text-sm text-slate-400 mt-1">
+        <h2 className="text-lg font-bold text-slate-900 dark:text-white">Razorpay Integration</h2>
+        <p className="text-sm text-slate-900 dark:text-slate-400 mt-1">
           Connect your Razorpay account to accept UPI, cards, netbanking and wallets.
         </p>
       </div>
 
-      <div className={`card border ${isConnected ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-slate-700'}`}>
+      <div className={`card border ${isConnected ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-slate-300 dark:border-slate-700'}`}>
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-lg
-              ${isConnected ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-500'}`}>
+              ${isConnected ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' : 'bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-500'}`}>
               R
             </div>
             <div>
-              <div className="text-sm font-semibold text-white">Razorpay</div>
+              <div className="text-sm font-semibold text-slate-900 dark:text-white">Razorpay</div>
               {isConnected ? (
                 <div className="flex items-center gap-2 mt-0.5">
-                  <span className="flex items-center gap-1 text-xs text-emerald-400">
+                  <span className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
                     <CheckCircle2 size={11} /> Connected
                   </span>
                   <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase ${
-                    isLive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-yellow-500/20 text-yellow-400'
+                    isLive ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' : 'bg-yellow-500/20 text-yellow-400'
                   }`}>
                     {isLive ? 'Live' : 'Test Mode'}
                   </span>
                 </div>
               ) : (
-                <div className="text-xs text-slate-500 mt-0.5">Not connected</div>
+                <div className="text-xs text-slate-900 dark:text-slate-500 mt-0.5">Not connected</div>
               )}
             </div>
           </div>
@@ -715,7 +715,7 @@ function PaymentsTab() {
                 }
               }}
               disabled={disconnect.isPending}
-              className="flex items-center gap-1.5 text-xs text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
+              className="flex items-center gap-1.5 text-xs text-red-600 dark:text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
             >
               <Unlink size={13} />
               {disconnect.isPending ? 'Disconnecting…' : 'Disconnect'}
@@ -724,15 +724,15 @@ function PaymentsTab() {
         </div>
 
         {isConnected && rzp?.keyId && (
-          <div className="mt-4 pt-4 border-t border-slate-800/60 space-y-1.5">
+          <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-800/60 space-y-1.5">
             <div className="flex justify-between text-xs">
-              <span className="text-slate-500">Key ID</span>
-              <span className="font-mono text-slate-300">{rzp.keyId}</span>
+              <span className="text-slate-900 dark:text-slate-500">Key ID</span>
+              <span className="font-mono text-slate-600 dark:text-slate-300">{rzp.keyId}</span>
             </div>
             {rzp.connectedAt && (
               <div className="flex justify-between text-xs">
-                <span className="text-slate-500">Connected on</span>
-                <span className="text-slate-400">
+                <span className="text-slate-900 dark:text-slate-500">Connected on</span>
+                <span className="text-slate-900 dark:text-slate-400">
                   {new Date(rzp.connectedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                 </span>
               </div>
@@ -743,14 +743,14 @@ function PaymentsTab() {
 
       <div className="card space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-white">
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
             {isConnected ? 'Update credentials' : 'Enter your Razorpay credentials'}
           </h3>
           <a
             href="https://dashboard.razorpay.com/app/keys"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1 text-xs text-amber-400 hover:text-amber-300 transition-colors"
+            className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 hover:text-amber-600 dark:text-amber-300 transition-colors"
           >
             Get keys <ExternalLink size={11} />
           </a>
@@ -787,7 +787,7 @@ function PaymentsTab() {
             <button
               type="button"
               onClick={() => setShowSecret((v) => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-900 dark:text-slate-500 hover:text-slate-600 dark:text-slate-300"
             >
               {showSecret ? <EyeOff size={14} /> : <Eye size={14} />}
             </button>
@@ -810,16 +810,16 @@ function PaymentsTab() {
         </button>
       </div>
 
-      <div className="rounded-xl bg-slate-800/40 border border-slate-700/50 p-4 space-y-3 text-xs text-slate-400">
-        <div className="font-semibold text-slate-300 text-sm">How to get your Razorpay API keys</div>
+      <div className="rounded-xl bg-slate-100/40 dark:bg-slate-800/40 border border-slate-200/50 dark:border-slate-700/50 p-4 space-y-3 text-xs text-slate-900 dark:text-slate-400">
+        <div className="font-semibold text-slate-600 dark:text-slate-300 text-sm">How to get your Razorpay API keys</div>
         <ol className="space-y-2 list-decimal list-inside">
-          <li>Log in to your <a href="https://dashboard.razorpay.com" target="_blank" rel="noopener noreferrer" className="text-amber-400 hover:underline">Razorpay dashboard</a></li>
-          <li>Go to <strong className="text-slate-300">Settings → API Keys</strong></li>
-          <li>Click <strong className="text-slate-300">Generate Key</strong></li>
-          <li>Copy the <strong className="text-slate-300">Key ID</strong> and <strong className="text-slate-300">Key Secret</strong> and paste them above</li>
+          <li>Log in to your <a href="https://dashboard.razorpay.com" target="_blank" rel="noopener noreferrer" className="text-amber-600 dark:text-amber-400 hover:underline">Razorpay dashboard</a></li>
+          <li>Go to <strong className="text-slate-600 dark:text-slate-300">Settings → API Keys</strong></li>
+          <li>Click <strong className="text-slate-600 dark:text-slate-300">Generate Key</strong></li>
+          <li>Copy the <strong className="text-slate-600 dark:text-slate-300">Key ID</strong> and <strong className="text-slate-600 dark:text-slate-300">Key Secret</strong> and paste them above</li>
         </ol>
-        <div className="pt-1 border-t border-slate-700/60">
-          Use <span className="font-mono text-yellow-400">rzp_test_</span> keys while testing — switch to <span className="font-mono text-emerald-400">rzp_live_</span> when ready to go live.
+        <div className="pt-1 border-t border-slate-300 dark:border-slate-700/60">
+          Use <span className="font-mono text-yellow-400">rzp_test_</span> keys while testing — switch to <span className="font-mono text-emerald-600 dark:text-emerald-400">rzp_live_</span> when ready to go live.
         </div>
       </div>
     </div>

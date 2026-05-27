@@ -22,20 +22,20 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="en" className={inter.variable} suppressHydrationWarning>
       <head>
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
       </head>
-      <body className="bg-slate-900 text-slate-100 antialiased">
+      <body className="bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-100 antialiased transition-colors duration-200">
         <Providers>
           {children}
           <Toaster
             position="top-right"
             toastOptions={{
-              style: { background: '#1e293b', color: '#f1f5f9', border: '1px solid #334155' },
-              success: { iconTheme: { primary: '#10b981', secondary: '#1e293b' } },
-              error: { iconTheme: { primary: '#ef4444', secondary: '#1e293b' } },
+              className: 'bg-white text-slate-900 border border-slate-200 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700',
+              success: { iconTheme: { primary: '#10b981', secondary: 'currentColor' } },
+              error: { iconTheme: { primary: '#ef4444', secondary: 'currentColor' } },
             }}
           />
         </Providers>

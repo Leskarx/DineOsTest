@@ -77,39 +77,39 @@ export default function BillingPage() {
     <div className="flex h-full">
       {/* Bill List */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="p-4 border-b border-slate-800 space-y-3">
+        <div className="p-4 border-b border-slate-200 dark:border-slate-800 space-y-3">
           <div className="flex items-center gap-3 flex-wrap">
             <div className="flex items-center gap-2 text-sm">
               <input type="date" className="input py-1.5" value={from} onChange={(e) => setFrom(e.target.value)} />
-              <span className="text-slate-500">to</span>
+              <span className="text-slate-900 dark:text-slate-500">to</span>
               <input type="date" className="input py-1.5" value={to} onChange={(e) => setTo(e.target.value)} />
             </div>
             <div className="relative flex-1 min-w-40">
-              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-900 dark:text-slate-400" />
               <input className="input pl-8" placeholder="Bill # or customer..." value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
           </div>
           <div className="flex gap-4 text-sm">
-            <span className="text-slate-400">{totals.count} bills</span>
-            <span className="text-amber-400 font-medium">₹{totals.gross.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-            <span className="text-slate-500">GST: ₹{totals.tax.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+            <span className="text-slate-900 dark:text-slate-400">{totals.count} bills</span>
+            <span className="text-amber-600 dark:text-amber-400 font-medium">₹{totals.gross.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+            <span className="text-slate-900 dark:text-slate-500">GST: ₹{totals.tax.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto">
           <table className="w-full text-sm">
-            <thead className="bg-slate-800/50 sticky top-0 z-10"><tr><th className="th">Bill #</th><th className="th">Time</th><th className="th">Customer</th><th className="th text-right">Amount</th><th className="th">Status</th></tr></thead>
+            <thead className="bg-slate-100/50 dark:bg-slate-800/50 sticky top-0 z-10"><tr><th className="th">Bill #</th><th className="th">Time</th><th className="th">Customer</th><th className="th text-right">Amount</th><th className="th">Status</th></tr></thead>
             <tbody>
               {filtered.map((bill: any) => (
-                <tr key={bill.id} onClick={() => setSelectedBill(bill)} className={cn('table-row cursor-pointer', selectedBill?.id === bill.id && 'bg-amber-500/10')}>
-                  <td className="td font-medium text-amber-400">{bill.billNumber}</td>
-                  <td className="td text-slate-400 text-xs">{dayjs(bill.createdAt).format('h:mm A')}</td>
-                  <td className="td">{bill.customerName || <span className="text-slate-500 italic">Walk-in</span>}</td>
+                <tr key={bill.id} onClick={() => setSelectedBill(bill)} className={cn('table-row cursor-pointer', selectedBill?.id === bill.id && 'bg-amber-100 dark:bg-amber-500/10')}>
+                  <td className="td font-medium text-amber-600 dark:text-amber-400">{bill.billNumber}</td>
+                  <td className="td text-slate-900 dark:text-slate-400 text-xs">{dayjs(bill.createdAt).format('h:mm A')}</td>
+                  <td className="td">{bill.customerName || <span className="text-slate-900 dark:text-slate-500 italic">Walk-in</span>}</td>
                   <td className="td text-right font-bold">₹{Number(bill.grandTotal).toFixed(2)}</td>
                   <td className="td"><span className={STATUS_BADGE[bill.status] || 'badge-slate'}>{bill.status}</span></td>
                 </tr>
               ))}
-              {filtered.length === 0 && <tr><td colSpan={5} className="text-center py-12 text-slate-500">No bills found for this period</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={5} className="text-center py-12 text-slate-900 dark:text-slate-500">No bills found for this period</td></tr>}
             </tbody>
           </table>
         </div>
@@ -118,10 +118,10 @@ export default function BillingPage() {
       {/* Email Modal */}
       {emailModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="bg-slate-900 rounded-2xl border border-slate-700 w-full max-w-sm p-6 space-y-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-300 dark:border-slate-700 w-full max-w-sm p-6 space-y-4">
             <div className="flex items-center gap-2">
-              <Mail size={18} className="text-amber-400" />
-              <h3 className="font-bold text-white">Email Bill {emailModal.billNumber}</h3>
+              <Mail size={18} className="text-amber-600 dark:text-amber-400" />
+              <h3 className="font-bold text-slate-900 dark:text-white">Email Bill {emailModal.billNumber}</h3>
             </div>
             <div>
               <label className="label">Customer Email</label>
@@ -151,39 +151,39 @@ export default function BillingPage() {
 
       {/* Bill Detail */}
       {selectedBill && (
-        <div className="w-80 flex-shrink-0 border-l border-slate-800 flex flex-col">
-          <div className="p-4 border-b border-slate-800 flex items-center justify-between">
-            <h3 className="font-bold text-white">{selectedBill.billNumber}</h3>
+        <div className="w-80 flex-shrink-0 border-l border-slate-200 dark:border-slate-800 flex flex-col">
+          <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+            <h3 className="font-bold text-slate-900 dark:text-white">{selectedBill.billNumber}</h3>
             <button onClick={() => setSelectedBill(null)} className="btn-ghost p-1"><XCircle size={16} /></button>
           </div>
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {billDetail && (
               <>
                 <div className="space-y-1 text-sm">
-                  <div className="flex justify-between"><span className="text-slate-400">Date</span><span>{dayjs(billDetail.createdAt).format('D MMM YYYY, h:mm A')}</span></div>
-                  {billDetail.customerName && <div className="flex justify-between"><span className="text-slate-400">Customer</span><span>{billDetail.customerName}</span></div>}
-                  {billDetail.customerGstin && <div className="flex justify-between"><span className="text-slate-400">GSTIN</span><span className="font-mono text-xs">{billDetail.customerGstin}</span></div>}
+                  <div className="flex justify-between"><span className="text-slate-900 dark:text-slate-400">Date</span><span>{dayjs(billDetail.createdAt).format('D MMM YYYY, h:mm A')}</span></div>
+                  {billDetail.customerName && <div className="flex justify-between"><span className="text-slate-900 dark:text-slate-400">Customer</span><span>{billDetail.customerName}</span></div>}
+                  {billDetail.customerGstin && <div className="flex justify-between"><span className="text-slate-900 dark:text-slate-400">GSTIN</span><span className="font-mono text-xs">{billDetail.customerGstin}</span></div>}
                 </div>
 
                 <div className="space-y-1">
                   {billDetail.orderItems?.map((item: any) => (
                     <div key={item.id} className="flex justify-between text-sm">
-                      <span className="text-slate-300">{item.quantity}× {item.name}</span>
-                      <span className="text-white font-medium">₹{Number(item.lineTotal).toFixed(2)}</span>
+                      <span className="text-slate-600 dark:text-slate-300">{item.quantity}× {item.name}</span>
+                      <span className="text-slate-900 dark:text-white font-medium">₹{Number(item.lineTotal).toFixed(2)}</span>
                     </div>
                   ))}
                 </div>
 
-                <div className="border-t border-slate-700 pt-3 space-y-1 text-sm">
-                  <div className="flex justify-between text-slate-400"><span>Subtotal</span><span>₹{Number(billDetail.subtotal).toFixed(2)}</span></div>
-                  {Number(billDetail.discountAmount) > 0 && <div className="flex justify-between text-emerald-400"><span>Discount</span><span>-₹{Number(billDetail.discountAmount).toFixed(2)}</span></div>}
-                  <div className="flex justify-between text-slate-400"><span>GST</span><span>₹{Number(billDetail.totalTax).toFixed(2)}</span></div>
-                  <div className="flex justify-between text-white font-bold text-base border-t border-slate-700 pt-2"><span>Grand Total</span><span>₹{Number(billDetail.grandTotal).toFixed(2)}</span></div>
+                <div className="border-t border-slate-300 dark:border-slate-700 pt-3 space-y-1 text-sm">
+                  <div className="flex justify-between text-slate-900 dark:text-slate-400"><span>Subtotal</span><span>₹{Number(billDetail.subtotal).toFixed(2)}</span></div>
+                  {Number(billDetail.discountAmount) > 0 && <div className="flex justify-between text-emerald-600 dark:text-emerald-400"><span>Discount</span><span>-₹{Number(billDetail.discountAmount).toFixed(2)}</span></div>}
+                  <div className="flex justify-between text-slate-900 dark:text-slate-400"><span>GST</span><span>₹{Number(billDetail.totalTax).toFixed(2)}</span></div>
+                  <div className="flex justify-between text-slate-900 dark:text-white font-bold text-base border-t border-slate-300 dark:border-slate-700 pt-2"><span>Grand Total</span><span>₹{Number(billDetail.grandTotal).toFixed(2)}</span></div>
                 </div>
 
                 {billDetail.payments?.length > 0 && (
                   <div className="space-y-1">
-                    <div className="text-xs text-slate-500 uppercase tracking-wide">Payments</div>
+                    <div className="text-xs text-slate-900 dark:text-slate-500 uppercase tracking-wide">Payments</div>
                     {billDetail.payments.map((p: any) => (
                       <div key={p.id} className="flex justify-between text-sm">
                         <span className="badge-slate capitalize">{p.method}</span>
@@ -195,7 +195,7 @@ export default function BillingPage() {
               </>
             )}
           </div>
-          <div className="p-4 border-t border-slate-800 space-y-2">
+          <div className="p-4 border-t border-slate-200 dark:border-slate-800 space-y-2">
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => reprintMutation.mutate(selectedBill.id)}

@@ -139,21 +139,21 @@ function TicketCard({
   return (
     <div
       className={cn(
-        'bg-slate-900 rounded-2xl border shadow-lg overflow-hidden flex flex-col min-h-[280px] transition-all',
+        'bg-white dark:bg-slate-900 rounded-2xl border shadow-lg overflow-hidden flex flex-col min-h-[280px] transition-all',
         allReady && 'border-emerald-500/70 ring-1 ring-emerald-500/30',
         !allReady && anyPending && 'border-orange-500/70',
         !allReady && !anyPending && anyPreparing && 'border-blue-500/50',
         isUrgent && 'ring-2 ring-red-500/60 animate-pulse',
-        !allReady && !anyPending && !anyPreparing && !isUrgent && 'border-slate-700',
+        !allReady && !anyPending && !anyPreparing && !isUrgent && 'border-slate-300 dark:border-slate-700',
       )}
     >
       {/* Header */}
-      <div className="px-5 py-4 bg-slate-800 border-b border-slate-700 flex items-start justify-between">
+      <div className="px-5 py-4 bg-slate-50 dark:bg-slate-800 border-b border-slate-300 dark:border-slate-700 flex items-start justify-between">
         <div className="min-w-0 flex-1">
-          <h2 className="font-bold text-white text-lg truncate">
+          <h2 className="font-bold text-slate-900 dark:text-white text-lg truncate">
             #{oldest?.order_order_number || orderNum}
           </h2>
-          <div className="mt-1 flex items-center gap-2 text-sm text-slate-400 flex-wrap">
+          <div className="mt-1 flex items-center gap-2 text-sm text-slate-900 dark:text-slate-400 flex-wrap">
             <span className="capitalize">
               {oldest?.order_type?.replace('_', ' ') || 'dine in'}
             </span>
@@ -166,9 +166,9 @@ function TicketCard({
           </div>
         </div>
         <div className="flex items-center gap-1 text-sm flex-shrink-0 ml-3">
-          {isUrgent && <AlertCircle size={16} className="text-red-400" />}
-          <Clock size={14} className={isUrgent ? 'text-red-400' : 'text-slate-400'} />
-          <span className={cn('font-semibold tabular-nums', isUrgent ? 'text-red-400' : 'text-slate-400')}>
+          {isUrgent && <AlertCircle size={16} className="text-red-600 dark:text-red-400" />}
+          <Clock size={14} className={isUrgent ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-slate-400'} />
+          <span className={cn('font-semibold tabular-nums', isUrgent ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-slate-400')}>
             {formatAge(ageSeconds)}
           </span>
         </div>
@@ -180,9 +180,9 @@ function TicketCard({
           <div
             key={ticket.order_item_id}
             className={cn(
-              'rounded-xl bg-slate-800/70 border p-3 flex items-start gap-3 transition-opacity',
+              'rounded-xl bg-slate-50 dark:bg-slate-800/70 border p-3 flex items-start gap-3 transition-opacity',
               ticket.kds_status === 'ready'        && 'border-emerald-500/30 bg-emerald-500/5',
-              ticket.kds_status === 'pending'      && 'border-amber-500/30 bg-amber-500/5',
+              ticket.kds_status === 'pending'      && 'border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/5',
               ticket.kds_status === 'preparing'    && 'border-blue-500/30 bg-blue-500/5',
               ticket.kds_status === 'acknowledged' && 'border-blue-500/30 bg-blue-500/5',
             )}
@@ -192,7 +192,7 @@ function TicketCard({
             </div>
 
             <div className="flex-1 min-w-0">
-              <p className="text-white font-semibold text-base leading-snug break-words">
+              <p className="text-slate-900 dark:text-white font-semibold text-base leading-snug break-words">
                 {ticket.item_name}
               </p>
               {ticket.notes && (
@@ -206,21 +206,21 @@ function TicketCard({
                 <span className="mt-1 text-xs text-blue-400 block">👨‍🍳 Cooking...</span>
               )}
               {ticket.kds_status === 'ready' && (
-                <span className="mt-1 text-xs text-emerald-400 block">✅ Ready for pickup</span>
+                <span className="mt-1 text-xs text-emerald-600 dark:text-emerald-400 block">✅ Ready for pickup</span>
               )}
             </div>
 
             {ticket.kds_status === 'ready' && (
-              <CheckCircle size={18} className="text-emerald-400 flex-shrink-0 mt-1" />
+              <CheckCircle size={18} className="text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-1" />
             )}
           </div>
         ))}
       </div>
 
       {/* Footer */}
-      <div className="p-4 border-t border-slate-700 bg-slate-900/70">
+      <div className="p-4 border-t border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/70">
         {allReady ? (
-          <div className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-semibold py-2.5 px-3 text-sm">
+          <div className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-semibold py-2.5 px-3 text-sm">
             <CheckCircle size={15} />
             Ready for Service
           </div>
@@ -235,7 +235,7 @@ function TicketCard({
                   onStartCooking(ids);
                 }}
                 disabled={isStartingCooking}
-                className="flex items-center justify-center gap-2 rounded-xl bg-slate-700 hover:bg-slate-600 transition-all text-white font-medium py-2.5 px-3 text-sm disabled:opacity-50"
+                className="flex items-center justify-center gap-2 rounded-xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-600 transition-all text-slate-900 dark:text-white font-medium py-2.5 px-3 text-sm disabled:opacity-50"
               >
                 {isStartingCooking
                   ? <Loader2 size={15} className="animate-spin" />
@@ -399,10 +399,10 @@ export default function KdsPage() {
 
   if (isLoading) {
     return (
-      <div className="h-full bg-slate-950 flex items-center justify-center">
+      <div className="h-full bg-slate-50 dark:bg-slate-950 flex items-center justify-center">
         <div className="text-center">
-          <ChefHat className="animate-pulse text-amber-400 mx-auto mb-4" size={48} />
-          <p className="text-slate-400">Loading kitchen display...</p>
+          <ChefHat className="animate-pulse text-amber-600 dark:text-amber-400 mx-auto mb-4" size={48} />
+          <p className="text-slate-900 dark:text-slate-400">Loading kitchen display...</p>
         </div>
       </div>
     );
@@ -410,10 +410,10 @@ export default function KdsPage() {
 
   if (error) {
     return (
-      <div className="h-full bg-slate-950 flex items-center justify-center">
+      <div className="h-full bg-slate-50 dark:bg-slate-950 flex items-center justify-center">
         <div className="text-center max-w-md px-4">
-          <AlertCircle className="text-red-400 mx-auto mb-4" size={48} />
-          <p className="text-red-400 font-semibold mb-2">Failed to load orders</p>
+          <AlertCircle className="text-red-600 dark:text-red-400 mx-auto mb-4" size={48} />
+          <p className="text-red-600 dark:text-red-400 font-semibold mb-2">Failed to load orders</p>
           <button onClick={() => refetch()} className="btn-primary">
             <RefreshCw size={16} className="mr-2" /> Retry
           </button>
@@ -423,24 +423,24 @@ export default function KdsPage() {
   }
 
   return (
-    <div className="h-full bg-slate-950 flex flex-col">
+    <div className="h-full bg-slate-50 dark:bg-slate-950 flex flex-col">
 
       {/* Top bar */}
-      <div className="flex items-center justify-between px-5 py-3 bg-slate-900 border-b border-slate-800 gap-4 flex-wrap">
+      <div className="flex items-center justify-between px-5 py-3 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 gap-4 flex-wrap">
         <div className="flex items-center gap-3">
-          <ChefHat size={20} className="text-amber-400" />
-          <h1 className="text-lg font-bold text-white">Kitchen Display</h1>
+          <ChefHat size={20} className="text-amber-600 dark:text-amber-400" />
+          <h1 className="text-lg font-bold text-slate-900 dark:text-white">Kitchen Display</h1>
           <div className="flex items-center gap-1.5">
-            <span className="px-2 py-0.5 rounded-full bg-slate-700 text-slate-300 text-xs font-medium">
+            <span className="px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-medium">
               {Object.keys(grouped).length} active
             </span>
             {pendingCount > 0 && (
-              <span className="px-2 py-0.5 rounded-full bg-red-600 text-white text-xs font-medium">
+              <span className="px-2 py-0.5 rounded-full bg-red-600 text-slate-900 dark:text-white text-xs font-medium">
                 {pendingCount} pending
               </span>
             )}
             {readyCount > 0 && (
-              <span className="px-2 py-0.5 rounded-full bg-emerald-600 text-white text-xs font-medium">
+              <span className="px-2 py-0.5 rounded-full bg-emerald-600 text-slate-900 dark:text-white text-xs font-medium">
                 {readyCount} ready
               </span>
             )}
@@ -454,8 +454,8 @@ export default function KdsPage() {
             className={cn(
               'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
               soundOn
-                ? 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20'
-                : 'bg-slate-800 text-slate-400 hover:bg-slate-700',
+                ? 'bg-amber-100 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-200 dark:bg-amber-500/20'
+                : 'bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-700',
             )}
           >
             {soundOn ? <Volume2 size={15} /> : <VolumeX size={15} />}
@@ -463,7 +463,7 @@ export default function KdsPage() {
           </button>
           <button
             onClick={() => refetch()}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 hover:bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-medium transition-colors"
           >
             <RefreshCw size={12} /> Refresh
           </button>
@@ -471,8 +471,8 @@ export default function KdsPage() {
       </div>
 
       {/* Station bar */}
-      <div className="flex items-center gap-2 px-5 py-2 bg-slate-900/50 border-b border-slate-800 overflow-x-auto scrollbar-none">
-        <span className="text-xs text-slate-500 font-medium mr-1 whitespace-nowrap flex items-center gap-1">
+      <div className="flex items-center gap-2 px-5 py-2 bg-white dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800 overflow-x-auto scrollbar-none">
+        <span className="text-xs text-slate-900 dark:text-slate-500 font-medium mr-1 whitespace-nowrap flex items-center gap-1">
           <FlameKindling size={12} /> Station:
         </span>
         {STATIONS.map((s) => {
@@ -488,7 +488,7 @@ export default function KdsPage() {
                 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all border',
                 station === s.id
                   ? 'bg-amber-500 text-slate-900 border-amber-500'
-                  : 'bg-slate-800 text-slate-400 border-slate-700 hover:border-slate-500 hover:text-white',
+                  : 'bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-400 border-slate-300 dark:border-slate-700 hover:border-slate-500 hover:text-slate-900 dark:text-white',
               )}
             >
               <span>{s.icon}</span>
@@ -496,7 +496,7 @@ export default function KdsPage() {
               {sPending > 0 && (
                 <span className={cn(
                   'text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold',
-                  station === s.id ? 'bg-slate-900 text-amber-400' : 'bg-red-600 text-white',
+                  station === s.id ? 'bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400' : 'bg-red-600 text-slate-900 dark:text-white',
                 )}>
                   {sPending}
                 </span>
@@ -510,12 +510,12 @@ export default function KdsPage() {
       {Object.keys(grouped).length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center text-slate-600 gap-3">
           <CheckCircle size={52} className="opacity-30" />
-          <p className="text-lg font-medium text-slate-400">
+          <p className="text-lg font-medium text-slate-900 dark:text-slate-400">
             {station === 'all'
               ? 'All clear! Kitchen is caught up.'
               : `No pending tickets for ${STATIONS.find((s) => s.id === station)?.label}.`}
           </p>
-          <p className="text-sm text-slate-500">New orders will appear here automatically</p>
+          <p className="text-sm text-slate-900 dark:text-slate-500">New orders will appear here automatically</p>
         </div>
       ) : (
         <div className="flex-1 overflow-auto p-4">

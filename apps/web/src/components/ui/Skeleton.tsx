@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 export function Skeleton({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn('animate-pulse rounded-lg bg-slate-800/60', className)}
+      className={cn('animate-pulse rounded-lg bg-slate-50 dark:bg-slate-800/60', className)}
       {...props}
     />
   );
@@ -57,14 +57,14 @@ export function TableSkeleton({ rows = 6, cols = 5 }: { rows?: number; cols?: nu
   return (
     <div className="card overflow-hidden">
       {/* header row */}
-      <div className="flex gap-4 px-5 py-3 border-b border-slate-800">
+      <div className="flex gap-4 px-5 py-3 border-b border-slate-200 dark:border-slate-800">
         {Array.from({ length: cols }).map((_, i) => (
           <Skeleton key={i} className={cn('h-3', i === 0 ? 'w-32' : 'flex-1')} />
         ))}
       </div>
       {/* data rows */}
       {Array.from({ length: rows }).map((_, r) => (
-        <div key={r} className="flex gap-4 px-5 py-4 border-b border-slate-800/50 last:border-0">
+        <div key={r} className="flex gap-4 px-5 py-4 border-b border-slate-200 dark:border-slate-800/50 last:border-0">
           {Array.from({ length: cols }).map((_, c) => (
             <Skeleton
               key={c}
@@ -82,7 +82,7 @@ export function ListRowSkeleton({ count = 4 }: { count?: number }) {
   return (
     <div className="space-y-2">
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-slate-900/50">
+        <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-slate-900/50">
           <Skeleton className="h-10 w-10 rounded-lg flex-shrink-0" />
           <div className="flex-1 space-y-2">
             <Skeleton className="h-4 w-3/4" />

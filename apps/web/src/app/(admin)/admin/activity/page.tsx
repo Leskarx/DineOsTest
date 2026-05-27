@@ -29,15 +29,15 @@ interface ActivityEvent {
 
 function EventIcon({ type }: { type: string }) {
   if (type === 'order_created')    return <ShoppingBag  size={14} className="text-blue-400"    />;
-  if (type === 'tenant_registered') return <UserPlus size={14} className="text-emerald-400" />;
-  return <Activity size={14} className="text-slate-400" />;
+  if (type === 'tenant_registered') return <UserPlus size={14} className="text-emerald-600 dark:text-emerald-400" />;
+  return <Activity size={14} className="text-slate-900 dark:text-slate-400" />;
 }
 
 function EventRow({ ev }: { ev: ActivityEvent }) {
   const isNew = ev.event_type === 'tenant_registered';
   return (
     <div className={cn(
-      'flex items-start gap-3 px-6 py-3 border-b border-slate-800/60 hover:bg-slate-800/30 transition-colors',
+      'flex items-start gap-3 px-6 py-3 border-b border-slate-200 dark:border-slate-800/60 hover:bg-slate-50 dark:bg-slate-800/30 transition-colors',
       isNew && 'bg-emerald-500/5',
     )}>
       <div className="mt-0.5 w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
@@ -45,17 +45,17 @@ function EventRow({ ev }: { ev: ActivityEvent }) {
         <EventIcon type={ev.event_type} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm text-slate-200 leading-snug">
-          <span className="font-medium text-white">{ev.tenant_name}</span>
+        <p className="text-sm text-slate-700 dark:text-slate-200 leading-snug">
+          <span className="font-medium text-slate-900 dark:text-white">{ev.tenant_name}</span>
           {' — '}
-          <span className="text-slate-400">{ev.detail}</span>
+          <span className="text-slate-900 dark:text-slate-400">{ev.detail}</span>
         </p>
         {ev.actor_email && (
-          <p className="text-xs text-slate-500 mt-0.5">{ev.actor_email}</p>
+          <p className="text-xs text-slate-900 dark:text-slate-500 mt-0.5">{ev.actor_email}</p>
         )}
       </div>
       <div className="flex-shrink-0 text-right">
-        <p className="text-xs text-slate-500" title={format(new Date(ev.created_at), 'dd MMM yyyy HH:mm')}>
+        <p className="text-xs text-slate-900 dark:text-slate-500" title={format(new Date(ev.created_at), 'dd MMM yyyy HH:mm')}>
           {formatDistanceToNow(new Date(ev.created_at), { addSuffix: true })}
         </p>
         <p className="text-[10px] text-slate-600 capitalize mt-0.5">
@@ -86,10 +86,10 @@ export default function ActivityPage() {
     <div className="flex flex-col h-full overflow-hidden">
 
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 flex-shrink-0">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex-shrink-0">
         <div>
-          <h1 className="text-base font-semibold text-white">Activity Feed</h1>
-          <p className="text-xs text-slate-500">{events.length} recent platform events</p>
+          <h1 className="text-base font-semibold text-slate-900 dark:text-white">Activity Feed</h1>
+          <p className="text-xs text-slate-900 dark:text-slate-500">{events.length} recent platform events</p>
         </div>
         <div className="flex items-center gap-2">
           <select
@@ -101,7 +101,7 @@ export default function ActivityPage() {
           </select>
           <button
             onClick={() => refetch()}
-            className={cn('p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 transition-colors', isFetching && 'animate-spin')}
+            className={cn('p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 hover:bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-400 transition-colors', isFetching && 'animate-spin')}
           >
             <RefreshCw size={13} />
           </button>
@@ -109,12 +109,12 @@ export default function ActivityPage() {
       </div>
 
       {/* Legend */}
-      <div className="px-6 py-2 border-b border-slate-800/60 flex-shrink-0 flex items-center gap-4">
-        <span className="flex items-center gap-1.5 text-xs text-slate-500">
+      <div className="px-6 py-2 border-b border-slate-200 dark:border-slate-800/60 flex-shrink-0 flex items-center gap-4">
+        <span className="flex items-center gap-1.5 text-xs text-slate-900 dark:text-slate-500">
           <ShoppingBag size={11} className="text-blue-400" /> Order created
         </span>
-        <span className="flex items-center gap-1.5 text-xs text-slate-500">
-          <Building2 size={11} className="text-emerald-400" /> Tenant registered
+        <span className="flex items-center gap-1.5 text-xs text-slate-900 dark:text-slate-500">
+          <Building2 size={11} className="text-emerald-600 dark:text-emerald-400" /> Tenant registered
         </span>
       </div>
 

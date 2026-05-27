@@ -48,8 +48,8 @@ export default function LoginPage() {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-amber-500 mb-4">
             <span className="text-2xl font-black text-slate-900">D</span>
           </div>
-          <h1 className="text-2xl font-bold text-white">Dine&Stay OS</h1>
-          <p className="text-slate-400 text-sm mt-1">Sign in to your account</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Dine&Stay OS</h1>
+          <p className="text-slate-900 dark:text-slate-400 text-sm mt-1">Sign in to your account</p>
         </div>
 
         <form onSubmit={handleSubmit} className="card space-y-4">
@@ -66,7 +66,7 @@ export default function LoginPage() {
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="label mb-0">Password</label>
-              <a href="/forgot-password" className="text-xs text-amber-400 hover:text-amber-300 transition-colors">Forgot password?</a>
+              <a href="/forgot-password" className="text-xs text-amber-600 dark:text-amber-400 hover:text-amber-600 dark:text-amber-300 transition-colors">Forgot password?</a>
             </div>
             <div className="relative">
               <input className="input pr-10" type={showPassword ? 'text' : 'password'} placeholder="••••••••" value={form.password}
@@ -74,7 +74,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-900 dark:text-slate-500 hover:text-slate-600 dark:text-slate-300 transition-colors"
               >
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
@@ -85,9 +85,9 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="text-center text-sm text-slate-500 mt-4">
+        <p className="text-center text-sm text-slate-900 dark:text-slate-500 mt-4">
           New restaurant?{' '}
-          <a href="/register" className="text-amber-400 hover:text-amber-300">Start free trial →</a>
+          <a href="/register" className="text-amber-600 dark:text-amber-400 hover:text-amber-600 dark:text-amber-300">Start free trial →</a>
         </p>
       </div>
     </div>

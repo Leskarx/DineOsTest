@@ -13,14 +13,14 @@ const ADDRESS      = 'Bengaluru, Karnataka, India';
 export default function TermsPage() {
   return (
     <article className="prose prose-invert prose-slate max-w-none">
-      <h1 className="text-3xl font-bold text-white mb-2">Terms of Service</h1>
-      <p className="text-slate-400 text-sm mb-10">Last updated: {LAST_UPDATED}</p>
+      <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">Terms of Service</h1>
+      <p className="text-slate-900 dark:text-slate-400 text-sm mb-10">Last updated: {LAST_UPDATED}</p>
 
       <Section title="1. Acceptance of Terms">
         <p>
           By registering for, accessing, or using Dine&amp;Stay OS (the &ldquo;Service&rdquo;), you agree to be
           bound by these Terms of Service (&ldquo;Terms&rdquo;) and our{' '}
-          <a href="/privacy" className="text-amber-400 hover:underline">Privacy Policy</a>.
+          <a href="/privacy" className="text-amber-600 dark:text-amber-400 hover:underline">Privacy Policy</a>.
           If you are using the Service on behalf of an organisation, you represent that you have the
           authority to bind that organisation to these Terms. If you do not agree to these Terms,
           do not use the Service.
@@ -40,7 +40,7 @@ export default function TermsPage() {
           <li>You must provide accurate, current, and complete information during registration.</li>
           <li>You are responsible for maintaining the confidentiality of your account credentials.</li>
           <li>You are responsible for all activity that occurs under your account.</li>
-          <li>You must notify us immediately at <a href={`mailto:${EMAIL}`} className="text-amber-400">{EMAIL}</a> if you suspect unauthorised access.</li>
+          <li>You must notify us immediately at <a href={`mailto:${EMAIL}`} className="text-amber-600 dark:text-amber-400">{EMAIL}</a> if you suspect unauthorised access.</li>
           <li>You must be at least 18 years old and legally capable of entering a contract.</li>
         </ul>
       </Section>
@@ -185,10 +185,10 @@ export default function TermsPage() {
         <p>
           For questions about these Terms, please contact us:
         </p>
-        <address className="not-italic text-slate-400">
+        <address className="not-italic text-slate-900 dark:text-slate-400">
           {COMPANY}<br />
           {ADDRESS}<br />
-          Email: <a href={`mailto:${EMAIL}`} className="text-amber-400 hover:underline">{EMAIL}</a>
+          Email: <a href={`mailto:${EMAIL}`} className="text-amber-600 dark:text-amber-400 hover:underline">{EMAIL}</a>
         </address>
       </Section>
     </article>
@@ -198,8 +198,8 @@ export default function TermsPage() {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="mb-8">
-      <h2 className="text-lg font-semibold text-white mb-3">{title}</h2>
-      <div className="text-slate-400 leading-relaxed space-y-3 text-sm">{children}</div>
+      <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-3">{title}</h2>
+      <div className="text-slate-900 dark:text-slate-400 leading-relaxed space-y-3 text-sm">{children}</div>
     </section>
   );
 }

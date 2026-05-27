@@ -34,7 +34,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   // Show loading spinner while hydrating to avoid flash-redirect
   if (!hydrated) {
     return (
-      <div className="flex h-screen items-center justify-center bg-slate-950">
+      <div className="flex h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
         <Loader2 size={24} className="animate-spin text-slate-600" />
       </div>
     );
@@ -43,15 +43,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   if (!accessToken || user?.role !== 'superadmin') return null;
 
   return (
-    <div className="flex h-screen bg-slate-950 overflow-hidden">
-      <aside className="w-56 flex-shrink-0 flex flex-col bg-slate-900 border-r border-red-900/40">
+    <div className="flex h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">
+      <aside className="w-56 flex-shrink-0 flex flex-col bg-white dark:bg-slate-900 border-r border-red-900/40">
         {/* Header */}
         <div className="p-4 border-b border-red-900/40">
           <div className="flex items-center gap-2">
-            <ShieldAlert size={18} className="text-red-400" />
+            <ShieldAlert size={18} className="text-red-600 dark:text-red-400" />
             <div>
-              <div className="text-sm font-bold text-red-400">Superadmin</div>
-              <div className="text-xs text-slate-500 truncate">{user?.email}</div>
+              <div className="text-sm font-bold text-red-600 dark:text-red-400">Superadmin</div>
+              <div className="text-xs text-slate-900 dark:text-slate-500 truncate">{user?.email}</div>
             </div>
           </div>
         </div>
@@ -73,10 +73,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           ))}
         </nav>
 
-        <div className="p-3 border-t border-slate-800">
+        <div className="p-3 border-t border-slate-200 dark:border-slate-800">
           <button
             onClick={() => { logout(); router.replace('/login'); }}
-            className="sidebar-link w-full text-red-400 hover:text-red-300"
+            className="sidebar-link w-full text-red-600 dark:text-red-400 hover:text-red-300"
           >
             <LogOut size={15} /> Sign out
           </button>

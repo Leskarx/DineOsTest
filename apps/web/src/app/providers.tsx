@@ -1,6 +1,7 @@
 'use client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
+import { ThemeProvider } from 'next-themes';
 import * as Sentry from '@sentry/nextjs';
 import { useAuthStore } from '@/store/auth.store';
 
@@ -25,10 +26,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
   }));
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <SentryUserSync>
-        {children}
-      </SentryUserSync>
-    </QueryClientProvider>
+    <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+      <QueryClientProvider client={queryClient}>
+        <SentryUserSync>
+          {children}
+        </SentryUserSync>
+      </QueryClientProvider>
+    </ThemeProvider>
   );
 }

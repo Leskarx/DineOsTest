@@ -45,11 +45,11 @@ const STATUS_TABS = [
 ];
 
 const STATUS_BADGE: Record<string, string> = {
-  confirmed: 'bg-amber-500/15 text-amber-400',
+  confirmed: 'bg-amber-100 dark:bg-amber-500/15 text-amber-600 dark:text-amber-400',
   checked_in: 'bg-blue-500/15  text-blue-400',
-  checked_out: 'bg-emerald-500/15 text-emerald-400',
-  cancelled: 'bg-red-500/15   text-red-400',
-  no_show: 'bg-slate-600/30 text-slate-400',
+  checked_out: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
+  cancelled: 'bg-red-500/15   text-red-600 dark:text-red-400',
+  no_show: 'bg-slate-600/30 text-slate-900 dark:text-slate-400',
 };
 
 const fmt = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -167,14 +167,14 @@ function NewReservationDrawer({ onClose, onCreated }: { onClose: () => void; onC
   return (
     <div className="fixed inset-0 z-50 flex">
       <div className="flex-1 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <aside className="w-full max-w-lg bg-slate-950 border-l border-slate-800 flex flex-col overflow-hidden">
+      <aside className="w-full max-w-lg bg-slate-50 dark:bg-slate-950 border-l border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
-          <h2 className="text-base font-semibold text-white flex items-center gap-2">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-800">
+          <h2 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
             <BedDouble size={16} className="text-blue-400" /> New Reservation
           </h2>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-500"><X size={16} /></button>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-500"><X size={16} /></button>
         </div>
 
         {/* Body */}
@@ -191,7 +191,7 @@ function NewReservationDrawer({ onClose, onCreated }: { onClose: () => void; onC
               <input type="date" value={form.checkOutDate} onChange={(e) => setForm((f) => ({ ...f, checkOutDate: e.target.value }))} className="input text-sm" min={form.checkInDate} />
             </div>
           </div>
-          {nights > 0 && <p className="text-xs text-slate-500">{nights} night{nights !== 1 ? 's' : ''}</p>}
+          {nights > 0 && <p className="text-xs text-slate-900 dark:text-slate-500">{nights} night{nights !== 1 ? 's' : ''}</p>}
 
           {/* Room picker */}
           <div className="space-y-1">
@@ -235,7 +235,7 @@ function NewReservationDrawer({ onClose, onCreated }: { onClose: () => void; onC
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="label mb-0">Guest</label>
-              <button onClick={() => { setUseNewGuest((v) => !v); setSelectedGuest(null); }} className="text-xs text-amber-400 hover:text-amber-300">
+              <button onClick={() => { setUseNewGuest((v) => !v); setSelectedGuest(null); }} className="text-xs text-amber-600 dark:text-amber-400 hover:text-amber-600 dark:text-amber-300">
                 {useNewGuest ? 'Search existing' : 'Add new guest'}
               </button>
             </div>
@@ -249,7 +249,7 @@ function NewReservationDrawer({ onClose, onCreated }: { onClose: () => void; onC
             ) : (
               <div className="space-y-2">
                 <div className="relative">
-                  <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                  <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-900 dark:text-slate-500" />
                   <input
                     type="text" placeholder="Search by name or phone…"
                     value={guestSearch} onChange={(e) => setGuestSearch(e.target.value)}
@@ -257,21 +257,21 @@ function NewReservationDrawer({ onClose, onCreated }: { onClose: () => void; onC
                   />
                 </div>
                 {selectedGuest && (
-                  <div className="flex items-center justify-between px-3 py-2 bg-slate-800 rounded-lg">
-                    <div className="text-sm text-white">{selectedGuest.name} <span className="text-slate-400">· {selectedGuest.phone}</span></div>
-                    <button onClick={() => setSelectedGuest(null)} className="text-slate-500 hover:text-red-400"><X size={13} /></button>
+                  <div className="flex items-center justify-between px-3 py-2 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                    <div className="text-sm text-slate-900 dark:text-white">{selectedGuest.name} <span className="text-slate-900 dark:text-slate-400">· {selectedGuest.phone}</span></div>
+                    <button onClick={() => setSelectedGuest(null)} className="text-slate-900 dark:text-slate-500 hover:text-red-600 dark:text-red-400"><X size={13} /></button>
                   </div>
                 )}
                 {!selectedGuest && guestSearch.length >= 2 && (
-                  <div className="border border-slate-800 rounded-lg overflow-hidden divide-y divide-slate-800/60 max-h-40 overflow-y-auto">
+                  <div className="border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden divide-y divide-slate-200 dark:divide-slate-800/60 max-h-40 overflow-y-auto">
                     {(guestResults ?? []).length === 0 ? (
-                      <div className="px-3 py-2 text-xs text-slate-500">No guests found — <button onClick={() => { setUseNewGuest(true); setNewGuest((g) => ({ ...g, name: guestSearch })); }} className="text-amber-400 hover:underline">add new</button></div>
+                      <div className="px-3 py-2 text-xs text-slate-900 dark:text-slate-500">No guests found — <button onClick={() => { setUseNewGuest(true); setNewGuest((g) => ({ ...g, name: guestSearch })); }} className="text-amber-600 dark:text-amber-400 hover:underline">add new</button></div>
                     ) : (guestResults ?? []).map((g) => (
-                      <button key={g.id} onClick={() => { setSelectedGuest(g); setGuestSearch(''); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-800 text-left">
-                        <User size={12} className="text-slate-500 flex-shrink-0" />
+                      <button key={g.id} onClick={() => { setSelectedGuest(g); setGuestSearch(''); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-50 dark:bg-slate-800 text-left">
+                        <User size={12} className="text-slate-900 dark:text-slate-500 flex-shrink-0" />
                         <div>
-                          <div className="text-xs text-white">{g.name}</div>
-                          <div className="text-[10px] text-slate-500">{g.phone}</div>
+                          <div className="text-xs text-slate-900 dark:text-white">{g.name}</div>
+                          <div className="text-[10px] text-slate-900 dark:text-slate-500">{g.phone}</div>
                         </div>
                       </button>
                     ))}
@@ -319,18 +319,18 @@ function NewReservationDrawer({ onClose, onCreated }: { onClose: () => void; onC
 
           {/* Financial summary */}
           {nights > 0 && selectedRoom && (
-            <div className="rounded-xl bg-slate-800/50 border border-slate-700/50 p-4 space-y-1.5 text-xs">
-              <div className="flex justify-between text-slate-400"><span>Room ({nights}N × ₹{rate.toLocaleString('en-IN')})</span><span>₹{subtotal.toLocaleString('en-IN')}</span></div>
-              <div className="flex justify-between text-slate-400"><span>GST (12%)</span><span>₹{tax.toLocaleString('en-IN')}</span></div>
-              <div className="flex justify-between text-slate-400"><span>Advance paid</span><span>-₹{Number(form.advancePaid).toLocaleString('en-IN')}</span></div>
-              <div className="flex justify-between font-semibold text-white border-t border-slate-700 pt-1.5"><span>Balance due</span><span>₹{Math.max(0, total - form.advancePaid).toLocaleString('en-IN')}</span></div>
+            <div className="rounded-xl bg-slate-100/50 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/50 p-4 space-y-1.5 text-xs">
+              <div className="flex justify-between text-slate-900 dark:text-slate-400"><span>Room ({nights}N × ₹{rate.toLocaleString('en-IN')})</span><span>₹{subtotal.toLocaleString('en-IN')}</span></div>
+              <div className="flex justify-between text-slate-900 dark:text-slate-400"><span>GST (12%)</span><span>₹{tax.toLocaleString('en-IN')}</span></div>
+              <div className="flex justify-between text-slate-900 dark:text-slate-400"><span>Advance paid</span><span>-₹{Number(form.advancePaid).toLocaleString('en-IN')}</span></div>
+              <div className="flex justify-between font-semibold text-slate-900 dark:text-white border-t border-slate-300 dark:border-slate-700 pt-1.5"><span>Balance due</span><span>₹{Math.max(0, total - form.advancePaid).toLocaleString('en-IN')}</span></div>
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-4 border-t border-slate-800 flex gap-3">
-          <button onClick={onClose} className="flex-1 py-2 text-sm bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors">Cancel</button>
+        <div className="px-5 py-4 border-t border-slate-200 dark:border-slate-800 flex gap-3">
+          <button onClick={onClose} className="flex-1 py-2 text-sm bg-slate-50 dark:bg-slate-800 hover:bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg transition-colors">Cancel</button>
           <button onClick={handleSubmit} disabled={create.isPending} className="flex-1 btn-primary flex items-center justify-center gap-2 text-sm disabled:opacity-50">
             {create.isPending ? <><Loader2 size={14} className="animate-spin" /> Creating…</> : 'Create Reservation'}
           </button>
@@ -378,16 +378,16 @@ function CheckoutDialog({ reservation, onClose, onDone }: { reservation: Reserva
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md shadow-2xl">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-md shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-800">
           <div>
-            <h2 className="text-sm font-semibold text-white">Checkout & Settle Bill</h2>
-            <div className="text-xs text-slate-500">
+            <h2 className="text-sm font-semibold text-slate-900 dark:text-white">Checkout & Settle Bill</h2>
+            <div className="text-xs text-slate-900 dark:text-slate-500">
               Room {reservation.room?.roomNumber} · {reservation.primaryGuest?.name}
             </div>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-500"><X size={15} /></button>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-500"><X size={15} /></button>
         </div>
 
         <div className="p-5 space-y-4">
@@ -400,34 +400,34 @@ function CheckoutDialog({ reservation, onClose, onDone }: { reservation: Reserva
           </div>
 
           {/* Folio summary */}
-          <div className="bg-slate-800/50 rounded-xl p-3 space-y-2 text-xs">
-            <div className="font-semibold text-slate-300 mb-2">Folio Summary</div>
+          <div className="bg-slate-100/50 dark:bg-slate-800/50 rounded-xl p-3 space-y-2 text-xs">
+            <div className="font-semibold text-slate-600 dark:text-slate-300 mb-2">Folio Summary</div>
             {folioLoading ? (
-              <div className="text-slate-500 animate-pulse">Loading charges…</div>
+              <div className="text-slate-900 dark:text-slate-500 animate-pulse">Loading charges…</div>
             ) : (
               <>
-                <div className="divide-y divide-slate-700/50 max-h-36 overflow-y-auto">
+                <div className="divide-y divide-slate-200 dark:divide-slate-700/50 max-h-36 overflow-y-auto">
                   {(folio?.charges ?? []).map((c) => (
                     <div key={c.id} className="flex justify-between py-1.5">
-                      <span className="text-slate-400">{c.description}</span>
-                      <span className={Number(c.amount) < 0 ? 'text-emerald-400' : 'text-slate-200'}>
+                      <span className="text-slate-900 dark:text-slate-400">{c.description}</span>
+                      <span className={Number(c.amount) < 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-700 dark:text-slate-200'}>
                         {Number(c.amount) < 0 ? '-' : ''}₹{Math.abs(Number(c.amount)).toLocaleString('en-IN')}
                       </span>
                     </div>
                   ))}
                 </div>
-                <div className="border-t border-slate-700 pt-2 space-y-1">
-                  <div className="flex justify-between text-slate-400">
+                <div className="border-t border-slate-300 dark:border-slate-700 pt-2 space-y-1">
+                  <div className="flex justify-between text-slate-900 dark:text-slate-400">
                     <span>Total Charges</span>
                     <span>₹{Math.abs(folio?.totalCharges ?? 0).toLocaleString('en-IN')}</span>
                   </div>
-                  <div className="flex justify-between text-emerald-400">
+                  <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
                     <span>Already Paid (Advance)</span>
                     <span>₹{(folio?.totalPaid ?? 0).toLocaleString('en-IN')}</span>
                   </div>
-                  <div className="flex justify-between font-bold text-white text-sm border-t border-slate-600 pt-1">
+                  <div className="flex justify-between font-bold text-slate-900 dark:text-white text-sm border-t border-slate-300 dark:border-slate-600 pt-1">
                     <span>Balance Due</span>
-                    <span className={balance > 0 ? 'text-red-400' : 'text-emerald-400'}>
+                    <span className={balance > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}>
                       ₹{balance.toLocaleString('en-IN')}
                     </span>
                   </div>
@@ -438,7 +438,7 @@ function CheckoutDialog({ reservation, onClose, onDone }: { reservation: Reserva
 
           {/* Payment collection */}
           <div className="space-y-3">
-            <div className="text-xs font-semibold text-slate-400">Collect Payment</div>
+            <div className="text-xs font-semibold text-slate-900 dark:text-slate-400">Collect Payment</div>
             <div className="grid grid-cols-4 gap-1.5">
               {(['cash', 'card', 'upi', 'wallet'] as const).map((m) => (
                 <button
@@ -447,8 +447,8 @@ function CheckoutDialog({ reservation, onClose, onDone }: { reservation: Reserva
                   className={cn(
                     'py-1.5 rounded-lg text-[10px] font-semibold uppercase tracking-wide border transition-colors',
                     paymentMethod === m
-                      ? 'bg-amber-500/20 border-amber-500/50 text-amber-400'
-                      : 'bg-slate-800 border-slate-700 text-slate-500 hover:border-slate-600',
+                      ? 'bg-amber-200 dark:bg-amber-500/20 border-amber-400 dark:border-amber-500/50 text-amber-600 dark:text-amber-400'
+                      : 'bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-500 hover:border-slate-300 dark:border-slate-600',
                   )}
                 >
                   {m}
@@ -463,7 +463,7 @@ function CheckoutDialog({ reservation, onClose, onDone }: { reservation: Reserva
               className="input text-sm"
             />
             {amountPaid && parseFloat(amountPaid) < balance && (
-              <div className="text-xs text-amber-400">⚠ Amount is less than balance — bill will be marked as partially paid</div>
+              <div className="text-xs text-amber-600 dark:text-amber-400">⚠ Amount is less than balance — bill will be marked as partially paid</div>
             )}
           </div>
 
@@ -511,49 +511,49 @@ function FolioDrawer({ reservation, onClose }: { reservation: Reservation; onClo
   return (
     <div className="fixed inset-0 z-50 flex">
       <div className="flex-1 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <aside className="w-full max-w-md bg-slate-950 border-l border-slate-800 flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
+      <aside className="w-full max-w-md bg-slate-50 dark:bg-slate-950 border-l border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-800">
           <div>
-            <h2 className="text-sm font-semibold text-white">Folio — Room {reservation.room?.roomNumber}</h2>
-            <div className="text-xs text-slate-500">{reservation.primaryGuest?.name} · {fmt(reservation.checkInDate)} → {fmt(reservation.checkOutDate)}</div>
+            <h2 className="text-sm font-semibold text-slate-900 dark:text-white">Folio — Room {reservation.room?.roomNumber}</h2>
+            <div className="text-xs text-slate-900 dark:text-slate-500">{reservation.primaryGuest?.name} · {fmt(reservation.checkInDate)} → {fmt(reservation.checkOutDate)}</div>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-500"><X size={15} /></button>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-500"><X size={15} /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           {isLoading ? (
-            <div className="text-slate-500 text-sm text-center py-8 animate-pulse">Loading folio…</div>
+            <div className="text-slate-900 dark:text-slate-500 text-sm text-center py-8 animate-pulse">Loading folio…</div>
           ) : (
             <>
               {isFetching && (
-                <div className="flex items-center gap-2 text-xs text-slate-500 animate-pulse">
+                <div className="flex items-center gap-2 text-xs text-slate-900 dark:text-slate-500 animate-pulse">
                   <Loader2 size={11} className="animate-spin" /> Refreshing…
                 </div>
               )}
-              <div className="divide-y divide-slate-800/60">
+              <div className="divide-y divide-slate-200 dark:divide-slate-800/60">
                 {(folio?.charges ?? []).map((c) => (
                   <div key={c.id} className="py-2.5 flex justify-between items-center text-xs">
                     <div>
-                      <div className="text-slate-300">{c.description}</div>
+                      <div className="text-slate-600 dark:text-slate-300">{c.description}</div>
                       <div className="text-slate-600 capitalize">{c.chargeType.replace('_', ' ')} · {c.date}</div>
                     </div>
-                    <span className={cn('font-semibold tabular-nums', Number(c.amount) < 0 ? 'text-emerald-400' : 'text-slate-200')}>
+                    <span className={cn('font-semibold tabular-nums', Number(c.amount) < 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-700 dark:text-slate-200')}>
                       {Number(c.amount) < 0 ? '-' : ''}₹{Math.abs(Number(c.amount)).toLocaleString('en-IN')}
                     </span>
                   </div>
                 ))}
               </div>
 
-              <div className="rounded-xl bg-slate-800/50 p-3 space-y-1.5 text-xs">
-                <div className="flex justify-between text-slate-400"><span>Total charges</span><span>₹{Math.abs(folio?.totalCharges ?? 0).toLocaleString('en-IN')}</span></div>
-                <div className="flex justify-between text-emerald-400"><span>Total paid</span><span>₹{(folio?.totalPaid ?? 0).toLocaleString('en-IN')}</span></div>
-                <div className="flex justify-between font-bold text-white border-t border-slate-700 pt-1.5"><span>Balance</span><span>₹{Math.max(0, folio?.balance ?? 0).toLocaleString('en-IN')}</span></div>
+              <div className="rounded-xl bg-slate-100/50 dark:bg-slate-800/50 p-3 space-y-1.5 text-xs">
+                <div className="flex justify-between text-slate-900 dark:text-slate-400"><span>Total charges</span><span>₹{Math.abs(folio?.totalCharges ?? 0).toLocaleString('en-IN')}</span></div>
+                <div className="flex justify-between text-emerald-600 dark:text-emerald-400"><span>Total paid</span><span>₹{(folio?.totalPaid ?? 0).toLocaleString('en-IN')}</span></div>
+                <div className="flex justify-between font-bold text-slate-900 dark:text-white border-t border-slate-300 dark:border-slate-700 pt-1.5"><span>Balance</span><span>₹{Math.max(0, folio?.balance ?? 0).toLocaleString('en-IN')}</span></div>
               </div>
 
               {/* Add charge — only for active reservations */}
               {['confirmed', 'checked_in'].includes(reservation.status) && (
-                <div className="space-y-2 border-t border-slate-800 pt-4">
-                  <div className="text-xs font-semibold text-slate-400">Add Charge</div>
+                <div className="space-y-2 border-t border-slate-200 dark:border-slate-800 pt-4">
+                  <div className="text-xs font-semibold text-slate-900 dark:text-slate-400">Add Charge</div>
                   <input type="text" placeholder="Description" value={addForm.description} onChange={(e) => setAddForm((f) => ({ ...f, description: e.target.value }))} className="input text-xs" />
                   <div className="grid grid-cols-2 gap-2">
                     <input type="number" placeholder="Amount (₹)" value={addForm.amount} onChange={(e) => setAddForm((f) => ({ ...f, amount: e.target.value }))} className="input text-xs" />
@@ -590,7 +590,7 @@ function FolioDrawer({ reservation, onClose }: { reservation: Reservation; onClo
               )}
 
               {reservation.status === 'checked_in' && (
-                <div className="pt-2 text-xs text-slate-500 text-center">Use the Checkout button on the reservation row to settle and generate the bill.</div>
+                <div className="pt-2 text-xs text-slate-900 dark:text-slate-500 text-center">Use the Checkout button on the reservation row to settle and generate the bill.</div>
               )}
 
             </>
@@ -700,10 +700,10 @@ export default function ReservationsPage() {
     <div className="flex flex-col h-full overflow-hidden">
 
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 flex-shrink-0">
-        <h1 className="text-base font-semibold text-white">Reservations</h1>
+      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex-shrink-0">
+        <h1 className="text-base font-semibold text-slate-900 dark:text-white">Reservations</h1>
         <div className="flex items-center gap-2">
-          <button onClick={() => refetch()} disabled={isFetching} className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 disabled:opacity-50 transition-colors">
+          <button onClick={() => refetch()} disabled={isFetching} className="p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 hover:bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-400 disabled:opacity-50 transition-colors">
             <RefreshCw size={13} className={isFetching ? 'animate-spin' : ''} />
           </button>
           <button onClick={() => setShowNew(true)} className="btn-primary text-xs flex items-center gap-1.5">
@@ -713,7 +713,7 @@ export default function ReservationsPage() {
       </div>
 
       {/* Status tabs */}
-      <div className="flex border-b border-slate-800 px-6 flex-shrink-0 overflow-x-auto scrollbar-none">
+      <div className="flex border-b border-slate-200 dark:border-slate-800 px-6 flex-shrink-0 overflow-x-auto scrollbar-none">
         {STATUS_TABS.map((t) => (
           <button
             key={t.value}
@@ -721,8 +721,8 @@ export default function ReservationsPage() {
             className={cn(
               'px-4 py-2.5 text-xs font-medium whitespace-nowrap border-b-2 transition-colors',
               status === t.value
-                ? 'border-amber-500 text-amber-400'
-                : 'border-transparent text-slate-500 hover:text-slate-300',
+                ? 'border-amber-500 text-amber-600 dark:text-amber-400'
+                : 'border-transparent text-slate-900 dark:text-slate-500 hover:text-slate-600 dark:text-slate-300',
             )}
           >
             {t.label}
@@ -731,23 +731,23 @@ export default function ReservationsPage() {
       </div>
 
       {/* Filter bar */}
-      <div className="flex items-center gap-2 px-6 py-2 border-b border-slate-800 flex-shrink-0">
+      <div className="flex items-center gap-2 px-6 py-2 border-b border-slate-200 dark:border-slate-800 flex-shrink-0">
         <div className="relative flex-1 max-w-xs">
-          <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+          <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-900 dark:text-slate-500" />
           <input type="text" placeholder="Guest name, room, ref…" value={search} onChange={(e) => setSearch(e.target.value)} className="input text-xs pl-8 py-1.5" />
         </div>
         <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="input text-xs py-1.5 w-36" title="From" />
         <span className="text-slate-600 text-xs">–</span>
         <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="input text-xs py-1.5 w-36" title="To" />
         {(from || to || search) && (
-          <button onClick={() => { setFrom(''); setTo(''); setSearch(''); }} className="text-xs text-slate-500 hover:text-slate-300 flex items-center gap-1"><X size={12} /> Clear</button>
+          <button onClick={() => { setFrom(''); setTo(''); setSearch(''); }} className="text-xs text-slate-900 dark:text-slate-500 hover:text-slate-600 dark:text-slate-300 flex items-center gap-1"><X size={12} /> Clear</button>
         )}
       </div>
 
       {/* Table */}
       <div className="flex-1 overflow-auto">
         {isLoading ? (
-          <div className="flex items-center justify-center h-full text-slate-500 text-sm animate-pulse">Loading…</div>
+          <div className="flex items-center justify-center h-full text-slate-900 dark:text-slate-500 text-sm animate-pulse">Loading…</div>
         ) : reservations.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-3 text-slate-600">
             <BedDouble size={40} />
@@ -755,39 +755,39 @@ export default function ReservationsPage() {
           </div>
         ) : (
           <table className="w-full text-xs">
-            <thead className="sticky top-0 z-10 bg-slate-900 border-b border-slate-800">
+            <thead className="sticky top-0 z-10 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
               <tr>
-                <th className="text-left px-4 py-3 font-medium text-slate-400">Guest</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-400">Room</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-400">Dates</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-400">Status</th>
-                <th className="text-right px-4 py-3 font-medium text-slate-400">Amount</th>
-                <th className="text-right px-4 py-3 font-medium text-slate-400">Actions</th>
+                <th className="text-left px-4 py-3 font-medium text-slate-900 dark:text-slate-400">Guest</th>
+                <th className="text-left px-4 py-3 font-medium text-slate-900 dark:text-slate-400">Room</th>
+                <th className="text-left px-4 py-3 font-medium text-slate-900 dark:text-slate-400">Dates</th>
+                <th className="text-left px-4 py-3 font-medium text-slate-900 dark:text-slate-400">Status</th>
+                <th className="text-right px-4 py-3 font-medium text-slate-900 dark:text-slate-400">Amount</th>
+                <th className="text-right px-4 py-3 font-medium text-slate-900 dark:text-slate-400">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60">
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-800/60">
               {reservations.map((r) => (
-                <tr key={r.id} className="hover:bg-slate-800/30 transition-colors">
+                <tr key={r.id} className="hover:bg-slate-50 dark:bg-slate-800/30 transition-colors">
                   <td className="px-4 py-3">
-                    <div className="text-slate-200 font-medium">{r.primaryGuest?.name}</div>
-                    <div className="text-slate-500">{r.primaryGuest?.phone}</div>
+                    <div className="text-slate-700 dark:text-slate-200 font-medium">{r.primaryGuest?.name}</div>
+                    <div className="text-slate-900 dark:text-slate-500">{r.primaryGuest?.phone}</div>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="text-slate-300 font-mono">{r.room?.roomNumber}</div>
-                    <div className="text-slate-500">{r.room?.roomType?.name}</div>
+                    <div className="text-slate-600 dark:text-slate-300 font-mono">{r.room?.roomNumber}</div>
+                    <div className="text-slate-900 dark:text-slate-500">{r.room?.roomType?.name}</div>
                   </td>
-                  <td className="px-4 py-3 text-slate-400">
+                  <td className="px-4 py-3 text-slate-900 dark:text-slate-400">
                     <div>{fmt(r.checkInDate)} →</div>
                     <div>{fmt(r.checkOutDate)} ({r.numNights}N)</div>
                   </td>
                   <td className="px-4 py-3">
-                    <span className={cn('px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wide', STATUS_BADGE[r.status] ?? 'bg-slate-700 text-slate-300')}>
+                    <span className={cn('px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wide', STATUS_BADGE[r.status] ?? 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300')}>
                       {r.status.replace('_', ' ')}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <div className="text-slate-200">{fmtMoney(r.totalAmount)}</div>
-                    {r.balanceDue > 0 && <div className="text-red-400">Due: {fmtMoney(r.balanceDue)}</div>}
+                    <div className="text-slate-700 dark:text-slate-200">{fmtMoney(r.totalAmount)}</div>
+                    {r.balanceDue > 0 && <div className="text-red-600 dark:text-red-400">Due: {fmtMoney(r.balanceDue)}</div>}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
@@ -803,7 +803,7 @@ export default function ReservationsPage() {
                       {r.status === 'checked_in' && (
                         <button
                           onClick={() => setCheckoutRes(r)}
-                          className="flex items-center gap-1 px-2 py-1 text-[10px] bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 rounded-lg transition-colors"
+                          className="flex items-center gap-1 px-2 py-1 text-[10px] bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/25 rounded-lg transition-colors"
                           title="Check Out & Pay"
                         >
                           <LogOut size={11} /> Check Out
@@ -811,7 +811,7 @@ export default function ReservationsPage() {
                       )}
                       <button
                         onClick={() => setFolioRes(r)}
-                        className="flex items-center gap-1 px-2 py-1 text-[10px] bg-slate-700/50 text-slate-400 hover:bg-slate-700 rounded-lg transition-colors"
+                        className="flex items-center gap-1 px-2 py-1 text-[10px] bg-slate-200 dark:bg-slate-700/50 text-slate-900 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-700 rounded-lg transition-colors"
                         title="View Folio"
                       >
                         <Receipt size={11} /> Folio
@@ -819,7 +819,7 @@ export default function ReservationsPage() {
                       {['confirmed', 'checked_in'].includes(r.status) && (
                         <button
                           onClick={() => { if (confirm('Cancel this reservation?')) mutate(`/api/v1/hotel/reservations/${r.id}/cancel`, 'post', { reason: 'Cancelled by staff' }, 'Reservation cancelled'); }}
-                          className="p-1.5 text-red-400/60 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                          className="p-1.5 text-red-600 dark:text-red-400/60 hover:text-red-600 dark:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
                           title="Cancel"
                         >
                           <Ban size={12} />
@@ -836,12 +836,12 @@ export default function ReservationsPage() {
 
       {/* Pagination */}
       {total > 0 && (
-        <div className="flex items-center justify-between px-6 py-3 border-t border-slate-800 flex-shrink-0 bg-slate-900/50">
-          <span className="text-xs text-slate-500">Showing {((page - 1) * 25) + 1}–{Math.min(page * 25, total)} of {total}</span>
+        <div className="flex items-center justify-between px-6 py-3 border-t border-slate-200 dark:border-slate-800 flex-shrink-0 bg-white dark:bg-slate-900/50">
+          <span className="text-xs text-slate-900 dark:text-slate-500">Showing {((page - 1) * 25) + 1}–{Math.min(page * 25, total)} of {total}</span>
           <div className="flex items-center gap-2">
-            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1} className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 disabled:opacity-30 transition-colors"><ChevronLeft size={14} /></button>
-            <span className="text-xs text-slate-400">Page {page} / {totalPages}</span>
-            <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages} className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 disabled:opacity-30 transition-colors"><ChevronRight size={14} /></button>
+            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1} className="p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 hover:bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-400 disabled:opacity-30 transition-colors"><ChevronLeft size={14} /></button>
+            <span className="text-xs text-slate-900 dark:text-slate-400">Page {page} / {totalPages}</span>
+            <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages} className="p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 hover:bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-400 disabled:opacity-30 transition-colors"><ChevronRight size={14} /></button>
           </div>
         </div>
       )}

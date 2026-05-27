@@ -33,12 +33,12 @@ interface Room {
 }
 
 const STATUS_CFG: Record<RoomStatus, { label: string; dot: string; bg: string }> = {
-    available: { label: 'Available', dot: 'bg-emerald-500', bg: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' },
+    available: { label: 'Available', dot: 'bg-emerald-500', bg: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' },
     occupied: { label: 'Occupied', dot: 'bg-blue-500', bg: 'bg-blue-500/10 text-blue-400 border-blue-500/30' },
-    reserved: { label: 'Reserved', dot: 'bg-amber-500', bg: 'bg-amber-500/10 text-amber-400 border-amber-500/30' },
+    reserved: { label: 'Reserved', dot: 'bg-amber-500', bg: 'bg-amber-100 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-500/30' },
     cleaning: { label: 'Cleaning', dot: 'bg-violet-500', bg: 'bg-violet-500/10 text-violet-400 border-violet-500/30' },
     maintenance: { label: 'Maintenance', dot: 'bg-orange-500', bg: 'bg-orange-500/10 text-orange-400 border-orange-500/30' },
-    out_of_order: { label: 'Out of Order', dot: 'bg-red-500', bg: 'bg-red-500/10 text-red-400 border-red-500/30' },
+    out_of_order: { label: 'Out of Order', dot: 'bg-red-500', bg: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30' },
 };
 
 const ALL_STATUSES = Object.keys(STATUS_CFG) as RoomStatus[];
@@ -90,25 +90,25 @@ function RoomModal({
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-5 space-y-4" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-md p-5 space-y-4" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between">
-                    <h3 className="text-base font-semibold text-white">{isEdit ? 'Edit Room' : 'Add Room'}</h3>
-                    <button onClick={onClose} className="p-1 text-slate-500 hover:text-slate-300"><X size={16} /></button>
+                    <h3 className="text-base font-semibold text-slate-900 dark:text-white">{isEdit ? 'Edit Room' : 'Add Room'}</h3>
+                    <button onClick={onClose} className="p-1 text-slate-900 dark:text-slate-500 hover:text-slate-600 dark:text-slate-300"><X size={16} /></button>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                        <label className="text-xs text-slate-400">Room Number *</label>
+                        <label className="text-xs text-slate-900 dark:text-slate-400">Room Number *</label>
                         <input value={form.roomNumber} onChange={(e) => set('roomNumber', e.target.value)} className="input-field text-sm w-full" placeholder="e.g. 101" />
                     </div>
                     <div className="space-y-1">
-                        <label className="text-xs text-slate-400">Floor</label>
+                        <label className="text-xs text-slate-900 dark:text-slate-400">Floor</label>
                         <input type="number" value={form.floor} onChange={(e) => set('floor', +e.target.value)} className="input-field text-sm w-full" min={0} />
                     </div>
                 </div>
 
                 <div className="space-y-1">
-                    <label className="text-xs text-slate-400">Room Type *</label>
+                    <label className="text-xs text-slate-900 dark:text-slate-400">Room Type *</label>
                     <select value={form.roomTypeId} onChange={(e) => set('roomTypeId', e.target.value)} className="input-field text-sm w-full">
                         <option value="">Select type…</option>
                         {roomTypes.map((rt) => (
@@ -119,7 +119,7 @@ function RoomModal({
 
                 {isEdit && (
                     <div className="space-y-1">
-                        <label className="text-xs text-slate-400">Status</label>
+                        <label className="text-xs text-slate-900 dark:text-slate-400">Status</label>
                         <select value={form.status} onChange={(e) => set('status', e.target.value)} className="input-field text-sm w-full">
                             {ALL_STATUSES.map((s) => (
                                 <option key={s} value={s}>{STATUS_CFG[s].label}</option>
@@ -129,7 +129,7 @@ function RoomModal({
                 )}
 
                 <div className="space-y-1">
-                    <label className="text-xs text-slate-400">Notes</label>
+                    <label className="text-xs text-slate-900 dark:text-slate-400">Notes</label>
                     <textarea rows={2} value={form.notes} onChange={(e) => set('notes', e.target.value)} className="input-field text-sm w-full resize-none" placeholder="Optional notes…" />
                 </div>
 
@@ -142,7 +142,7 @@ function RoomModal({
                         {isPending ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
                         {isEdit ? 'Save Changes' : 'Add Room'}
                     </button>
-                    <button onClick={onClose} className="px-4 py-2 text-sm bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors">Cancel</button>
+                    <button onClick={onClose} className="px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 hover:bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg transition-colors">Cancel</button>
                 </div>
             </div>
         </div>
@@ -193,35 +193,35 @@ function RoomTypeModal({
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-5 space-y-4" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-md p-5 space-y-4" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between">
-                    <h3 className="text-base font-semibold text-white">{isEdit ? 'Edit Room Type' : 'New Room Type'}</h3>
-                    <button onClick={onClose} className="p-1 text-slate-500 hover:text-slate-300"><X size={16} /></button>
+                    <h3 className="text-base font-semibold text-slate-900 dark:text-white">{isEdit ? 'Edit Room Type' : 'New Room Type'}</h3>
+                    <button onClick={onClose} className="p-1 text-slate-900 dark:text-slate-500 hover:text-slate-600 dark:text-slate-300"><X size={16} /></button>
                 </div>
 
                 <div className="space-y-1">
-                    <label className="text-xs text-slate-400">Name *</label>
+                    <label className="text-xs text-slate-900 dark:text-slate-400">Name *</label>
                     <input value={form.name} onChange={(e) => set('name', e.target.value)} className="input-field text-sm w-full" placeholder="e.g. Deluxe Double" />
                 </div>
 
                 <div className="space-y-1">
-                    <label className="text-xs text-slate-400">Description</label>
+                    <label className="text-xs text-slate-900 dark:text-slate-400">Description</label>
                     <input value={form.description} onChange={(e) => set('description', e.target.value)} className="input-field text-sm w-full" placeholder="Brief description" />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                        <label className="text-xs text-slate-400">Base Rate (₹/night) *</label>
+                        <label className="text-xs text-slate-900 dark:text-slate-400">Base Rate (₹/night) *</label>
                         <input type="number" value={form.baseRate} onChange={(e) => set('baseRate', e.target.value)} className="input-field text-sm w-full" min={0} />
                     </div>
                     <div className="space-y-1">
-                        <label className="text-xs text-slate-400">Max Occupancy</label>
+                        <label className="text-xs text-slate-900 dark:text-slate-400">Max Occupancy</label>
                         <input type="number" value={form.maxOccupancy} onChange={(e) => set('maxOccupancy', +e.target.value)} className="input-field text-sm w-full" min={1} />
                     </div>
                 </div>
 
                 <div className="space-y-1">
-                    <label className="text-xs text-slate-400">Amenities (comma-separated)</label>
+                    <label className="text-xs text-slate-900 dark:text-slate-400">Amenities (comma-separated)</label>
                     <input value={form.amenities} onChange={(e) => set('amenities', e.target.value)} className="input-field text-sm w-full" placeholder="AC, WiFi, TV, Mini-bar" />
                 </div>
 
@@ -230,7 +230,7 @@ function RoomTypeModal({
                         {isPending ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
                         {isEdit ? 'Save' : 'Create Type'}
                     </button>
-                    <button onClick={onClose} className="px-4 py-2 text-sm bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors">Cancel</button>
+                    <button onClick={onClose} className="px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 hover:bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg transition-colors">Cancel</button>
                 </div>
             </div>
         </div>
@@ -300,18 +300,18 @@ export default function RoomsPage() {
         <div className="flex flex-col h-full overflow-hidden">
 
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 flex-shrink-0">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex-shrink-0">
                 <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-lg bg-indigo-500/15 flex items-center justify-center">
                         <BedDouble size={16} className="text-indigo-400" />
                     </div>
                     <div>
-                        <h1 className="text-base font-semibold text-white">Rooms</h1>
-                        <p className="text-xs text-slate-500">Manage rooms &amp; room types</p>
+                        <h1 className="text-base font-semibold text-slate-900 dark:text-white">Rooms</h1>
+                        <p className="text-xs text-slate-900 dark:text-slate-500">Manage rooms &amp; room types</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    <button onClick={() => refetch()} className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 transition-colors">
+                    <button onClick={() => refetch()} className="p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 hover:bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-400 transition-colors">
                         <RefreshCw size={13} />
                     </button>
                     {tab === 'rooms' ? (
@@ -327,14 +327,14 @@ export default function RoomsPage() {
             </div>
 
             {/* Tabs */}
-            <div className="flex items-center gap-4 px-6 py-2.5 border-b border-slate-800/60 bg-slate-900/30 flex-shrink-0">
+            <div className="flex items-center gap-4 px-6 py-2.5 border-b border-slate-200 dark:border-slate-800/60 bg-white dark:bg-slate-900/30 flex-shrink-0">
                 {(['rooms', 'types'] as const).map((t) => (
                     <button
                         key={t}
                         onClick={() => setTab(t)}
                         className={cn(
                             'text-sm font-medium pb-1 border-b-2 transition-colors',
-                            tab === t ? 'border-amber-500 text-white' : 'border-transparent text-slate-500 hover:text-slate-300',
+                            tab === t ? 'border-amber-500 text-slate-900 dark:text-white' : 'border-transparent text-slate-900 dark:text-slate-500 hover:text-slate-600 dark:text-slate-300',
                         )}
                     >
                         {t === 'rooms' ? `Rooms (${rooms.length})` : `Room Types (${roomTypes.length})`}
@@ -350,7 +350,7 @@ export default function RoomsPage() {
                         {/* Filters bar */}
                         <div className="flex flex-wrap items-center gap-3">
                             <div className="relative flex-1 min-w-[200px] max-w-xs">
-                                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-900 dark:text-slate-500" />
                                 <input
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
@@ -380,7 +380,7 @@ export default function RoomsPage() {
                                     onClick={() => setStatusFilter(statusFilter === s ? '' : s)}
                                     className={cn(
                                         'flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border transition-all',
-                                        statusFilter === s ? STATUS_CFG[s].bg : 'border-slate-700 text-slate-500 hover:text-slate-300 hover:border-slate-600',
+                                        statusFilter === s ? STATUS_CFG[s].bg : 'border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-500 hover:text-slate-600 dark:text-slate-300 hover:border-slate-300 dark:border-slate-600',
                                     )}
                                 >
                                     <span className={cn('w-2 h-2 rounded-full', STATUS_CFG[s].dot)} />
@@ -398,7 +398,7 @@ export default function RoomsPage() {
                         ) : filtered.length === 0 ? (
                             <div className="card text-center py-16 space-y-3">
                                 <BedDouble size={40} className="text-slate-700 mx-auto" />
-                                <p className="text-slate-500 text-sm">
+                                <p className="text-slate-900 dark:text-slate-500 text-sm">
                                     {rooms.length === 0 ? 'No rooms added yet.' : 'No rooms match your filters.'}
                                 </p>
                                 {rooms.length === 0 && (
@@ -411,7 +411,7 @@ export default function RoomsPage() {
                             <div className="space-y-5">
                                 {floors.map((floor) => (
                                     <div key={floor}>
-                                        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                                        <div className="text-xs font-semibold text-slate-900 dark:text-slate-500 uppercase tracking-wider mb-2">
                                             Floor {floor} · {byFloor(floor).length} rooms
                                         </div>
                                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-2">
@@ -452,7 +452,7 @@ export default function RoomsPage() {
                         ) : roomTypes.length === 0 ? (
                             <div className="card text-center py-16 space-y-3">
                                 <BedDouble size={40} className="text-slate-700 mx-auto" />
-                                <p className="text-slate-500 text-sm">No room types configured yet.</p>
+                                <p className="text-slate-900 dark:text-slate-500 text-sm">No room types configured yet.</p>
                                 <button onClick={() => { setEditType(null); setShowTypeModal(true); }} className="btn-primary text-xs inline-flex items-center gap-1.5">
                                     <Plus size={12} /> Create room type
                                 </button>
@@ -463,34 +463,34 @@ export default function RoomsPage() {
                                     <div key={rt.id} className="card space-y-3">
                                         <div className="flex items-start justify-between">
                                             <div>
-                                                <div className="text-sm font-semibold text-white">{rt.name}</div>
-                                                {rt.description && <div className="text-xs text-slate-500 mt-0.5">{rt.description}</div>}
+                                                <div className="text-sm font-semibold text-slate-900 dark:text-white">{rt.name}</div>
+                                                {rt.description && <div className="text-xs text-slate-900 dark:text-slate-500 mt-0.5">{rt.description}</div>}
                                             </div>
                                             <button
                                                 onClick={() => { setEditType(rt); setShowTypeModal(true); }}
-                                                className="p-1.5 rounded-lg hover:bg-slate-700 text-slate-500 hover:text-slate-300 transition-colors"
+                                                className="p-1.5 rounded-lg hover:bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-500 hover:text-slate-600 dark:text-slate-300 transition-colors"
                                             >
                                                 <Edit3 size={13} />
                                             </button>
                                         </div>
                                         <div className="grid grid-cols-3 gap-2 text-center">
                                             <div>
-                                                <div className="text-lg font-bold text-white">₹{Number(rt.baseRate).toLocaleString('en-IN')}</div>
-                                                <div className="text-[10px] text-slate-500">per night</div>
+                                                <div className="text-lg font-bold text-slate-900 dark:text-white">₹{Number(rt.baseRate).toLocaleString('en-IN')}</div>
+                                                <div className="text-[10px] text-slate-900 dark:text-slate-500">per night</div>
                                             </div>
                                             <div>
-                                                <div className="text-lg font-bold text-white">{rt.maxOccupancy}</div>
-                                                <div className="text-[10px] text-slate-500">max guests</div>
+                                                <div className="text-lg font-bold text-slate-900 dark:text-white">{rt.maxOccupancy}</div>
+                                                <div className="text-[10px] text-slate-900 dark:text-slate-500">max guests</div>
                                             </div>
                                             <div>
-                                                <div className="text-lg font-bold text-white">{rt.totalRooms}</div>
-                                                <div className="text-[10px] text-slate-500">rooms</div>
+                                                <div className="text-lg font-bold text-slate-900 dark:text-white">{rt.totalRooms}</div>
+                                                <div className="text-[10px] text-slate-900 dark:text-slate-500">rooms</div>
                                             </div>
                                         </div>
                                         {rt.amenities?.length > 0 && (
                                             <div className="flex flex-wrap gap-1.5">
                                                 {rt.amenities.map((a) => (
-                                                    <span key={a} className="text-[10px] px-2 py-0.5 rounded-full bg-slate-700/60 text-slate-400 border border-slate-600/50">
+                                                    <span key={a} className="text-[10px] px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700/60 text-slate-900 dark:text-slate-400 border border-slate-300 dark:border-slate-600/50">
                                                         {a}
                                                     </span>
                                                 ))}
