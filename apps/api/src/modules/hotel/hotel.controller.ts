@@ -154,13 +154,16 @@ export class HotelController {
   }
 
   @Post('reservations')
-  @Roles('owner', 'manager', 'cashier')
   createReservation(
     @TenantId() tid: string,
-    @Body() body: any,
     @CurrentUser() user: any,
+    @Body() body: any,
   ) {
-    return this.svc.createReservation(tid, body, user?.id);
+    return this.svc.createReservation(
+      tid,
+      user?.branchId,
+      body,
+    );
   }
 
   @Post('reservations/:id/check-in')
