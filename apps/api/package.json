@@ -13,6 +13,8 @@
     "test:e2e": "npx jest --config ./test/jest-e2e.json",
     "db:generate": "typeorm-ts-node-commonjs migration:generate -d src/database/data-source.ts -n",
     "db:migrate": "typeorm-ts-node-commonjs migration:run -d src/database/data-source.ts",
+    "db:migrate:compiled": "npm run build && typeorm migration:run -d dist/database/data-source.js",
+    "db:migrate:check": "typeorm-ts-node-commonjs migration:show -d src/database/data-source.ts",
     "db:migrate:revert": "typeorm-ts-node-commonjs migration:revert -d src/database/data-source.ts",
     "db:seed": "ts-node -r dotenv/config src/database/seeds/seed.ts dotenv_config_path=../../.env",
     "db:drop": "typeorm-ts-node-commonjs schema:drop -d src/database/data-source.ts",

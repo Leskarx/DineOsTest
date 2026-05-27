@@ -8,7 +8,14 @@ import { Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 
-@WebSocketGateway({ cors: { origin: process.env.NEXT_PUBLIC_APP_URL || '*' }, namespace: '/orders' })
+// PERF/SECURITY: Use APP_URL (same as HTTP CORS) instead of the '*' wildcard.
+// Wildcard CORS on WebSocket allows any origin to connect and wastes browser
+// preflight round-trips. Multiple origins (comma-separated) are supported.
+const wsOrigins = (process.env.APP_URL || 'http://localhost:3000')
+  .split(',')
+  .map((o) => o.trim());
+
+@WebSocketGateway({ cors: { origin: wsOrigins, credentials: true }, namespace: '/orders' })
 export class OrdersGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer() server: Server;
   private readonly logger = new Logger(OrdersGateway.name);

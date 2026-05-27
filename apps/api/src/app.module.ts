@@ -1,11 +1,12 @@
 import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ScheduleModule } from '@nestjs/schedule';
 import { CacheModule } from '@nestjs/cache-manager';
+import { redisStore } from 'cache-manager-redis-yet';
 
 import { AuthModule } from './modules/auth/auth.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
@@ -32,6 +33,7 @@ import { BackupModule } from './modules/backup/backup.module';
 import { HotelModule }  from './modules/hotel/hotel.module';
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
 import { HealthController } from './common/health/health.controller';
+import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 
 @Module({
   controllers: [HealthController],
@@ -39,6 +41,9 @@ import { HealthController } from './common/health/health.controller';
     // Apply ThrottlerGuard globally so every route is rate-limited by default.
     // Auth routes override this with stricter per-endpoint @Throttle() decorators.
     { provide: APP_GUARD, useClass: ThrottlerGuard },
+    // Register LoggingInterceptor through DI so NestJS manages its lifecycle
+    // and Winston logger is a proper injectable singleton (not a raw `new` instance).
+    { provide: APP_INTERCEPTOR, useClass: LoggingInterceptor },
   ],
   imports: [
     ConfigModule.forRoot({ isGlobal: true, envFilePath: ['../../.env', '.env'] }),
@@ -80,7 +85,41 @@ import { HealthController } from './common/health/health.controller';
       },
     }),
 
-    CacheModule.register({ isGlobal: true, ttl: 60 }),
+    // PERF: Wire Redis as the cache store so:
+    //   1. Cache is shared across all API instances (horizontal scaling)
+    //   2. Cache survives API restarts (no cold-start penalty)
+    //   3. Per-endpoint @CacheTTL() values are honoured correctly
+    // Falls back to in-memory if REDIS_HOST is not configured (e.g. local dev
+    // without Docker). The `store` factory is async so NestJS waits for the
+    // Redis connection before marking the module as ready.
+    CacheModule.registerAsync({
+      isGlobal: true,
+      inject: [ConfigService],
+      useFactory: async (cfg: ConfigService) => {
+        const host = cfg.get<string>('REDIS_HOST', 'localhost');
+        const port = cfg.get<number>('REDIS_PORT', 6379);
+        const password = cfg.get<string>('REDIS_PASSWORD', '');
+
+        // Skip Redis in test mode — avoid needing a Redis instance in CI
+        if (cfg.get('NODE_ENV') === 'test') {
+          return { ttl: 60 };
+        }
+
+        try {
+          const store = await redisStore({
+            socket: { host, port, connectTimeout: 3_000 },
+            ...(password ? { password } : {}),
+          });
+          return { store, ttl: 60 };
+        } catch (err) {
+          // Graceful degradation: if Redis is unreachable, fall back to in-memory.
+          // This prevents the entire API from failing to start just because Redis
+          // is down. Log a warning so it's visible in monitoring.
+          console.warn('[CacheModule] Redis connection failed — falling back to in-memory cache:', (err as Error).message);
+          return { ttl: 60 };
+        }
+      },
+    }),
 
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 200 }]),
 

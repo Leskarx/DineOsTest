@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch, apiPost, apiPut } from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -92,9 +93,20 @@ function BranchForm({ editBranch, onClose, onSaved }: { editBranch?: any; onClos
 
 export default function BranchesPage() {
   const qc = useQueryClient();
+  const router = useRouter();
   const { user, setBranch, branchId: activeBranchId } = useAuthStore();
   const [showForm, setShowForm]   = useState(false);
   const [editBranch, setEditBranch] = useState<any>(null);
+
+  function handleBranchSwitch(branchId: string) {
+    setBranch(branchId);
+    // Navigate to dashboard so the user lands on a fresh page.
+    // BranchCacheGuard in providers.tsx detects the branchId change and
+    // calls queryClient.clear() — this redirect ensures they see new data
+    // immediately rather than cached data from the old branch.
+    toast.success('Branch switched — loading data…');
+    router.push('/dashboard');
+  }
 
   const { data: branches, isLoading } = useQuery({
     queryKey: ['branches'],
@@ -186,7 +198,7 @@ export default function BranchesPage() {
                 <div className="mt-auto pt-4 flex gap-2">
                   {user?.role === 'owner' ? (
                     <button
-                      onClick={() => setBranch(branch.id)}
+                      onClick={() => handleBranchSwitch(branch.id)}
                       className={cn(
                         'flex-1 text-xs py-1.5 rounded-lg transition-colors font-medium',
                         isActive

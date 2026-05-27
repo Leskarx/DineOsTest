@@ -10,7 +10,6 @@ import * as helmet from 'helmet';
 import * as path from 'path';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
-import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { bootstrapLogger } from './common/logger/winston.logger';
 
 // ─── Pre-flight environment validation ──────────────────────────────────────
@@ -111,7 +110,8 @@ async function bootstrap() {
   );
 
   app.useGlobalFilters(new HttpExceptionFilter());
-  app.useGlobalInterceptors(new LoggingInterceptor());
+  // LoggingInterceptor is registered via APP_INTERCEPTOR in AppModule —
+  // no need to call useGlobalInterceptors here (would double-apply it).
   app.useWebSocketAdapter(new IoAdapter(app));
 
   const swaggerConfig = new DocumentBuilder()
