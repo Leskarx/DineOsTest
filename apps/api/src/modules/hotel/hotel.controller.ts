@@ -3,15 +3,15 @@ import {
   Query, UseGuards, DefaultValuePipe, ParseIntPipe, HttpCode, HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
-import { JwtAuthGuard }  from '../auth/guards/jwt-auth.guard';
-import { RolesGuard }    from '../auth/guards/roles.guard';
-import { Roles }         from '../../common/decorators/roles.decorator';
-import { TenantId }      from '../../common/decorators/tenant.decorator';
-import { CurrentUser }   from '../../common/decorators/tenant.decorator';
-import { HotelService }  from './hotel.service';
-import { RoomStatus }    from './entities/room.entity';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { TenantId } from '../../common/decorators/tenant.decorator';
+import { CurrentUser } from '../../common/decorators/tenant.decorator';
+import { HotelService } from './hotel.service';
+import { RoomStatus } from './entities/room.entity';
 import { ReservationStatus, BookingSource } from './entities/reservation.entity';
-import { ChargeType }    from './entities/folio-charge.entity';
+import { ChargeType } from './entities/folio-charge.entity';
 import { HkStatus, HkTaskType, HkPriority } from './entities/housekeeping-task.entity';
 
 @ApiTags('hotel')
@@ -19,7 +19,7 @@ import { HkStatus, HkTaskType, HkPriority } from './entities/housekeeping-task.e
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller({ path: 'hotel', version: '1' })
 export class HotelController {
-  constructor(private readonly svc: HotelService) {}
+  constructor(private readonly svc: HotelService) { }
 
   // ── Dashboard ──────────────────────────────────────────────────────────────
 
@@ -65,11 +65,11 @@ export class HotelController {
   @Get('rooms')
   @Roles('owner', 'manager', 'cashier', 'waiter')
   @ApiQuery({ name: 'branchId', required: false })
-  @ApiQuery({ name: 'status',   required: false })
+  @ApiQuery({ name: 'status', required: false })
   listRooms(
     @TenantId() tid: string,
     @Query('branchId') branchId?: string,
-    @Query('status')   status?: RoomStatus,
+    @Query('status') status?: RoomStatus,
   ) {
     return this.svc.listRooms(tid, branchId, status);
   }
@@ -127,21 +127,21 @@ export class HotelController {
 
   @Get('reservations')
   @Roles('owner', 'manager', 'cashier')
-  @ApiQuery({ name: 'status',   required: false })
-  @ApiQuery({ name: 'from',     required: false })
-  @ApiQuery({ name: 'to',       required: false })
-  @ApiQuery({ name: 'search',   required: false })
+  @ApiQuery({ name: 'status', required: false })
+  @ApiQuery({ name: 'from', required: false })
+  @ApiQuery({ name: 'to', required: false })
+  @ApiQuery({ name: 'search', required: false })
   @ApiQuery({ name: 'branchId', required: false })
-  @ApiQuery({ name: 'page',     required: false })
-  @ApiQuery({ name: 'limit',    required: false })
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
   listReservations(
     @TenantId() tid: string,
-    @Query('status')   status?: ReservationStatus,
-    @Query('from')     from?: string,
-    @Query('to')       to?: string,
-    @Query('search')   search?: string,
+    @Query('status') status?: ReservationStatus,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('search') search?: string,
     @Query('branchId') branchId?: string,
-    @Query('page',  new DefaultValuePipe(1),  ParseIntPipe) page  = 1,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page = 1,
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit = 50,
   ) {
     return this.svc.listReservations(tid, { status, from, to, search, branchId, page, limit });
@@ -204,19 +204,27 @@ export class HotelController {
   @Get('housekeeping')
   @Roles('owner', 'manager', 'cashier')
   @ApiQuery({ name: 'branchId', required: false })
-  @ApiQuery({ name: 'date',     required: false })
+  @ApiQuery({ name: 'date', required: false })
   listTasks(
     @TenantId() tid: string,
     @Query('branchId') branchId?: string,
-    @Query('date')     date?: string,
+    @Query('date') date?: string,
   ) {
     return this.svc.listHousekeepingTasks(tid, branchId, date);
   }
 
   @Post('housekeeping')
   @Roles('owner', 'manager')
-  createTask(@TenantId() tid: string, @Body() body: any) {
-    return this.svc.createHousekeepingTask(tid, body);
+  createTask(
+    @TenantId() tid: string,
+    @CurrentUser() user: any,
+    @Body() body: any,
+  ) {
+    return this.svc.createHousekeepingTask(
+      tid,
+      user?.branchId,
+      body,
+    );
   }
 
   @Patch('housekeeping/:id')
@@ -225,7 +233,7 @@ export class HotelController {
     @Param('id') id: string,
     @TenantId() tid: string,
     @Body('status') status: HkStatus,
-    @Body('notes')  notes?: string,
+    @Body('notes') notes?: string,
   ) {
     return this.svc.updateHousekeepingTask(id, tid, status, notes);
   }

@@ -5,17 +5,17 @@ import {
 
 export enum HkTaskType {
   CHECKOUT_CLEAN = 'checkout_clean',
-  STAYOVER       = 'stayover',
-  TURNDOWN       = 'turndown',
-  INSPECTION     = 'inspection',
-  MAINTENANCE    = 'maintenance',
+  STAYOVER = 'stayover',
+  TURNDOWN = 'turndown',
+  INSPECTION = 'inspection',
+  MAINTENANCE = 'maintenance',
 }
 
 export enum HkStatus {
-  PENDING     = 'pending',
+  PENDING = 'pending',
   IN_PROGRESS = 'in_progress',
-  DONE        = 'done',
-  SKIPPED     = 'skipped',
+  DONE = 'done',
+  SKIPPED = 'skipped',
 }
 
 export enum HkPriority { NORMAL = 'normal', HIGH = 'high', URGENT = 'urgent' }
@@ -25,12 +25,19 @@ export enum HkPriority { NORMAL = 'normal', HIGH = 'high', URGENT = 'urgent' }
 export class HousekeepingTask {
   @PrimaryGeneratedColumn('uuid') id: string;
 
-  @Column({ name: 'tenant_id' })   @Index() tenantId: string;
-  @Column({ name: 'branch_id' })            branchId: string;
-  @Column({ name: 'room_id' })     @Index() roomId: string;
+  @Column({ name: 'tenant_id', type: 'uuid' })
+  @Index()
+  tenantId: string;
 
-  @Column({ name: 'reservation_id', nullable: true }) reservationId: string;
+  @Column({ name: 'branch_id', type: 'uuid' })
+  branchId: string;
 
+  @Column({ name: 'room_id', type: 'uuid' })
+  @Index()
+  roomId: string;
+
+  @Column({ name: 'reservation_id', type: 'uuid', nullable: true })
+  reservationId: string;
   @Column({ name: 'task_type', type: 'enum', enum: HkTaskType })
   taskType: HkTaskType;
 
@@ -42,11 +49,11 @@ export class HousekeepingTask {
 
   @Column({ nullable: true, type: 'text' }) notes: string;
 
-  @Column({ name: 'scheduled_for', type: 'date' })   scheduledFor: string;
-  @Column({ name: 'assigned_to', nullable: true })   assignedTo: string;
+  @Column({ name: 'scheduled_for', type: 'date' }) scheduledFor: string;
+  @Column({ name: 'assigned_to', nullable: true }) assignedTo: string;
 
-  @Column({ name: 'started_at', nullable: true })    startedAt: Date;
-  @Column({ name: 'completed_at', nullable: true })  completedAt: Date;
+  @Column({ name: 'started_at', nullable: true }) startedAt: Date;
+  @Column({ name: 'completed_at', nullable: true }) completedAt: Date;
 
   @CreateDateColumn({ name: 'created_at' }) createdAt: Date;
   @UpdateDateColumn({ name: 'updated_at' }) updatedAt: Date;

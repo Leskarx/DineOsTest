@@ -520,18 +520,21 @@ export class HotelService {
     return saved;
   }
 
-  async createHousekeepingTask(tenantId: string, dto: {
-    branchId: string;
-    roomId: string;
-    taskType: HkTaskType;
-    priority?: HkPriority;
-    scheduledFor?: string;
-    notes?: string;
-    assignedTo?: string;
-  }) {
+  async createHousekeepingTask(
+    tenantId: string,
+    branchId: string,
+    dto: {
+
+      roomId: string;
+      taskType: HkTaskType;
+      priority?: HkPriority;
+      scheduledFor?: string;
+      notes?: string;
+      assignedTo?: string;
+    }) {
     const task = this.hkRepo.create({
       tenantId,
-      branchId: dto.branchId,
+      branchId,
       roomId: dto.roomId,
       taskType: dto.taskType,
       priority: dto.priority ?? HkPriority.NORMAL,

@@ -172,6 +172,24 @@ export default function HotelPage() {
   const rooms: RoomSummary[] = Array.isArray(roomsData) ? roomsData : [];
   const floors = Array.from(new Set(rooms.map((r) => r.floor))).sort((a, b) => a - b);
   const byFloor = (floor: number) => rooms.filter((r) => r.floor === floor);
+  if (dashLoading) {
+    return (
+      <div className="p-6 space-y-4 animate-pulse">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="h-24 rounded-xl bg-slate-800" />
+          ))}
+        </div>
+
+        <div className="h-64 rounded-xl bg-slate-800" />
+
+        <div className="grid md:grid-cols-2 gap-4">
+          <div className="h-40 rounded-xl bg-slate-800" />
+          <div className="h-40 rounded-xl bg-slate-800" />
+        </div>
+      </div>
+    );
+  }
 
   const stats = dash ?? { totalRooms: 0, occupancyPct: 0, roomsByStatus: {}, arrivalsToday: 0, departuresToday: 0, inHouse: 0 };
 
