@@ -7,8 +7,9 @@ import { useAuthStore } from '@/store/auth.store';
 import {
   LayoutDashboard, ShoppingCart, Monitor, Layout, BookOpen, Package,
   Receipt, Clock, BarChart3, Users, Building2, Settings, LogOut,
-  Wifi, WifiOff, Shield, Hotel, CalendarDays, SprayCan, BedDouble, Sun, Moon
+  Wifi, WifiOff, Shield, Hotel, CalendarDays, SprayCan, BedDouble, Sun, Moon, Loader2
 } from 'lucide-react';
+import { useIsFetching } from '@tanstack/react-query';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { cn } from '@/lib/utils';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
@@ -78,6 +79,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [hydrated, setHydrated] = useState(false);
   const isOnline = useOnlineStatus();
   const { isBlocked, plan, daysLeft } = useSubscriptionWall();
+  const isFetching = useIsFetching();
 
   useEffect(() => {
     setHydrated(true);
@@ -174,9 +176,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
           </div>
 
-          <div className={cn('flex items-center gap-2 text-xs px-2 py-1 rounded', isOnline ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400')}>
-            {isOnline ? <Wifi size={12} /> : <WifiOff size={12} />}
-            <span>{isOnline ? 'Online' : 'Offline — syncing queued'}</span>
+          <div className="flex items-center justify-between">
+            <div className={cn('flex items-center gap-2 text-xs px-2 py-1 rounded', isOnline ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400')}>
+              {isOnline ? <Wifi size={12} /> : <WifiOff size={12} />}
+              <span>{isOnline ? 'Online' : 'Offline — syncing'}</span>
+            </div>
+            {isFetching > 0 && (
+              <div className="text-amber-500 animate-spin pr-2" title="Loading data...">
+                <Loader2 size={14} />
+              </div>
+            )}
           </div>
           <div className="flex gap-2">
             <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="sidebar-link flex-1 justify-center text-slate-500 hover:text-amber-500 dark:text-slate-400 dark:hover:text-amber-600 dark:text-amber-400" title="Toggle Theme">

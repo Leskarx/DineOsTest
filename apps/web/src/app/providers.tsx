@@ -20,9 +20,11 @@ function SentryUserSync({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+import { AppProgressBar as ProgressBar } from 'next-nprogress-bar';
+
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({
-    defaultOptions: { queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: false } },
+    defaultOptions: { queries: { staleTime: 5_000, retry: 1, refetchOnWindowFocus: false } },
   }));
 
   return (
@@ -30,6 +32,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <QueryClientProvider client={queryClient}>
         <SentryUserSync>
           {children}
+          <ProgressBar
+            height="4px"
+            color="#f59e0b"
+            options={{ showSpinner: false }}
+            shallowRouting
+          />
         </SentryUserSync>
       </QueryClientProvider>
     </ThemeProvider>

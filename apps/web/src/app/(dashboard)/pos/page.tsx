@@ -12,7 +12,7 @@ import { OrderTypeSelector } from '@/components/pos/OrderTypeSelector';
 import {
   Search, Plus, Minus, Trash2, Printer, CreditCard, UtensilsCrossed,
   Tag, ChevronDown, ClipboardList, X, Gift, RotateCcw, Clock,
-  CheckCircle2, ChefHat,
+  CheckCircle2, ChefHat, Loader2
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
@@ -193,6 +193,7 @@ function AdvanceOrderModal({
 export default function PosPage() {
   const qc = useQueryClient();
 
+  const [loadingOrderId, setLoadingOrderId] = useState<string | null>(null);
   const [search,           setSearch]           = useState('');
   const [selectedCat,      setSelectedCat]      = useState<string | null>(null);
   const [showBilling,      setShowBilling]      = useState(false);
@@ -361,18 +362,27 @@ export default function PosPage() {
 
   // ── KOT mutation ───────────────────────────────────────────────────────────
   const placeKotMutation = useMutation({
-    mutationFn: async () => {
-      if (!currentOrder) {
-        // ← waiterId added: tracks which staff member placed the order
+    mutationFn: async (data: {
+      currentOrder: string | null;
+      orderType: any;
+      tableId: string | null;
+      covers: number;
+      isComplimentary: boolean;
+      isSalesReturn: boolean;
+      scheduledAt: Date | null;
+      userId: string | undefined;
+      cart: any[];
+    }) => {
+      if (!data.currentOrder) {
         const order = await apiPost('/api/v1/orders', {
-          type:           orderType,
-          tableId:        tableId        ?? undefined,
-          covers,
-          isComplimentary,
-          isSalesReturn,
-          scheduledAt:    scheduledAt?.toISOString(),
-          waiterId:       user?.id       ?? undefined,
-          items: cart.map((i: any) => ({
+          type:           data.orderType,
+          tableId:        data.tableId        ?? undefined,
+          covers:         data.covers,
+          isComplimentary: data.isComplimentary,
+          isSalesReturn:   data.isSalesReturn,
+          scheduledAt:    data.scheduledAt?.toISOString(),
+          waiterId:       data.userId       ?? undefined,
+          items: data.cart.map((i: any) => ({
             menuItemId:  i.id,
             quantity:    i.qty,
             notes:       i.notes,
@@ -381,13 +391,13 @@ export default function PosPage() {
         });
         return order.data;
       } else {
-        const newItems = cart.filter((i: any) => !i.alreadySent);
+        const newItems = data.cart.filter((i: any) => !i.alreadySent);
         if (newItems.length === 0) {
           throw new Error(
             'No new items to send. Items already in this order have been sent to the kitchen.',
           );
         }
-        return apiPost(`/api/v1/orders/${currentOrder}/items`, {
+        return apiPost(`/api/v1/orders/${data.currentOrder}/items`, {
           items: newItems.map((i: any) => ({
             menuItemId:  i.id,
             quantity:    i.qty,
@@ -397,9 +407,13 @@ export default function PosPage() {
         });
       }
     },
-    onSuccess: () => {
-      toast.success('KOT sent to kitchen!');
+    onMutate: () => {
+      // Optimistically clear the UI for instant feedback
       resetPosState();
+      toast.success('Sending KOT...');
+    },
+    onSuccess: () => {
+      toast.success('KOT placed successfully!');
       qc.invalidateQueries({ queryKey: ['orders'] });
       qc.invalidateQueries({ queryKey: ['open-orders-pos'] });
       qc.invalidateQueries({ queryKey: ['tables'] });
@@ -456,6 +470,8 @@ export default function PosPage() {
                     <button
                       key={o.id}
                       onClick={async () => {
+                        if (loadingOrderId) return;
+                        setLoadingOrderId(o.id);
                         try {
                           const res   = await apiFetch(`/api/v1/orders/${o.id}`);
                           const order = res.data;
@@ -490,15 +506,21 @@ export default function PosPage() {
                           toast.success(`Loaded order ${o.orderNumber}`);
                         } catch {
                           toast.error('Failed to load order');
+                        } finally {
+                          setLoadingOrderId(null);
                         }
                       }}
+                      disabled={loadingOrderId !== null}
                       className={cn(
-                        'w-full text-left px-3 py-2.5 hover:bg-slate-50 dark:bg-slate-800 transition-colors border-b border-slate-200 dark:border-slate-800/50 last:border-0',
+                        'w-full text-left px-3 py-2.5 hover:bg-slate-50 dark:bg-slate-800 transition-colors border-b border-slate-200 dark:border-slate-800/50 last:border-0 relative disabled:opacity-70',
                         currentOrder === o.id && 'bg-amber-100 dark:bg-amber-900/20',
                       )}
                     >
                       <div className="flex items-center justify-between">
-                        <span className="text-amber-600 dark:text-amber-400 text-sm font-medium">{o.orderNumber}</span>
+                        <span className="text-amber-600 dark:text-amber-400 text-sm font-medium flex items-center gap-2">
+                          {o.orderNumber}
+                          {loadingOrderId === o.id && <Loader2 size={14} className="animate-spin text-amber-500" />}
+                        </span>
                         <span className="badge-slate capitalize text-xs">{o.status}</span>
                       </div>
                       <div className="text-xs text-slate-900 dark:text-slate-400 mt-0.5">
@@ -837,8 +859,8 @@ export default function PosPage() {
             {/* Buttons */}
             <div className="grid grid-cols-2 gap-2">
               <button
-                onClick={() => placeKotMutation.mutate()}
-                disabled={placeKotMutation.isPending}
+                onClick={() => placeKotMutation.mutate({ currentOrder, orderType, tableId, covers, isComplimentary, isSalesReturn, scheduledAt, userId: user?.id, cart })}
+                disabled={placeKotMutation.isPending || cart.filter(i => !i.alreadySent).length === 0}
                 className="btn-secondary text-xs"
               >
                 <Printer size={12} />
