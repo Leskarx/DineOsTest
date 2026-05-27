@@ -36,15 +36,15 @@ export interface CreateBillDto {
 @Injectable()
 export class BillingService {
   constructor(
-    @InjectRepository(Bill) private readonly billRepo: Repository<Bill>,
-    @InjectRepository(Payment) private readonly paymentRepo: Repository<Payment>,
-    @InjectRepository(Order) private readonly orderRepo: Repository<Order>,
-    @InjectRepository(OrderItem) private readonly itemRepo: Repository<OrderItem>,
-    @InjectRepository(Shift) private readonly shiftRepo: Repository<Shift>,
-    @InjectRepository(Branch) private readonly branchRepo: Repository<Branch>,
+    @InjectRepository(Bill)     private readonly billRepo:    Repository<Bill>,
+    @InjectRepository(Payment)  private readonly paymentRepo: Repository<Payment>,
+    @InjectRepository(Order)    private readonly orderRepo:   Repository<Order>,
+    @InjectRepository(OrderItem)private readonly itemRepo:    Repository<OrderItem>,
+    @InjectRepository(Shift)    private readonly shiftRepo:   Repository<Shift>,
+    @InjectRepository(Branch)   private readonly branchRepo:  Repository<Branch>,
     private readonly dataSource: DataSource,
-    private readonly mailer: MailerService,
-    private readonly pdf: PdfService,
+    private readonly mailer:     MailerService,
+    private readonly pdf:        PdfService,
   ) {}
 
   async createBill(dto: CreateBillDto): Promise<Bill> {
@@ -53,80 +53,91 @@ export class BillingService {
       relations: ['items'],
     });
     if (!order) throw new NotFoundException('Order not found');
-    if (order.status === OrderStatus.BILLED) throw new BadRequestException('Order already billed');
-    if (order.status === OrderStatus.CANCELLED) throw new BadRequestException('Order is cancelled');
+    if (order.status === OrderStatus.BILLED)    throw new BadRequestException('Order already billed');
+    if (order.status === OrderStatus.CANCELLED)  throw new BadRequestException('Order is cancelled');
 
-    const totalPaid = dto.payments.reduce((s, p) => s + p.amount, 0);
+    const totalPaid = dto.payments.reduce((s, p) => s + Number(p.amount), 0);
     if (totalPaid < Number(order.grandTotal) - 0.01) {
-      throw new BadRequestException(`Insufficient payment. Expected ₹${order.grandTotal}, got ₹${totalPaid}`);
+      throw new BadRequestException(
+        `Insufficient payment. Expected ₹${Number(order.grandTotal).toFixed(2)}, got ₹${totalPaid.toFixed(2)}`,
+      );
     }
 
     return this.dataSource.transaction(async (em) => {
-      const billNumber = await this.generateBillNumber(dto.branchId, em);
+      const billNumber = await this.generateBillNumber(dto.tenantId, dto.branchId, em);
 
-      // Compute the same discount ratio used in recalculateTotals so the
-      // per-rate GST summary on the bill reflects the discounted taxable base.
       const discountRatio = Number(order.subtotal) > 0
         ? Number(order.discountAmount) / Number(order.subtotal)
         : 0;
-      const gstSummary = this.buildGstSummary(order.items.filter((i) => !i.isVoided), discountRatio);
-      const supplyType = dto.customerGstin ? GstType.IGST : (dto.supplyType || GstType.CGST_SGST);
+
+      const gstSummary = this.buildGstSummary(
+        order.items.filter((i) => !i.isVoided),
+        discountRatio,
+      );
+
+      const supplyType = dto.customerGstin
+        ? GstType.IGST
+        : (dto.supplyType || GstType.CGST_SGST);
 
       const bill = em.create(Bill, {
-        tenantId: dto.tenantId,
-        branchId: dto.branchId,
-        orderId: dto.orderId,
-        shiftId: dto.shiftId,
+        tenantId:        dto.tenantId,
+        branchId:        dto.branchId,
+        orderId:         dto.orderId,
+        shiftId:         dto.shiftId,
         billNumber,
-        invoiceNumber: billNumber,
-        status: InvoiceStatus.PAID,
-        customerName: dto.customerName || order.customerName,
-        customerPhone: dto.customerPhone || order.customerPhone,
-        customerGstin: dto.customerGstin || order.customerGstin,
+        invoiceNumber:   billNumber,
+        status:          InvoiceStatus.PAID,
+        customerName:    dto.customerName    || order.customerName,
+        customerPhone:   dto.customerPhone   || order.customerPhone,
+        customerGstin:   dto.customerGstin   || order.customerGstin,
         customerAddress: dto.customerAddress,
         supplyType,
-        subtotal: order.subtotal,
-        discountAmount: order.discountAmount,
-        taxableAmount: order.taxableAmount,
-        cgstAmount: supplyType === GstType.IGST ? 0 : order.cgstAmount,
-        sgstAmount: supplyType === GstType.IGST ? 0 : order.sgstAmount,
-        igstAmount: supplyType === GstType.IGST ? Number(order.cgstAmount) + Number(order.sgstAmount) : order.igstAmount,
-        cessAmount: order.cessAmount,
-        totalTax: order.totalTax,
-        roundOff: order.roundOff,
-        grandTotal: order.grandTotal,
-        paidAmount: totalPaid,
-        changeAmount: Math.max(0, totalPaid - Number(order.grandTotal)),
+        subtotal:        order.subtotal,
+        discountAmount:  order.discountAmount,
+        taxableAmount:   order.taxableAmount,
+        cgstAmount:      supplyType === GstType.IGST ? 0 : order.cgstAmount,
+        sgstAmount:      supplyType === GstType.IGST ? 0 : order.sgstAmount,
+        igstAmount:      supplyType === GstType.IGST
+          ? Number(order.cgstAmount) + Number(order.sgstAmount)
+          : order.igstAmount,
+        cessAmount:      order.cessAmount,
+        totalTax:        order.totalTax,
+        roundOff:        order.roundOff,
+        grandTotal:      order.grandTotal,
+        paidAmount:      totalPaid,
+        changeAmount:    Math.max(0, totalPaid - Number(order.grandTotal)),
         gstSummary,
-        notes: dto.notes,
+        notes:           dto.notes,
       });
 
       await em.save(bill);
 
       const payments = dto.payments.map((p) =>
         em.create(Payment, {
-          tenantId: dto.tenantId,
-          branchId: dto.branchId,
-          billId: bill.id,
-          orderId: dto.orderId,
-          shiftId: dto.shiftId,
-          method: p.method,
-          amount: p.amount,
+          tenantId:   dto.tenantId,
+          branchId:   dto.branchId,
+          billId:     bill.id,
+          orderId:    dto.orderId,
+          shiftId:    dto.shiftId,
+          method:     p.method,
+          amount:     p.amount,
           referenceNo: p.referenceNo,
-          cardLast4: p.cardLast4,
-          upiId: p.upiId,
+          cardLast4:  p.cardLast4,
+          upiId:      p.upiId,
           walletName: p.walletName,
-          isSplit: dto.payments.length > 1,
+          isSplit:    dto.payments.length > 1,
         }),
       );
       await em.save(payments);
 
-      order.status = OrderStatus.BILLED;
+      order.status   = OrderStatus.BILLED;
       order.billedAt = new Date();
       if (dto.shiftId) order.shiftId = dto.shiftId;
       await em.save(order);
 
-      if (dto.shiftId) await this.updateShiftTotals(dto.shiftId, bill, dto.payments, em);
+      if (dto.shiftId) {
+        await this.updateShiftTotals(dto.shiftId, bill, dto.payments, em);
+      }
 
       return bill;
     });
@@ -155,14 +166,21 @@ export class BillingService {
     limit = 50,
     source?: string,
   ) {
-    const qb = this.billRepo.createQueryBuilder('b')
+    const qb = this.billRepo
+      .createQueryBuilder('b')
       .where('b.branch_id = :branchId AND b.tenant_id = :tenantId', { branchId, tenantId })
       .orderBy('b.created_at', 'DESC')
       .take(limit)
       .skip((page - 1) * limit);
+
     if (from) qb.andWhere('b.created_at >= :from', { from });
+<<<<<<< HEAD
     if (to) qb.andWhere('b.created_at <= :to', { to });
     if (source) qb.andWhere('b.source = :source', { source });
+=======
+    if (to)   qb.andWhere('b.created_at <= :to',   { to });
+
+>>>>>>> 8dc1fcf (WIP billing and reports changes)
     const [data, total] = await qb.getManyAndCount();
     return { data, total, page, limit };
   }
@@ -172,62 +190,15 @@ export class BillingService {
     if (!bill) throw new NotFoundException('Bill not found');
     if (bill.status === InvoiceStatus.VOID) throw new BadRequestException('Already voided');
     bill.status = InvoiceStatus.VOID;
-    bill.notes = `VOIDED: ${reason}`;
+    bill.notes  = `VOIDED: ${reason}`;
     return this.billRepo.save(bill);
   }
 
-  /**
-   * Builds a per-GST-rate summary for the bill PDF / email.
-   *
-   * @param items    Active (non-voided) order items — amounts are always stored
-   *                 at full pre-discount value (recalculateTotals never mutates items).
-   * @param discountRatio  Fraction of the subtotal that was discounted (0–1).
-   *                       Applied proportionally to each amount so the printed
-   *                       GST summary matches the discounted taxable base.
-   */
-  private buildGstSummary(items: OrderItem[], discountRatio = 0) {
-    const scale = 1 - discountRatio;
-    const groups = new Map<number, { rate: number; taxable: number; cgst: number; sgst: number; igst: number }>();
-    for (const item of items) {
-      const rate = Number(item.gstRate);
-      const existing = groups.get(rate) || { rate, taxable: 0, cgst: 0, sgst: 0, igst: 0 };
-      existing.taxable += Number(item.taxableAmount) * scale;
-      existing.cgst += Number(item.cgstAmount) * scale;
-      existing.sgst += Number(item.sgstAmount) * scale;
-      existing.igst += Number(item.igstAmount) * scale;
-      groups.set(rate, existing);
-    }
-    return Array.from(groups.values()).map((g) => ({
-      gstRate: g.rate,
-      taxableAmount: g.taxable.toFixed(2),
-      cgstAmount: g.cgst.toFixed(2),
-      sgstAmount: g.sgst.toFixed(2),
-      igstAmount: g.igst.toFixed(2),
-      totalTax: (g.cgst + g.sgst + g.igst).toFixed(2),
-    }));
-  }
-
-  private async updateShiftTotals(shiftId: string, bill: Bill, payments: PaymentSplitDto[], em: any) {
-    const shift = await em.findOne(Shift, { where: { id: shiftId } });
-    if (!shift) return;
-    shift.totalSales = Number(shift.totalSales) + Number(bill.grandTotal);
-    shift.totalOrders = Number(shift.totalOrders) + 1;
-    for (const p of payments) {
-      if (p.method === 'cash') shift.cashSales = Number(shift.cashSales) + p.amount;
-      else if (p.method === 'card') shift.cardSales = Number(shift.cardSales) + p.amount;
-      else if (p.method === 'upi') shift.upiSales = Number(shift.upiSales) + p.amount;
-      else if (p.method === 'wallet') shift.walletSales = Number(shift.walletSales) + p.amount;
-      else if (p.method === 'credit') shift.creditSales = Number(shift.creditSales) + p.amount;
-      else if (p.method === 'complimentary') shift.complimentary = Number(shift.complimentary) + p.amount;
-    }
-    shift.totalCgst = Number(shift.totalCgst) + Number(bill.cgstAmount);
-    shift.totalSgst = Number(shift.totalSgst) + Number(bill.sgstAmount);
-    shift.totalIgst = Number(shift.totalIgst) + Number(bill.igstAmount);
-    await em.save(shift);
-  }
-
   async emailBill(billId: string, tenantId: string, toEmail: string): Promise<{ sent: boolean }> {
-    const bill = await this.billRepo.findOne({ where: { id: billId, tenantId }, relations: ['payments'] });
+    const bill = await this.billRepo.findOne({
+      where: { id: billId, tenantId },
+      relations: ['payments'],
+    });
     if (!bill) throw new NotFoundException('Bill not found');
 
     const order  = bill.orderId ? await this.orderRepo.findOne({ where: { id: bill.orderId }, relations: ['items'] }) : null;
@@ -248,13 +219,13 @@ export class BillingService {
     }));
 
     const invoiceData = {
-      billNumber:   bill.billNumber,
-      issuedAt:     bill.issuedAt ?? new Date(),
-      customerName: bill.customerName || 'Valued Customer',
+      billNumber:    bill.billNumber,
+      issuedAt:      bill.issuedAt ?? new Date(),
+      customerName:  bill.customerName || 'Valued Customer',
       customerPhone: bill.customerPhone ?? undefined,
-      branchName:   branch?.name ?? 'Our Restaurant',
+      branchName:    branch?.name ?? 'Our Restaurant',
       branchAddress: branch?.addressLine1 ?? undefined,
-      gstin:        (branch as any)?.gstin ?? undefined,
+      gstin:         (branch as any)?.gstin ?? undefined,
       items,
       payments,
       subtotal:   items.reduce((s, i) => s + i.total, 0),
@@ -264,12 +235,11 @@ export class BillingService {
       grandTotal: Number(bill.grandTotal),
     };
 
-    // Generate PDF — gracefully degrade to HTML-only if generation fails
     let pdfBuffer: Buffer | undefined;
     try {
       pdfBuffer = await this.pdf.generateInvoicePdf(invoiceData);
     } catch {
-      // PDF generation failure must not block the email from sending
+      // PDF failure must never block the email
     }
 
     const sent = await this.mailer.sendBillEmail({
@@ -284,7 +254,6 @@ export class BillingService {
       sgst:         Number(bill.sgstAmount),
       igst:         Number(bill.igstAmount),
       issuedAt:     bill.issuedAt,
-      // PDF attachment
       ...(pdfBuffer ? {
         attachments: [{
           filename:    `Invoice-${bill.billNumber}.pdf`,
@@ -298,34 +267,125 @@ export class BillingService {
   }
 
   async reprintBill(billId: string, tenantId: string): Promise<Bill> {
-    const bill = await this.billRepo.findOne({ where: { id: billId, tenantId }, relations: ['payments'] });
+    const bill = await this.billRepo.findOne({
+      where: { id: billId, tenantId },
+      relations: ['payments'],
+    });
     if (!bill) throw new NotFoundException('Bill not found');
-    if (bill.status === InvoiceStatus.VOID) throw new BadRequestException('Cannot reprint a voided bill');
-
+    if (bill.status === InvoiceStatus.VOID) {
+      throw new BadRequestException('Cannot reprint a voided bill');
+    }
     bill.printedCount = (bill.printedCount || 0) + 1;
-    bill.printedAt = new Date();
+    bill.printedAt    = new Date();
     return this.billRepo.save(bill);
   }
 
-  /**
-   * Generates a unique bill number inside an existing transaction.
-   * Uses a PostgreSQL transaction-scoped advisory lock (released on commit/rollback)
-   * to prevent concurrent billing from claiming the same sequence number.
-   * The lock key is namespaced separately from the order sequence lock.
-   */
-  private async generateBillNumber(branchId: string, em: any): Promise<string> {
-    const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  // ── Private helpers ─────────────────────────────────────────────────────────
 
+  private buildGstSummary(items: OrderItem[], discountRatio = 0) {
+    const scale = 1 - discountRatio;
+    const groups = new Map<number, {
+      rate: number; taxable: number; cgst: number; sgst: number; igst: number;
+    }>();
+
+    for (const item of items) {
+      const rate     = Number(item.gstRate);
+      const existing = groups.get(rate) || { rate, taxable: 0, cgst: 0, sgst: 0, igst: 0 };
+      existing.taxable += Number(item.taxableAmount) * scale;
+      existing.cgst    += Number(item.cgstAmount)    * scale;
+      existing.sgst    += Number(item.sgstAmount)    * scale;
+      existing.igst    += Number(item.igstAmount)    * scale;
+      groups.set(rate, existing);
+    }
+
+    return Array.from(groups.values()).map((g) => ({
+      gstRate:       g.rate,
+      taxableAmount: g.taxable.toFixed(2),
+      cgstAmount:    g.cgst.toFixed(2),
+      sgstAmount:    g.sgst.toFixed(2),
+      igstAmount:    g.igst.toFixed(2),
+      totalTax:      (g.cgst + g.sgst + g.igst).toFixed(2),
+    }));
+  }
+
+  private async updateShiftTotals(
+    shiftId: string,
+    bill: Bill,
+    payments: PaymentSplitDto[],
+    em: any,
+  ) {
+    const shift = await em.findOne(Shift, { where: { id: shiftId } });
+    if (!shift) return;
+
+    shift.totalSales  = Number(shift.totalSales)  + Number(bill.grandTotal);
+    shift.totalOrders = Number(shift.totalOrders) + 1;
+
+    for (const p of payments) {
+      switch (p.method) {
+        case 'cash':          shift.cashSales    = Number(shift.cashSales)    + p.amount; break;
+        case 'card':          shift.cardSales    = Number(shift.cardSales)    + p.amount; break;
+        case 'upi':           shift.upiSales     = Number(shift.upiSales)     + p.amount; break;
+        case 'wallet':        shift.walletSales  = Number(shift.walletSales)  + p.amount; break;
+        case 'credit':        shift.creditSales  = Number(shift.creditSales)  + p.amount; break;
+        case 'complimentary': shift.complimentary = Number(shift.complimentary) + p.amount; break;
+      }
+    }
+
+    shift.totalCgst = Number(shift.totalCgst) + Number(bill.cgstAmount);
+    shift.totalSgst = Number(shift.totalSgst) + Number(bill.sgstAmount);
+    shift.totalIgst = Number(shift.totalIgst) + Number(bill.igstAmount);
+
+    await em.save(shift);
+  }
+
+  /**
+   * Generates a consistent, sequential bill number that:
+   *
+   * 1. Resets to 00001 every day (expected by accountants and GST auditors)
+   * 2. Is scoped to TENANT so multi-branch tenants share one invoice sequence
+   *    (this is the correct GST-compliant approach — one GSTIN = one sequence)
+   * 3. Uses a PostgreSQL advisory lock to prevent duplicates under concurrent load
+   *
+   * Format: INV-YYYYMMDD-NNNNN
+   * Example: INV-20260527-00001
+   *
+   * Why tenant-scoped instead of branch-scoped?
+   * ─────────────────────────────────────────────
+   * Under Indian GST, a single GSTIN (registered to the tenant/business) must
+   * maintain ONE continuous invoice series. If you scope to branch you end up
+   * with:
+   *   Branch A: INV-20260527-00001
+   *   Branch B: INV-20260527-00001   ← duplicate invoice number under same GSTIN
+   * That is non-compliant.
+   *
+   * If different branches have DIFFERENT GSTINs (separate registrations),
+   * change the lock key and COUNT filter to use branchId instead of tenantId.
+   */
+  private async generateBillNumber(
+    tenantId: string,
+    branchId: string,
+    em: any,
+  ): Promise<string> {
+    const today  = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const prefix = `INV-${today}-`;
+
+    // Advisory lock scoped to tenant + today
+    // Ensures concurrent billing requests queue up rather than racing
     const [{ lock_key }] = await em.query(
       `SELECT abs(hashtext($1))::bigint AS lock_key`,
-      [`bill_seq:${branchId}`],
+      [`bill_seq:${tenantId}:${today}`],
     );
     await em.query(`SELECT pg_advisory_xact_lock($1)`, [lock_key]);
 
+    // Count only today's bills for this tenant to get the daily sequence
     const [{ count }] = await em.query(
-      `SELECT COUNT(*)::int AS count FROM bills WHERE branch_id = $1`,
-      [branchId],
+      `SELECT COUNT(*)::int AS count
+       FROM bills
+       WHERE tenant_id  = $1
+         AND bill_number LIKE $2`,
+      [tenantId, `${prefix}%`],
     );
-    return `BILL-${today}-${String(Number(count) + 1).padStart(5, '0')}`;
+
+    return `${prefix}${String(Number(count) + 1).padStart(5, '0')}`;
   }
 }
