@@ -370,6 +370,7 @@ export class ReportsService {
           COUNT(*)::int                 AS today_bills
         FROM bills
         WHERE branch_id = $1 AND tenant_id = $2
+          AND (source = 'pos' OR source IS NULL)
           AND status NOT IN ('void', 'refunded')
           AND created_at BETWEEN $3 AND $4
       `, [branchId, tenantId, dayStart, dayEnd]),
@@ -378,6 +379,7 @@ export class ReportsService {
         SELECT COALESCE(SUM(grand_total), 0) AS week_sales
         FROM bills
         WHERE branch_id = $1 AND tenant_id = $2
+          AND (source = 'pos' OR source IS NULL)
           AND status NOT IN ('void', 'refunded')
           AND created_at BETWEEN $3 AND $4
       `, [branchId, tenantId, weekStart, weekEnd]),
@@ -509,14 +511,14 @@ export class ReportsService {
 
       this.db.query(`
         SELECT
-          (SELECT COUNT(*)::int FROM hotel_rooms
-           WHERE branch_id = $1 AND tenant_id = $2
-             AND status != 'out_of_order'
-          ) AS total_rooms,
-          (SELECT COUNT(*)::int FROM hotel_reservations
-           WHERE branch_id = $1 AND tenant_id = $2
-             AND status IN ('checked_in')
-          ) AS occupied_rooms
+          COUNT(*)::int AS total_rooms,
+          COUNT(*) FILTER (WHERE status = 'available')::int AS available_rooms,
+          COUNT(*) FILTER (WHERE status = 'occupied')::int AS occupied_rooms,
+          COUNT(*) FILTER (WHERE status = 'cleaning')::int AS cleaning_rooms,
+          COUNT(*) FILTER (WHERE status = 'reserved')::int AS reserved_rooms,
+          COUNT(*) FILTER (WHERE status IN ('maintenance', 'out_of_order'))::int AS maintenance_rooms
+        FROM hotel_rooms
+        WHERE branch_id = $1 AND tenant_id = $2
       `, [branchId, tenantId]),
 
       this.db.query(`
@@ -550,6 +552,14 @@ export class ReportsService {
       todayCheckouts: Number(todayCheckouts[0]?.count || 0),
       occupancyRate,
       adr: Math.round(adr),
+      roomStats: {
+        total:       totalRooms,
+        available:   Number(roomsData[0]?.available_rooms   || 0),
+        occupied:    occupiedRooms,
+        cleaning:    Number(roomsData[0]?.cleaning_rooms    || 0),
+        reserved:    Number(roomsData[0]?.reserved_rooms    || 0),
+        maintenance: Number(roomsData[0]?.maintenance_rooms || 0),
+      },
       weeklyChart: weeklyChart.map((r: any) => ({
         date:    r.date,
         revenue: Number(r.revenue || 0),

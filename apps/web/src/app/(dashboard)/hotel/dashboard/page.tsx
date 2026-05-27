@@ -115,6 +115,25 @@ export default function HotelDashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Room Status Breakdown */}
+      <h2 className="text-lg font-bold text-slate-900 dark:text-white mt-8 mb-4 flex items-center gap-2">
+        <BedDouble size={20} className="text-amber-500" /> Live Room Status
+      </h2>
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        {[
+          { label: 'Available', value: summary?.roomStats?.available || 0, color: 'border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-900/10 text-emerald-600 dark:text-emerald-400' },
+          { label: 'Occupied', value: summary?.roomStats?.occupied || 0, color: 'border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400' },
+          { label: 'Reserved', value: summary?.roomStats?.reserved || 0, color: 'border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-900/10 text-amber-600 dark:text-amber-400' },
+          { label: 'Cleaning', value: summary?.roomStats?.cleaning || 0, color: 'border-purple-200 dark:border-purple-900 bg-purple-50 dark:bg-purple-900/10 text-purple-600 dark:text-purple-400' },
+          { label: 'Maintenance', value: summary?.roomStats?.maintenance || 0, color: 'border-rose-200 dark:border-rose-900 bg-rose-50 dark:bg-rose-900/10 text-rose-600 dark:text-rose-400' },
+        ].map(({ label, value, color }) => (
+          <div key={label} className={cn("border rounded-2xl p-4 flex flex-col items-center justify-center text-center shadow-sm", color)}>
+            <div className="text-3xl font-bold mb-1">{value}</div>
+            <div className="text-sm font-medium uppercase tracking-wider opacity-80">{label}</div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
