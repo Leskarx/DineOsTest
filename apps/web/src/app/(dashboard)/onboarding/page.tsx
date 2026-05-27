@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { apiFetch, apiPatch } from '@/lib/api';
+import { apiFetch, apiPut } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
 import toast from 'react-hot-toast';
 import {
@@ -74,14 +74,14 @@ export default function OnboardingPage() {
   /* ── Query: load existing tenant profile ── */
   const { data: tenant } = useQuery({
     queryKey: ['tenant-profile'],
-    queryFn: () => apiFetch('/api/v1/tenants/me').then((r) => r.data),
+    queryFn: () => apiFetch('/api/v1/tenant').then((r) => r.data),
     staleTime: Infinity,
   });
 
   /* ── Mutation: save profile & mark onboarded ── */
   const saveMutation = useMutation({
     mutationFn: (payload: Record<string, any>) =>
-      apiPatch('/api/v1/tenants/me', payload),
+      apiPut('/api/v1/tenant', payload),
     onSuccess: () => {
       if (step === STEPS.length - 2) {
         // Moving to "done" step
