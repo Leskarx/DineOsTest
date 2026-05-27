@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
 import { User } from './entities/user.entity';
 
@@ -11,14 +11,30 @@ export class UsersService {
   ) {}
 
   findAll(tenantId: string, branchId?: string) {
-    const where: any = { tenantId, isActive: true };
-    if (branchId) where.branchId = branchId;
+    const select: (keyof import('./entities/user.entity').User)[] = [
+      'id', 'firstName', 'lastName', 'email',
+      'phone', 'role', 'employeeCode', 'branchId', 'createdAt',
+    ];
+
+    // Owners and managers are tenant-wide — they must always appear
+    // regardless of which branch is being viewed. Branch-level staff
+    // (cashier, waiter, kitchen, inventory) are scoped to their branch.
+    if (branchId) {
+      return this.repo.find({
+        where: [
+          // Branch-scoped staff for this specific branch
+          { tenantId, isActive: true, branchId },
+          // Tenant-wide roles visible across all branches
+          { tenantId, isActive: true, role: 'owner' as any },
+          { tenantId, isActive: true, role: 'manager' as any },
+        ],
+        select,
+      });
+    }
+
     return this.repo.find({
-      where,
-      select: [
-        'id', 'firstName', 'lastName', 'email',
-        'phone', 'role', 'employeeCode', 'branchId', 'createdAt',
-      ],
+      where: { tenantId, isActive: true },
+      select,
     });
   }
 

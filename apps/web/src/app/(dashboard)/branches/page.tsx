@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch, apiPost, apiPut } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/auth.store';
-import { Plus, Building2, Star, MapPin, Phone, Loader2, X } from 'lucide-react';
+import { Plus, Building2, Star, MapPin, Phone, Loader2, X, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const BRANCH_TYPES = [
@@ -92,7 +92,7 @@ function BranchForm({ editBranch, onClose, onSaved }: { editBranch?: any; onClos
 
 export default function BranchesPage() {
   const qc = useQueryClient();
-  const { setBranch, branchId: activeBranchId } = useAuthStore();
+  const { user, setBranch, branchId: activeBranchId } = useAuthStore();
   const [showForm, setShowForm]   = useState(false);
   const [editBranch, setEditBranch] = useState<any>(null);
 
@@ -182,21 +182,30 @@ export default function BranchesPage() {
 
                 {/* Actions */}
                 <div className="mt-auto pt-4 flex gap-2">
-                  <button
-                    onClick={() => setBranch(branch.id)}
-                    className={cn(
-                      'flex-1 text-xs py-1.5 rounded-lg transition-colors font-medium',
-                      isActive
-                        ? 'bg-amber-500/20 text-amber-400 cursor-default'
-                        : 'bg-slate-700 hover:bg-slate-600 text-slate-300',
-                    )}
-                    disabled={isActive}
-                  >
-                    {isActive ? '✓ Selected' : 'Switch To'}
-                  </button>
-                  <button onClick={() => openEdit(branch)} className="btn-ghost py-1.5 px-3 text-xs">
-                    Edit
-                  </button>
+                  {user?.role === 'owner' ? (
+                    <button
+                      onClick={() => setBranch(branch.id)}
+                      className={cn(
+                        'flex-1 text-xs py-1.5 rounded-lg transition-colors font-medium',
+                        isActive
+                          ? 'bg-amber-500/20 text-amber-400 cursor-default'
+                          : 'bg-slate-700 hover:bg-slate-600 text-slate-300',
+                      )}
+                      disabled={isActive}
+                    >
+                      {isActive ? '✓ Selected' : 'Switch To'}
+                    </button>
+                  ) : (
+                    <div className="flex-1 flex items-center gap-1.5 text-xs py-1.5 px-3 rounded-lg bg-slate-800/50 text-slate-600 cursor-not-allowed">
+                      <Lock size={10} />
+                      <span>Branch locked</span>
+                    </div>
+                  )}
+                  {user?.role === 'owner' && (
+                    <button onClick={() => openEdit(branch)} className="btn-ghost py-1.5 px-3 text-xs">
+                      Edit
+                    </button>
+                  )}
                 </div>
               </div>
             );
