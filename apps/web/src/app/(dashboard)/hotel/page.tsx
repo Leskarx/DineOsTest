@@ -208,11 +208,31 @@ export default function HotelPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => refetch()} className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 transition-colors">
+          <button
+            onClick={() => refetch()}
+            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 transition-colors"
+          >
             <RefreshCw size={13} />
           </button>
-          <Link href="/hotel/reservations" className="btn-primary text-xs flex items-center gap-1.5">
-            <Plus size={13} /> New Reservation
+
+          {/* Add Room Button */}
+          <Link
+            href="/hotel/rooms"
+            className="text-xs flex items-center gap-1.5 px-3 py-2 rounded-lg
+               bg-slate-800 border border-slate-700
+               hover:bg-slate-700 text-white transition-colors"
+          >
+            <BedDouble size={13} />
+            Add Room
+          </Link>
+
+          {/* Existing Button */}
+          <Link
+            href="/hotel/reservations"
+            className="btn-primary text-xs flex items-center gap-1.5"
+          >
+            <Plus size={13} />
+            New Reservation
           </Link>
         </div>
       </div>

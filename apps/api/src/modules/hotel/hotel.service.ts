@@ -27,7 +27,6 @@ export interface CreateRoomTypeDto {
 }
 
 export interface CreateRoomDto {
-  branchId: string;
   roomTypeId: string;
   roomNumber: string;
   floor?: number;
@@ -129,16 +128,24 @@ export class HotelService {
 
   // ── Rooms ───────────────────────────────────────────────────────────────────
 
-  async createRoom(tenantId: string, dto: CreateRoomDto): Promise<Room> {
+  async createRoom(
+    tenantId: string,
+    branchId: string,
+    dto: CreateRoomDto,
+  ): Promise<Room> {
     const exists = await this.roomRepo.findOne({
-      where: { tenantId, branchId: dto.branchId, roomNumber: dto.roomNumber },
+      where: { tenantId, branchId, roomNumber: dto.roomNumber },
     });
     if (exists) throw new ConflictException(`Room ${dto.roomNumber} already exists in this branch`);
 
     const rt = await this.roomTypeRepo.findOne({ where: { id: dto.roomTypeId, tenantId } });
     if (!rt) throw new NotFoundException('Room type not found');
 
-    const room = this.roomRepo.create({ tenantId, ...dto });
+    const room = this.roomRepo.create({
+      tenantId,
+      branchId,
+      ...dto,
+    });
     const saved = await this.roomRepo.save(room);
 
     // Update counter
@@ -263,7 +270,15 @@ export class HotelService {
         .andWhere('r.checkOutDate > :checkIn', { checkIn: dto.checkInDate })
         .getOne();
       if (overlap) throw new ConflictException(`Room ${room.roomNumber} is already booked for the selected dates`);
+      // 4. Validate dates
+      const checkIn = new Date(dto.checkInDate);
+      const checkOut = new Date(dto.checkOutDate);
 
+      if (checkOut <= checkIn) {
+        throw new BadRequestException(
+          'Check-out date must be after check-in date',
+        );
+      }
       // 4. Calculate financials
       const numNights = this.calcNights(dto.checkInDate, dto.checkOutDate);
       const rate = dto.ratePerNight ?? Number(room.roomType?.baseRate ?? 0);
