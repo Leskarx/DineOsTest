@@ -13,6 +13,7 @@ import { RoomStatus } from './entities/room.entity';
 import { ReservationStatus, BookingSource } from './entities/reservation.entity';
 import { ChargeType } from './entities/folio-charge.entity';
 import { HkStatus, HkTaskType, HkPriority } from './entities/housekeeping-task.entity';
+import { PaymentMethod } from '../billing/entities/payment.entity';
 
 @ApiTags('hotel')
 @ApiBearerAuth()
@@ -207,6 +208,19 @@ export class HotelController {
   @Roles('owner', 'manager', 'cashier')
   addCharge(@Param('id') id: string, @TenantId() tid: string, @Body() body: any) {
     return this.svc.addFolioCharge(id, tid, body);
+  }
+
+  // ── Billing ────────────────────────────────────────────────────────────────
+
+  @Post('reservations/:id/bill')
+  @Roles('owner', 'manager', 'cashier')
+  generateBill(
+    @Param('id') id: string,
+    @TenantId() tid: string,
+    @Body('paymentMethod') paymentMethod?: PaymentMethod,
+    @Body('amountPaid') amountPaid?: number,
+  ) {
+    return this.svc.generateBill(id, tid, paymentMethod, amountPaid);
   }
 
   // ── Housekeeping ───────────────────────────────────────────────────────────

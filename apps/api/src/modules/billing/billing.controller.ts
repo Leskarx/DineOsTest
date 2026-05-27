@@ -35,6 +35,7 @@ export class BillingController {
     @Query('to') to?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
+    @Query('source') source?: string,
   ) {
     return this.svc.listBills(
       branchId,
@@ -43,6 +44,7 @@ export class BillingController {
       to ? new Date(to) : undefined,
       page ? parseInt(page, 10) : 1,
       limit ? Math.min(parseInt(limit, 10), 200) : 50,
+      source
     );
   }
 

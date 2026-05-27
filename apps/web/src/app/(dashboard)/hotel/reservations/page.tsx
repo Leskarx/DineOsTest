@@ -340,23 +340,173 @@ function NewReservationDrawer({ onClose, onCreated }: { onClose: () => void; onC
   );
 }
 
+// ─── Checkout Dialog (Real-world flow: review folio → collect payment → generate bill) ────
+
+function CheckoutDialog({ reservation, onClose, onDone }: { reservation: Reservation; onClose: () => void; onDone: () => void }) {
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'upi' | 'wallet'>('cash');
+  const [amountPaid, setAmountPaid] = useState('');
+
+  const { data: folio, isLoading: folioLoading } = useQuery<{ charges: FolioCharge[]; totalCharges: number; totalPaid: number; balance: number }>({
+    queryKey: ['hotel-folio-checkout', reservation.id],
+    queryFn: () => api.get(`/api/v1/hotel/reservations/${reservation.id}/folio`).then(r => r.data?.data ?? r.data),
+  });
+
+  const balance = Math.max(0, folio?.balance ?? 0);
+
+  // Auto-fill the amount when folio loads
+  useEffect(() => {
+    if (balance > 0 && !amountPaid) setAmountPaid(String(balance));
+  }, [balance]);
+
+  const checkoutMutation = useMutation({
+    mutationFn: async () => {
+      const paid = parseFloat(amountPaid) || 0;
+      // 1. Perform checkout (marks room as cleaning, creates HK task)
+      await api.post(`/api/v1/hotel/reservations/${reservation.id}/check-out`);
+      // 2. Generate the final bill with payment collected
+      await api.post(`/api/v1/hotel/reservations/${reservation.id}/bill`, {
+        paymentMethod,
+        amountPaid: paid,
+      });
+    },
+    onSuccess: () => {
+      toast.success('Guest checked out & bill generated!');
+      onDone();
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.message || 'Checkout failed'),
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md shadow-2xl">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
+          <div>
+            <h2 className="text-sm font-semibold text-white">Checkout & Settle Bill</h2>
+            <div className="text-xs text-slate-500">
+              Room {reservation.room?.roomNumber} · {reservation.primaryGuest?.name}
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-500"><X size={15} /></button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          {/* How hotel billing works */}
+          <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 text-xs text-blue-300 space-y-1">
+            <div className="font-semibold text-blue-200">How checkout billing works:</div>
+            <div>1. Review the folio below (all charges during the stay)</div>
+            <div>2. Collect the balance due from the guest</div>
+            <div>3. Click &quot;Confirm Checkout&quot; — the bill is auto-generated</div>
+          </div>
+
+          {/* Folio summary */}
+          <div className="bg-slate-800/50 rounded-xl p-3 space-y-2 text-xs">
+            <div className="font-semibold text-slate-300 mb-2">Folio Summary</div>
+            {folioLoading ? (
+              <div className="text-slate-500 animate-pulse">Loading charges…</div>
+            ) : (
+              <>
+                <div className="divide-y divide-slate-700/50 max-h-36 overflow-y-auto">
+                  {(folio?.charges ?? []).map((c) => (
+                    <div key={c.id} className="flex justify-between py-1.5">
+                      <span className="text-slate-400">{c.description}</span>
+                      <span className={Number(c.amount) < 0 ? 'text-emerald-400' : 'text-slate-200'}>
+                        {Number(c.amount) < 0 ? '-' : ''}₹{Math.abs(Number(c.amount)).toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <div className="border-t border-slate-700 pt-2 space-y-1">
+                  <div className="flex justify-between text-slate-400">
+                    <span>Total Charges</span>
+                    <span>₹{Math.abs(folio?.totalCharges ?? 0).toLocaleString('en-IN')}</span>
+                  </div>
+                  <div className="flex justify-between text-emerald-400">
+                    <span>Already Paid (Advance)</span>
+                    <span>₹{(folio?.totalPaid ?? 0).toLocaleString('en-IN')}</span>
+                  </div>
+                  <div className="flex justify-between font-bold text-white text-sm border-t border-slate-600 pt-1">
+                    <span>Balance Due</span>
+                    <span className={balance > 0 ? 'text-red-400' : 'text-emerald-400'}>
+                      ₹{balance.toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Payment collection */}
+          <div className="space-y-3">
+            <div className="text-xs font-semibold text-slate-400">Collect Payment</div>
+            <div className="grid grid-cols-4 gap-1.5">
+              {(['cash', 'card', 'upi', 'wallet'] as const).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setPaymentMethod(m)}
+                  className={cn(
+                    'py-1.5 rounded-lg text-[10px] font-semibold uppercase tracking-wide border transition-colors',
+                    paymentMethod === m
+                      ? 'bg-amber-500/20 border-amber-500/50 text-amber-400'
+                      : 'bg-slate-800 border-slate-700 text-slate-500 hover:border-slate-600',
+                  )}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
+            <input
+              type="number"
+              placeholder={`Amount collected (₹${balance.toLocaleString('en-IN')} due)`}
+              value={amountPaid}
+              onChange={(e) => setAmountPaid(e.target.value)}
+              className="input text-sm"
+            />
+            {amountPaid && parseFloat(amountPaid) < balance && (
+              <div className="text-xs text-amber-400">⚠ Amount is less than balance — bill will be marked as partially paid</div>
+            )}
+          </div>
+
+          {/* Confirm */}
+          <button
+            onClick={() => checkoutMutation.mutate()}
+            disabled={checkoutMutation.isPending || folioLoading}
+            className="btn-primary w-full flex items-center justify-center gap-2 py-2.5 disabled:opacity-50"
+          >
+            {checkoutMutation.isPending ? (
+              <><Loader2 size={14} className="animate-spin" /> Processing…</>
+            ) : (
+              <><LogOut size={14} /> Confirm Checkout & Generate Bill</>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Folio Drawer ─────────────────────────────────────────────────────────────
 
 function FolioDrawer({ reservation, onClose }: { reservation: Reservation; onClose: () => void }) {
   const [addForm, setAddForm] = useState({ description: '', amount: '', chargeType: 'service' });
   const qc = useQueryClient();
 
-  const { data: folio, isLoading } = useQuery<{ charges: FolioCharge[]; totalCharges: number; totalPaid: number; balance: number }>({
+  const { data: folio, isLoading, isFetching } = useQuery<{ charges: FolioCharge[]; totalCharges: number; totalPaid: number; balance: number }>({
     queryKey: ['hotel-folio', reservation.id],
-    queryFn: () => api.get(`/api/v1/hotel/reservations/${reservation.id}/folio`).then((r) => r.data),
-    staleTime: 10_000,
+    queryFn: () => api.get(`/api/v1/hotel/reservations/${reservation.id}/folio`).then((r) => r.data?.data ?? r.data),
+    staleTime: 0,
   });
 
   const addCharge = useMutation({
     mutationFn: (body: any) => api.post(`/api/v1/hotel/reservations/${reservation.id}/folio/charges`, body).then((r) => r.data),
-    onSuccess: () => { toast.success('Charge added'); qc.invalidateQueries({ queryKey: ['hotel-folio', reservation.id] }); setAddForm({ description: '', amount: '', chargeType: 'service' }); },
-    onError: () => toast.error('Failed to add charge'),
+    onSuccess: () => {
+      toast.success('Charge added');
+      qc.invalidateQueries({ queryKey: ['hotel-folio', reservation.id] });
+      setAddForm({ description: '', amount: '', chargeType: 'service' });
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.message || e?.message || 'Failed to add charge'),
   });
+
 
   return (
     <div className="fixed inset-0 z-50 flex">
@@ -375,6 +525,11 @@ function FolioDrawer({ reservation, onClose }: { reservation: Reservation; onClo
             <div className="text-slate-500 text-sm text-center py-8 animate-pulse">Loading folio…</div>
           ) : (
             <>
+              {isFetching && (
+                <div className="flex items-center gap-2 text-xs text-slate-500 animate-pulse">
+                  <Loader2 size={11} className="animate-spin" /> Refreshing…
+                </div>
+              )}
               <div className="divide-y divide-slate-800/60">
                 {(folio?.charges ?? []).map((c) => (
                   <div key={c.id} className="py-2.5 flex justify-between items-center text-xs">
@@ -395,7 +550,7 @@ function FolioDrawer({ reservation, onClose }: { reservation: Reservation; onClo
                 <div className="flex justify-between font-bold text-white border-t border-slate-700 pt-1.5"><span>Balance</span><span>₹{Math.max(0, folio?.balance ?? 0).toLocaleString('en-IN')}</span></div>
               </div>
 
-              {/* Add charge */}
+              {/* Add charge — only for active reservations */}
               {['confirmed', 'checked_in'].includes(reservation.status) && (
                 <div className="space-y-2 border-t border-slate-800 pt-4">
                   <div className="text-xs font-semibold text-slate-400">Add Charge</div>
@@ -413,14 +568,31 @@ function FolioDrawer({ reservation, onClose }: { reservation: Reservation; onClo
                     </select>
                   </div>
                   <button
-                    onClick={() => { if (!addForm.description || !addForm.amount) return; addCharge.mutate({ description: addForm.description, amount: Number(addForm.amount), chargeType: addForm.chargeType }); }}
+                    onClick={() => {
+                      if (!addForm.description || !addForm.amount) {
+                        toast.error('Please fill in description and amount');
+                        return;
+                      }
+                      addCharge.mutate({
+                        description: addForm.description,
+                        amount: Number(addForm.amount),
+                        chargeType: addForm.chargeType,
+                      });
+                    }}
                     disabled={addCharge.isPending}
-                    className="btn-primary w-full text-xs py-1.5 disabled:opacity-50"
+                    className="btn-primary w-full text-xs py-1.5 disabled:opacity-50 flex items-center justify-center gap-1.5"
                   >
-                    {addCharge.isPending ? 'Adding…' : 'Add Charge'}
+                    {addCharge.isPending ? (
+                      <><Loader2 size={12} className="animate-spin" /> Adding…</>
+                    ) : 'Add Charge'}
                   </button>
                 </div>
               )}
+
+              {reservation.status === 'checked_in' && (
+                <div className="pt-2 text-xs text-slate-500 text-center">Use the Checkout button on the reservation row to settle and generate the bill.</div>
+              )}
+
             </>
           )}
         </div>
@@ -442,6 +614,7 @@ export default function ReservationsPage() {
   const [page, setPage] = useState(1);
   const [showNew, setShowNew] = useState(false);
   const [folioRes, setFolioRes] = useState<Reservation | null>(null);
+  const [checkoutRes, setCheckoutRes] = useState<Reservation | null>(null);
 
   useEffect(() => { setPage(1); }, [status, search, from, to]);
 
@@ -629,9 +802,9 @@ export default function ReservationsPage() {
                       )}
                       {r.status === 'checked_in' && (
                         <button
-                          onClick={() => mutate(`/api/v1/hotel/reservations/${r.id}/check-out`, 'post', undefined, 'Checked out')}
+                          onClick={() => setCheckoutRes(r)}
                           className="flex items-center gap-1 px-2 py-1 text-[10px] bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 rounded-lg transition-colors"
-                          title="Check Out"
+                          title="Check Out & Pay"
                         >
                           <LogOut size={11} /> Check Out
                         </button>
@@ -675,6 +848,19 @@ export default function ReservationsPage() {
 
       {showNew && <NewReservationDrawer onClose={() => setShowNew(false)} onCreated={() => qc.invalidateQueries({ queryKey: ['hotel-reservations'] })} />}
       {folioRes && <FolioDrawer reservation={folioRes} onClose={() => setFolioRes(null)} />}
+      {checkoutRes && (
+        <CheckoutDialog
+          reservation={checkoutRes}
+          onClose={() => setCheckoutRes(null)}
+          onDone={() => {
+            setCheckoutRes(null);
+            qc.invalidateQueries({ queryKey: ['hotel-reservations'] });
+            qc.invalidateQueries({ queryKey: ['hotel-rooms'] });
+            qc.invalidateQueries({ queryKey: ['hotel-dashboard'] });
+            qc.invalidateQueries({ queryKey: ['hotel-bills'] });
+          }}
+        />
+      )}
     </div>
   );
 }
