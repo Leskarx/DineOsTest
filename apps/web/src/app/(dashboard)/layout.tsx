@@ -19,6 +19,12 @@ interface NavSection { section: string; items: NavItem[] }
 
 const navSections: NavSection[] = [
   {
+    section: 'Overview',
+    items: [
+      { href: '/owner', label: 'Executive Dashboard', icon: LayoutDashboard, exact: true, roles: ['owner'] },
+    ],
+  },
+  {
     section: 'Restaurant',
     items: [
       { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, exact: true, roles: ['owner', 'manager'] },

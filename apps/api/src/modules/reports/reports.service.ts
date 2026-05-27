@@ -307,4 +307,135 @@ export class ReportsService {
       }))
     };
   }
+
+  async getOwnerDashboardSummary(branchId: string, tenantId: string) {
+    const today = new Date().toISOString().slice(0, 10);
+    const [
+      totalRevToday, totalRevWeek, posSalesToday, hotelSalesToday,
+      pendingOrders, occupancy, checkins, checkouts,
+      weeklyChart, paymentBreakdown, lowStock
+    ] = await Promise.all([
+      // Total revenue today (POS + Hotel combined)
+      this.db.query(`
+        SELECT COALESCE(SUM(grand_total),0) AS revenue, COUNT(*) AS bills
+        FROM bills WHERE branch_id=$1 AND tenant_id=$2
+        AND status NOT IN ('void','refunded')
+        AND DATE(created_at AT TIME ZONE 'Asia/Kolkata')=$3
+      `, [branchId, tenantId, today]),
+
+      // Total revenue 7 days (POS + Hotel combined)
+      this.db.query(`
+        SELECT COALESCE(SUM(grand_total),0) AS revenue
+        FROM bills WHERE branch_id=$1 AND tenant_id=$2
+        AND status NOT IN ('void','refunded')
+        AND created_at >= NOW() - INTERVAL '7 days'
+      `, [branchId, tenantId]),
+
+      // POS-only today
+      this.db.query(`
+        SELECT COALESCE(SUM(grand_total),0) AS revenue, COUNT(*) AS bills
+        FROM bills WHERE branch_id=$1 AND tenant_id=$2 AND source='pos'
+        AND status NOT IN ('void','refunded')
+        AND DATE(created_at AT TIME ZONE 'Asia/Kolkata')=$3
+      `, [branchId, tenantId, today]),
+
+      // Hotel-only today
+      this.db.query(`
+        SELECT COALESCE(SUM(grand_total),0) AS revenue, COUNT(*) AS bills
+        FROM bills WHERE branch_id=$1 AND tenant_id=$2 AND source='hotel'
+        AND status NOT IN ('void','refunded')
+        AND DATE(created_at AT TIME ZONE 'Asia/Kolkata')=$3
+      `, [branchId, tenantId, today]),
+
+      // Pending orders
+      this.db.query(`
+        SELECT COUNT(*) AS count
+        FROM orders WHERE branch_id=$1 AND tenant_id=$2
+        AND status NOT IN ('billed','cancelled')
+      `, [branchId, tenantId]),
+
+      // Occupancy
+      this.db.query(`
+        SELECT
+          (SELECT COUNT(*) FROM hotel_rooms WHERE branch_id=$1 AND tenant_id=$2 AND status != 'out_of_order') AS total_rooms,
+          (SELECT COUNT(*) FROM hotel_reservations WHERE branch_id=$1 AND tenant_id=$2 AND status IN ('checked_in')) AS occupied_rooms
+      `, [branchId, tenantId]),
+
+      // Today's check-ins
+      this.db.query(`
+        SELECT COUNT(*) AS count
+        FROM hotel_reservations WHERE branch_id=$1 AND tenant_id=$2
+        AND check_in_date=$3 AND status NOT IN ('cancelled','no_show')
+      `, [branchId, tenantId, today]),
+
+      // Today's check-outs
+      this.db.query(`
+        SELECT COUNT(*) AS count
+        FROM hotel_reservations WHERE branch_id=$1 AND tenant_id=$2
+        AND check_out_date=$3 AND status NOT IN ('cancelled','no_show')
+      `, [branchId, tenantId, today]),
+
+      // Weekly chart (POS + Hotel stacked by day)
+      this.db.query(`
+        SELECT
+          TO_CHAR(date_trunc('day', created_at AT TIME ZONE 'Asia/Kolkata'), 'Mon DD') AS date,
+          COALESCE(SUM(grand_total) FILTER (WHERE source='pos'), 0) AS pos,
+          COALESCE(SUM(grand_total) FILTER (WHERE source='hotel'), 0) AS hotel,
+          COALESCE(SUM(grand_total), 0) AS total
+        FROM bills
+        WHERE branch_id=$1 AND tenant_id=$2
+        AND status NOT IN ('void','refunded')
+        AND created_at >= NOW() - INTERVAL '7 days'
+        GROUP BY date_trunc('day', created_at AT TIME ZONE 'Asia/Kolkata')
+        ORDER BY date_trunc('day', created_at AT TIME ZONE 'Asia/Kolkata') ASC
+      `, [branchId, tenantId]),
+
+      // Payment method breakdown today
+      this.db.query(`
+        SELECT method, COALESCE(SUM(amount),0) AS total
+        FROM payments
+        WHERE branch_id=$1 AND tenant_id=$2
+        AND status='success'
+        AND DATE(created_at AT TIME ZONE 'Asia/Kolkata')=$3
+        GROUP BY method ORDER BY total DESC
+      `, [branchId, tenantId, today]),
+
+      // Low stock count
+      this.db.query(`
+        SELECT COUNT(*) AS count
+        FROM inventory_items
+        WHERE (branch_id=$1 OR branch_id IS NULL) AND tenant_id=$2
+        AND current_stock <= min_stock_level AND is_active=true
+      `, [branchId, tenantId]),
+    ]);
+
+    const totalRooms = Number(occupancy[0]?.total_rooms || 0);
+    const occupiedRooms = Number(occupancy[0]?.occupied_rooms || 0);
+    const occupancyRate = totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 100) : 0;
+
+    return {
+      totalRevenueToday: Number(totalRevToday[0]?.revenue || 0),
+      totalBillsToday: Number(totalRevToday[0]?.bills || 0),
+      totalRevenueWeek: Number(totalRevWeek[0]?.revenue || 0),
+      posRevenueToday: Number(posSalesToday[0]?.revenue || 0),
+      posBillsToday: Number(posSalesToday[0]?.bills || 0),
+      hotelRevenueToday: Number(hotelSalesToday[0]?.revenue || 0),
+      hotelBillsToday: Number(hotelSalesToday[0]?.bills || 0),
+      pendingOrders: Number(pendingOrders[0]?.count || 0),
+      occupancyRate,
+      todayCheckins: Number(checkins[0]?.count || 0),
+      todayCheckouts: Number(checkouts[0]?.count || 0),
+      lowStockAlerts: Number(lowStock[0]?.count || 0),
+      weeklyChart: (weeklyChart || []).map((r: any) => ({
+        date: r.date,
+        pos: Number(r.pos || 0),
+        hotel: Number(r.hotel || 0),
+        total: Number(r.total || 0),
+      })),
+      paymentBreakdown: (paymentBreakdown || []).map((r: any) => ({
+        method: r.method,
+        total: Number(r.total || 0),
+      })),
+    };
+  }
 }
