@@ -45,7 +45,7 @@ const navSections: NavSection[] = [
         icon: BedDouble,
         roles: ['owner', 'manager']
       },
-      { href: '/hotel/housekeeping', label: 'Housekeeping', icon: SprayCan, roles: ['owner', 'manager'] },
+      { href: '/hotel/housekeeping', label: 'Housekeeping', icon: SprayCan, roles: ['owner', 'manager', 'housekeeping'] },
     ],
   },
   {
