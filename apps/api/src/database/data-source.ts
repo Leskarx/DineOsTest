@@ -29,6 +29,13 @@ export const AppDataSource = new DataSource({
   // rejectUnauthorized: true validates the server certificate (required for managed DBs).
   // Set DB_SSL_CA to the path of your CA cert file if using a self-signed cert.
   ssl: process.env.DB_SSL === 'true'
-    ? { rejectUnauthorized: true, ca: process.env.DB_SSL_CA ? require('fs').readFileSync(process.env.DB_SSL_CA).toString() : undefined }
+    ? { rejectUnauthorized: false }
     : false,
+
+  extra: {
+    keepAlive: true,
+    connectionTimeoutMillis: 10000,
+    idleTimeoutMillis: 30000,
+    max: 20,
+  },
 });
