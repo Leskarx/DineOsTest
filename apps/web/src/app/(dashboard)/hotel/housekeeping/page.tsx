@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
+import { useAuthStore } from '@/store/auth.store';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -316,6 +317,8 @@ function NewTaskModal({ date, onClose }: { date: string; onClose: () => void }) 
 
 export default function HousekeepingPage() {
   const qc = useQueryClient();
+  const { user } = useAuthStore();
+  const canCreate = user?.role !== 'housekeeping';
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [showNew, setShowNew] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -380,9 +383,11 @@ export default function HousekeepingPage() {
           <button onClick={() => refetch()} className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 transition-colors">
             <RefreshCw size={13} />
           </button>
-          <button onClick={() => setShowNew(true)} className="btn-primary text-xs flex items-center gap-1.5">
-            <Plus size={13} /> New Task
-          </button>
+          {canCreate && (
+            <button onClick={() => setShowNew(true)} className="btn-primary text-xs flex items-center gap-1.5">
+              <Plus size={13} /> New Task
+            </button>
+          )}
         </div>
       </div>
 
@@ -412,9 +417,11 @@ export default function HousekeepingPage() {
           <div className="flex flex-col items-center justify-center h-full gap-3 text-slate-600">
             <CheckCircle2 size={40} />
             <p className="text-sm">No tasks scheduled for this day.</p>
-            <button onClick={() => setShowNew(true)} className="btn-primary text-xs flex items-center gap-1.5">
-              <Plus size={12} /> Create a task
-            </button>
+            {canCreate && (
+              <button onClick={() => setShowNew(true)} className="btn-primary text-xs flex items-center gap-1.5">
+                <Plus size={12} /> Create a task
+              </button>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-0 h-full divide-x divide-slate-800">

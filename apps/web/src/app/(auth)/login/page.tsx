@@ -26,6 +26,7 @@ export default function LoginPage() {
       else if (role === 'waiter') redirectUrl = '/waiter';
       else if (role === 'kitchen') redirectUrl = '/kds';
       else if (role === 'inventory') redirectUrl = '/inventory';
+      else if (role === 'housekeeping') redirectUrl = '/hotel/housekeeping';
       
       router.push(redirectUrl);
     } catch (err: any) {

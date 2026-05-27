@@ -64,7 +64,7 @@ export class HotelController {
   // ── Rooms ──────────────────────────────────────────────────────────────────
 
   @Get('rooms')
-  @Roles('owner', 'manager', 'cashier', 'waiter')
+  @Roles('owner', 'manager', 'cashier', 'waiter', 'housekeeping')
   @ApiQuery({ name: 'branchId', required: false })
   @ApiQuery({ name: 'status', required: false })
   listRooms(
@@ -95,7 +95,7 @@ export class HotelController {
   }
 
   @Patch('rooms/:id/status')
-  @Roles('owner', 'manager', 'cashier')
+  @Roles('owner', 'manager', 'cashier', 'housekeeping')
   updateRoomStatus(
     @Param('id') id: string,
     @TenantId() tid: string,
@@ -226,7 +226,7 @@ export class HotelController {
   // ── Housekeeping ───────────────────────────────────────────────────────────
 
   @Get('housekeeping')
-  @Roles('owner', 'manager', 'cashier')
+  @Roles('owner', 'manager', 'cashier', 'housekeeping')
   @ApiQuery({ name: 'branchId', required: false })
   @ApiQuery({ name: 'date', required: false })
   listTasks(
@@ -252,7 +252,7 @@ export class HotelController {
   }
 
   @Patch('housekeeping/:id')
-  @Roles('owner', 'manager', 'cashier')
+  @Roles('owner', 'manager', 'cashier', 'housekeeping')
   updateTask(
     @Param('id') id: string,
     @TenantId() tid: string,

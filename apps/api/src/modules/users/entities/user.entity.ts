@@ -11,6 +11,7 @@ export enum UserRole {
   WAITER = 'waiter',
   KITCHEN = 'kitchen',
   INVENTORY = 'inventory',
+  HOUSEKEEPING = 'housekeeping',
 }
 
 @Entity('users')

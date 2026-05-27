@@ -7,11 +7,12 @@ import { useAuthStore } from '@/store/auth.store';
 import { Plus, Edit2, UserX, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const ROLES = ['owner', 'manager', 'cashier', 'waiter', 'kitchen', 'inventory'];
+const ROLES = ['owner', 'manager', 'cashier', 'waiter', 'kitchen', 'inventory', 'housekeeping'];
 
 const ROLE_COLORS: Record<string, string> = {
   owner: 'badge-yellow', manager: 'badge-blue', cashier: 'badge-green',
   waiter: 'badge-slate', kitchen: 'badge-red', inventory: 'badge-slate',
+  housekeeping: 'badge-blue',
 };
 
 export default function EmployeesPage() {
