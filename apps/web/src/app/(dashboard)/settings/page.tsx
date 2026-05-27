@@ -328,7 +328,7 @@ export default function SettingsPage() {
                   {sub.status}
                 </span>
               </div>
-              {sub.trialEndsAt && (
+              {sub.status === 'trial' && sub.trialEndsAt && (
                 <p className="text-xs text-slate-400 mt-3">
                   Trial ends: {new Date(sub.trialEndsAt).toLocaleDateString('en-IN', { dateStyle: 'long' })}
                 </p>

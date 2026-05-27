@@ -227,7 +227,7 @@ export default function SubscriptionsPage() {
                       : '—'}
                   </td>
                   <td className="td text-xs text-slate-500">
-                    {s.trial_ends_at ? format(new Date(s.trial_ends_at), 'dd MMM yyyy') : '—'}
+                    {s.sub_status === 'trial' && s.trial_ends_at ? format(new Date(s.trial_ends_at), 'dd MMM yyyy') : '—'}
                   </td>
                   <td className="td">
                     <div className="flex justify-end">

@@ -296,4 +296,43 @@ export class AdminService {
 
     return { data: merged, total: merged.length };
   }
+
+  // ── Orders trend (last 30 days, daily) ───────────────────────────────────
+
+  async getOrdersTrend() {
+    const rows = await this.db.query(`
+      SELECT
+        TO_CHAR(DATE_TRUNC('day', created_at), 'DD Mon') AS date,
+        COUNT(*) AS orders,
+        COALESCE(SUM(grand_total), 0) AS revenue
+      FROM orders
+      WHERE created_at >= NOW() - INTERVAL '30 days'
+      GROUP BY DATE_TRUNC('day', created_at)
+      ORDER BY DATE_TRUNC('day', created_at)
+    `);
+    return rows.map((r: any) => ({
+      date: r.date,
+      orders: parseInt(r.orders),
+      revenue: parseFloat(r.revenue),
+    }));
+  }
+
+  // ── Tenant signups trend (last 30 days, daily) ────────────────────────────
+
+  async getSignupsTrend() {
+    const rows = await this.db.query(`
+      SELECT
+        TO_CHAR(DATE_TRUNC('day', created_at), 'DD Mon') AS date,
+        COUNT(*) AS signups
+      FROM tenants
+      WHERE slug != '_system'
+        AND created_at >= NOW() - INTERVAL '30 days'
+      GROUP BY DATE_TRUNC('day', created_at)
+      ORDER BY DATE_TRUNC('day', created_at)
+    `);
+    return rows.map((r: any) => ({
+      date: r.date,
+      signups: parseInt(r.signups),
+    }));
+  }
 }

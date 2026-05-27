@@ -101,4 +101,13 @@ export class AdminController {
   ) {
     return this.svc.getRecentActivity(limit);
   }
+
+  // ── Chart data ────────────────────────────────────────────────────────
+  @Get('charts/orders')
+  @ApiOperation({ summary: 'Daily orders + revenue for the last 30 days' })
+  getOrdersTrend() { return this.svc.getOrdersTrend(); }
+
+  @Get('charts/signups')
+  @ApiOperation({ summary: 'Daily new tenant signups for the last 30 days' })
+  getSignupsTrend() { return this.svc.getSignupsTrend(); }
 }
