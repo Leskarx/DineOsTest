@@ -17,7 +17,8 @@
     "db:reset": "turbo run db:reset --filter=@dine-stay/api",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
-    "docker:logs": "docker-compose logs -f"
+    "docker:logs": "docker-compose logs -f",
+    "postinstall": "node scripts/postinstall.js"
   },
   "workspaces": [
     "apps/*",
@@ -43,5 +44,13 @@
     "redis": "^5.12.1",
     "rxjs": "^7.8.2",
     "sharp": "^0.34.5"
+  },
+  "overrides": {
+    "@fastify/otel": {
+      "minimatch": "^10.0.0"
+    },
+    "recharts": {
+      "react-is": "^18.0.0"
+    }
   }
 }
