@@ -25,7 +25,7 @@ export class HotelController {
   // ── Dashboard ──────────────────────────────────────────────────────────────
 
   @Get('dashboard')
-  @Roles('owner', 'manager', 'cashier')
+  @Roles('owner', 'manager', 'cashier', 'receptionist')
   @ApiOperation({ summary: 'Hotel overview — occupancy, arrivals, departures' })
   getDashboard(
     @TenantId() tenantId: string,
@@ -37,7 +37,7 @@ export class HotelController {
   // ── Room Types ─────────────────────────────────────────────────────────────
 
   @Get('room-types')
-  @Roles('owner', 'manager', 'cashier', 'waiter')
+  @Roles('owner', 'manager', 'cashier', 'waiter', 'receptionist')
   listRoomTypes(@TenantId() tid: string, @Query('branchId') branchId?: string) {
     return this.svc.listRoomTypes(tid, branchId);
   }
@@ -64,7 +64,7 @@ export class HotelController {
   // ── Rooms ──────────────────────────────────────────────────────────────────
 
   @Get('rooms')
-  @Roles('owner', 'manager', 'cashier', 'waiter', 'housekeeping')
+  @Roles('owner', 'manager', 'cashier', 'waiter', 'housekeeping', 'receptionist')
   @ApiQuery({ name: 'branchId', required: false })
   @ApiQuery({ name: 'status', required: false })
   listRooms(
@@ -76,6 +76,7 @@ export class HotelController {
   }
 
   @Post('rooms')
+  @Roles('owner', 'manager')
   createRoom(
     @TenantId() tid: string,
     @CurrentUser() user: any,
@@ -95,7 +96,7 @@ export class HotelController {
   }
 
   @Patch('rooms/:id/status')
-  @Roles('owner', 'manager', 'cashier', 'housekeeping')
+  @Roles('owner', 'manager', 'cashier', 'housekeeping', 'receptionist')
   updateRoomStatus(
     @Param('id') id: string,
     @TenantId() tid: string,
@@ -107,26 +108,26 @@ export class HotelController {
   // ── Guests ─────────────────────────────────────────────────────────────────
 
   @Get('guests')
-  @Roles('owner', 'manager', 'cashier')
+  @Roles('owner', 'manager', 'cashier', 'receptionist')
   @ApiQuery({ name: 'q', required: false })
   searchGuests(@TenantId() tid: string, @Query('q') q?: string) {
     return this.svc.searchGuests(tid, q ?? '');
   }
 
   @Get('guests/:id')
-  @Roles('owner', 'manager', 'cashier')
+  @Roles('owner', 'manager', 'cashier', 'receptionist')
   getGuest(@Param('id') id: string, @TenantId() tid: string) {
     return this.svc.getGuest(id, tid);
   }
 
   @Post('guests')
-  @Roles('owner', 'manager', 'cashier')
+  @Roles('owner', 'manager', 'cashier', 'receptionist')
   createGuest(@TenantId() tid: string, @Body() body: any) {
     return this.svc.createGuest(tid, body);
   }
 
   @Patch('guests/:id')
-  @Roles('owner', 'manager', 'cashier')
+  @Roles('owner', 'manager', 'cashier', 'receptionist')
   updateGuest(@Param('id') id: string, @TenantId() tid: string, @Body() body: any) {
     return this.svc.updateGuest(id, tid, body);
   }
@@ -134,7 +135,7 @@ export class HotelController {
   // ── Reservations ───────────────────────────────────────────────────────────
 
   @Get('reservations')
-  @Roles('owner', 'manager', 'cashier')
+  @Roles('owner', 'manager', 'cashier', 'receptionist')
   @ApiQuery({ name: 'status', required: false })
   @ApiQuery({ name: 'from', required: false })
   @ApiQuery({ name: 'to', required: false })
@@ -156,12 +157,13 @@ export class HotelController {
   }
 
   @Get('reservations/:id')
-  @Roles('owner', 'manager', 'cashier')
+  @Roles('owner', 'manager', 'cashier', 'receptionist')
   getReservation(@Param('id') id: string, @TenantId() tid: string) {
     return this.svc.getReservation(id, tid);
   }
 
   @Post('reservations')
+  @Roles('owner', 'manager', 'cashier', 'receptionist')
   createReservation(
     @TenantId() tid: string,
     @CurrentUser() user: any,
@@ -175,19 +177,19 @@ export class HotelController {
   }
 
   @Post('reservations/:id/check-in')
-  @Roles('owner', 'manager', 'cashier')
+  @Roles('owner', 'manager', 'cashier', 'receptionist')
   checkIn(@Param('id') id: string, @TenantId() tid: string) {
     return this.svc.checkIn(id, tid);
   }
 
   @Post('reservations/:id/check-out')
-  @Roles('owner', 'manager', 'cashier')
+  @Roles('owner', 'manager', 'cashier', 'receptionist')
   checkOut(@Param('id') id: string, @TenantId() tid: string) {
     return this.svc.checkOut(id, tid);
   }
 
   @Post('reservations/:id/cancel')
-  @Roles('owner', 'manager', 'cashier')
+  @Roles('owner', 'manager', 'cashier', 'receptionist')
   cancel(
     @Param('id') id: string,
     @TenantId() tid: string,
@@ -199,13 +201,13 @@ export class HotelController {
   // ── Folio ──────────────────────────────────────────────────────────────────
 
   @Get('reservations/:id/folio')
-  @Roles('owner', 'manager', 'cashier')
+  @Roles('owner', 'manager', 'cashier', 'receptionist')
   getFolio(@Param('id') id: string, @TenantId() tid: string) {
     return this.svc.getFolio(id, tid);
   }
 
   @Post('reservations/:id/folio/charges')
-  @Roles('owner', 'manager', 'cashier')
+  @Roles('owner', 'manager', 'cashier', 'receptionist')
   addCharge(@Param('id') id: string, @TenantId() tid: string, @Body() body: any) {
     return this.svc.addFolioCharge(id, tid, body);
   }
@@ -213,7 +215,7 @@ export class HotelController {
   // ── Billing ────────────────────────────────────────────────────────────────
 
   @Post('reservations/:id/bill')
-  @Roles('owner', 'manager', 'cashier')
+  @Roles('owner', 'manager', 'cashier', 'receptionist')
   generateBill(
     @Param('id') id: string,
     @TenantId() tid: string,
@@ -226,7 +228,7 @@ export class HotelController {
   // ── Housekeeping ───────────────────────────────────────────────────────────
 
   @Get('housekeeping')
-  @Roles('owner', 'manager', 'cashier', 'housekeeping')
+  @Roles('owner', 'manager', 'cashier', 'housekeeping', 'receptionist')
   @ApiQuery({ name: 'branchId', required: false })
   @ApiQuery({ name: 'date', required: false })
   listTasks(
@@ -252,7 +254,7 @@ export class HotelController {
   }
 
   @Patch('housekeeping/:id')
-  @Roles('owner', 'manager', 'cashier', 'housekeeping')
+  @Roles('owner', 'manager', 'cashier', 'housekeeping', 'receptionist')
   updateTask(
     @Param('id') id: string,
     @TenantId() tid: string,
