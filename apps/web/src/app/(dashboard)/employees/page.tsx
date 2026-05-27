@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch, apiPost, apiPut, apiDelete } from '@/lib/api';
 import toast from 'react-hot-toast';
+import { useAuthStore } from '@/store/auth.store';
 import { Plus, Edit2, UserX, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -15,6 +16,7 @@ const ROLE_COLORS: Record<string, string> = {
 
 export default function EmployeesPage() {
   const qc = useQueryClient();
+  const { user } = useAuthStore();
   const [showForm, setShowForm] = useState(false);
   const [editUser, setEditUser] = useState<any>(null);
   const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phone: '', role: 'cashier', password: '', pin: '', employeeCode: '' });
@@ -83,7 +85,7 @@ export default function EmployeesPage() {
               <div>
                 <label className="label">Role *</label>
                 <select className="input" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
-                  {ROLES.map((r) => <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
+                  {ROLES.filter(r => user?.role === 'owner' ? true : !['owner', 'manager'].includes(r)).map((r) => <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
                 </select>
               </div>
               <div><label className="label">Employee Code</label><input className="input" value={form.employeeCode} onChange={(e) => setForm({ ...form, employeeCode: e.target.value })} /></div>

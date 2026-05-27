@@ -122,14 +122,16 @@ export default function BranchesPage() {
             {branches?.length || 0} / {limits?.maxBranches === -1 ? '∞' : limits?.maxBranches || '—'} branches
           </p>
         </div>
-        {canAddBranch ? (
-          <button onClick={openAdd} className="btn-primary">
-            <Plus size={14} /> Add Branch
-          </button>
-        ) : (
-          <span className="text-sm text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-2 rounded-lg">
-            Branch limit reached — upgrade plan
-          </span>
+        {user?.role === 'owner' && (
+          canAddBranch ? (
+            <button onClick={openAdd} className="btn-primary">
+              <Plus size={14} /> Add Branch
+            </button>
+          ) : (
+            <span className="text-sm text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-2 rounded-lg">
+              Branch limit reached — upgrade plan
+            </span>
+          )
         )}
       </div>
 
