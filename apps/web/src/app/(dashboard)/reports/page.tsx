@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, api } from '@/lib/api';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell,
@@ -31,23 +31,24 @@ function downloadCsv(rows: Record<string, any>[], filename: string) {
 }
 
 // ─── GSTR-1 JSON download ──────────────────────────────────────────────────────
+// Uses the existing axios `api` instance which handles auth automatically.
+// No need to manually read tokens from localStorage.
 async function downloadGstr1(from: string, to: string) {
-  const res = await fetch(
-    `/api/v1/reports/gstr1-export?from=${from}&to=${to}`,
-    { headers: { Authorization: `Bearer ${getToken()}` } },
-  );
-  if (!res.ok) { alert('GSTR-1 export failed'); return; }
-  const blob = await res.blob();
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href = url; a.download = `GSTR1_${from}_${to}.json`; a.click();
-  URL.revokeObjectURL(url);
-}
-
-function getToken(): string {
   try {
-    return JSON.parse(localStorage.getItem('auth-storage') || '{}')?.state?.accessToken || '';
-  } catch { return ''; }
+    const res = await api.get(
+      `/api/v1/reports/gstr1-export?from=${from}&to=${to}`,
+      { responseType: 'blob' },
+    );
+    const url = URL.createObjectURL(new Blob([res.data], { type: 'application/json' }));
+    const a   = document.createElement('a');
+    a.href     = url;
+    a.download = `GSTR1_${from}_${to}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (err: any) {
+    console.error('GSTR-1 export error:', err);
+    alert(err?.response?.data?.message || 'GSTR-1 export failed. Check console for details.');
+  }
 }
 
 const COLORS = ['#f59e0b', '#3b82f6', '#10b981', '#8b5cf6', '#ef4444', '#6b7280'];
@@ -107,9 +108,9 @@ export default function ReportsPage() {
   });
 
   // ── Summary totals ────────────────────────────────────────────────────────────
-  const totalSales = dailySales?.reduce((s: number, d: any) => s + Number(d.gross_sales  || 0), 0) || 0;
-  const totalBills = dailySales?.reduce((s: number, d: any) => s + Number(d.total_bills  || 0), 0) || 0;
-  const totalTax   = dailySales?.reduce((s: number, d: any) => s + Number(d.total_tax    || 0), 0) || 0;
+  const totalSales = dailySales?.reduce((s: number, d: any) => s + Number(d.gross_sales || 0), 0) || 0;
+  const totalBills = dailySales?.reduce((s: number, d: any) => s + Number(d.total_bills || 0), 0) || 0;
+  const totalTax   = dailySales?.reduce((s: number, d: any) => s + Number(d.total_tax   || 0), 0) || 0;
 
   // ── Export handler ────────────────────────────────────────────────────────────
   const handleExport = () => {
@@ -127,7 +128,7 @@ export default function ReportsPage() {
   return (
     <div className="p-6 space-y-6">
 
-      {/* Header */}
+      {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-xl font-bold text-white">Reports & Analytics</h1>
         <div className="flex items-center gap-3 flex-wrap">
@@ -144,21 +145,27 @@ export default function ReportsPage() {
             <Download size={13} /> Export CSV
           </button>
           {tab === 'gst' && (
-            <button onClick={() => downloadGstr1(from, to)} className="btn-secondary text-sm">
+            <button
+              onClick={() => downloadGstr1(from, to)}
+              className="btn-secondary text-sm"
+            >
               <Download size={13} /> GSTR-1 JSON
             </button>
           )}
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* ── Tabs ───────────────────────────────────────────────────────────── */}
       <div className="flex gap-1 bg-slate-800 rounded-lg p-1 flex-wrap">
         {TABS.map(({ id, label, icon: Icon }) => (
-          <button key={id} onClick={() => setTab(id as ReportTab)}
+          <button
+            key={id}
+            onClick={() => setTab(id as ReportTab)}
             className={cn(
               'flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium transition-colors',
               tab === id ? 'bg-amber-500 text-slate-900' : 'text-slate-400 hover:text-white',
-            )}>
+            )}
+          >
             <Icon size={14} /> {label}
           </button>
         ))}
@@ -218,16 +225,26 @@ export default function ReportsPage() {
                   <tr key={d.date} className="table-row">
                     <td className="td">{dayjs(d.date).format('D MMM YYYY')}</td>
                     <td className="td text-right">{d.total_bills}</td>
-                    <td className="td text-right font-medium text-amber-400">{fmt(Number(d.gross_sales))}</td>
-                    <td className="td text-right text-red-400">{fmt(Number(d.total_discount || 0))}</td>
-                    <td className="td text-right text-slate-400">{fmt(Number(d.total_tax || 0))}</td>
+                    <td className="td text-right font-medium text-amber-400">
+                      {fmt(Number(d.gross_sales))}
+                    </td>
+                    <td className="td text-right text-red-400">
+                      {fmt(Number(d.total_discount || 0))}
+                    </td>
+                    <td className="td text-right text-slate-400">
+                      {fmt(Number(d.total_tax || 0))}
+                    </td>
                     <td className="td text-right font-bold">
                       {fmt(Number(d.gross_sales) - Number(d.total_discount || 0))}
                     </td>
                   </tr>
                 ))}
                 {!dailySales?.length && (
-                  <tr><td colSpan={6} className="td text-center text-slate-500 py-8">No data for selected period</td></tr>
+                  <tr>
+                    <td colSpan={6} className="td text-center text-slate-500 py-8">
+                      No data for selected period
+                    </td>
+                  </tr>
                 )}
               </tbody>
             </table>
@@ -284,7 +301,11 @@ export default function ReportsPage() {
                     </tr>
                   ))}
                   {!itemSales?.length && (
-                    <tr><td colSpan={4} className="td text-center text-slate-500 py-8">No data for selected period</td></tr>
+                    <tr>
+                      <td colSpan={4} className="td text-center text-slate-500 py-8">
+                        No data for selected period
+                      </td>
+                    </tr>
                   )}
                 </tbody>
               </table>
@@ -343,7 +364,11 @@ export default function ReportsPage() {
                   </tr>
                 ))}
                 {!payments?.length && (
-                  <tr><td colSpan={3} className="td text-center text-slate-500 py-8">No data for selected period</td></tr>
+                  <tr>
+                    <td colSpan={3} className="td text-center text-slate-500 py-8">
+                      No data for selected period
+                    </td>
+                  </tr>
                 )}
               </tbody>
             </table>
@@ -377,12 +402,18 @@ export default function ReportsPage() {
                     <td className="td text-right text-blue-400">{fmt(Number(row.cgst))}</td>
                     <td className="td text-right text-purple-400">{fmt(Number(row.sgst))}</td>
                     <td className="td text-right text-emerald-400">{fmt(Number(row.igst))}</td>
-                    <td className="td text-right font-bold text-amber-400">{fmt(Number(row.total_tax))}</td>
+                    <td className="td text-right font-bold text-amber-400">
+                      {fmt(Number(row.total_tax))}
+                    </td>
                     <td className="td text-right font-bold">{fmt(Number(row.gross_value))}</td>
                   </tr>
                 ))}
                 {!gstReport?.length && (
-                  <tr><td colSpan={8} className="td text-center text-slate-500 py-8">No data for selected period</td></tr>
+                  <tr>
+                    <td colSpan={8} className="td text-center text-slate-500 py-8">
+                      No data for selected period
+                    </td>
+                  </tr>
                 )}
               </tbody>
               {gstReport?.length > 0 && (
@@ -417,7 +448,8 @@ export default function ReportsPage() {
           </div>
           <p className="text-xs text-slate-500">
             * GSTR-1 / GSTR-3B summary. Verify with your CA before filing.
-            Use the <strong className="text-slate-300">GSTR-1 JSON</strong> button above to download GST portal-ready JSON.
+            Use the <strong className="text-slate-300">GSTR-1 JSON</strong> button above to
+            download GST portal-ready JSON.
           </p>
         </div>
       )}
@@ -425,14 +457,10 @@ export default function ReportsPage() {
       {/* ════════ SHIFTS TAB ════════ */}
       {tab === 'shifts' && (
         <div className="space-y-4">
-          {/* Summary cards */}
           {shiftReport?.length > 0 && (
             <div className="grid grid-cols-3 gap-4">
               {[
-                {
-                  label: 'Total Shifts',
-                  value: shiftReport.length,
-                },
+                { label: 'Total Shifts',  value: shiftReport.length },
                 {
                   label: 'Total Revenue',
                   value: fmt(shiftReport.reduce((s: number, r: any) => s + Number(r.total_sales || 0), 0)),
@@ -470,10 +498,13 @@ export default function ReportsPage() {
               <tbody>
                 {shiftReport?.map((s: any) => (
                   <>
-                    <tr key={s.shift_id} className="table-row cursor-pointer"
+                    <tr
+                      key={s.shift_id}
+                      className="table-row cursor-pointer"
                       onClick={() => setExpandedShift(
                         expandedShift === s.shift_id ? null : s.shift_id,
-                      )}>
+                      )}
+                    >
                       <td className="td font-medium text-amber-400">{s.shift_number}</td>
                       <td className="td">{s.cashier_name?.trim() || '—'}</td>
                       <td className="td text-slate-400">
@@ -506,7 +537,6 @@ export default function ReportsPage() {
                       </td>
                     </tr>
 
-                    {/* Expanded row — GST breakdown */}
                     {expandedShift === s.shift_id && (
                       <tr key={`${s.shift_id}-expanded`} className="bg-slate-800/30">
                         <td colSpan={11} className="px-6 py-3">
@@ -578,10 +608,7 @@ export default function ReportsPage() {
           {waiterReport?.length > 0 && (
             <div className="grid grid-cols-3 gap-4">
               {[
-                {
-                  label: 'Active Waiters',
-                  value: waiterReport.length,
-                },
+                { label: 'Active Waiters', value: waiterReport.length },
                 {
                   label: 'Total Revenue',
                   value: fmt(waiterReport.reduce((s: number, r: any) => s + Number(r.total_revenue || 0), 0)),
