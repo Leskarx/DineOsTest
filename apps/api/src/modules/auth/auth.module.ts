@@ -13,6 +13,7 @@ import { Plan } from '../subscriptions/entities/plan.entity';
 import { Subscription } from '../subscriptions/entities/subscription.entity';
 import { Branch } from '../branches/entities/branch.entity';
 import { PasswordResetToken } from './entities/password-reset-token.entity';
+import { GstRate } from '../billing/entities/gst-rate.entity';
 
 @Module({
   imports: [
@@ -24,7 +25,15 @@ import { PasswordResetToken } from './entities/password-reset-token.entity';
         signOptions: { expiresIn: cfg.get('JWT_EXPIRY', '15m') },
       }),
     }),
-    TypeOrmModule.forFeature([User, Tenant, Plan, Subscription, Branch, PasswordResetToken]),
+    TypeOrmModule.forFeature([
+      User,
+      Tenant,
+      Plan,
+      Subscription,
+      Branch,
+      PasswordResetToken,
+      GstRate,
+    ]),
   ],
   providers: [AuthService, SessionService, JwtStrategy],
   controllers: [AuthController],
