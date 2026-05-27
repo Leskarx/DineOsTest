@@ -236,7 +236,7 @@ export class HotelService {
     ));
   }
 
-  async createReservation(tenantId: string, dto: CreateReservationDto, userId?: string) {
+  async createReservation(tenantId: string, branchId: string, dto: CreateReservationDto, userId?: string) {
     return this.dataSource.transaction(async (em) => {
       // 1. Resolve or create guest
       let guestId = dto.primaryGuestId;
@@ -277,7 +277,7 @@ export class HotelService {
       // 5. Create reservation
       const reservation = em.create(Reservation, {
         tenantId,
-        branchId: dto.branchId,
+        branchId,
         roomId: dto.roomId,
         primaryGuestId: guestId,
         numAdults: dto.numAdults ?? 1,

@@ -483,10 +483,10 @@ export default function ReservationsPage() {
       console.log('RESERVATIONS API:', d);
 
       // already correct shape
-      if (d?.data && Array.isArray(d.data)) {
+      if (d?.data?.data && Array.isArray(d.data.data)) {
         return {
-          data: d.data,
-          total: Number(d.total ?? d.data.length),
+          data: d.data.data,
+          total: Number(d.data.total ?? d.data.data.length),
         };
       }
 
