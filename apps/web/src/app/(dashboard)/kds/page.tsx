@@ -59,6 +59,7 @@ interface KDSItem {
   order_type?: string;
   table_name?: string;
   created_at: string;
+  kds_ready_at?: string;
 }
 
 function matchesStation(item: KDSItem, stationId: StationId): boolean {
@@ -70,19 +71,24 @@ function matchesStation(item: KDSItem, stationId: StationId): boolean {
 }
 
 // ─── Live timer ───────────────────────────────────────────────────────────────
-function useAgeSeconds(createdAt: string): number {
-  const [age, setAge] = useState(() =>
-    Math.floor((Date.now() - new Date(createdAt).getTime()) / 1000),
-  );
+function useAgeSeconds(createdAt: string, readyAt?: string | null): number {
+  const [age, setAge] = useState(() => {
+    if (readyAt) return Math.floor((new Date(readyAt).getTime() - new Date(createdAt).getTime()) / 1000);
+    return Math.floor((Date.now() - new Date(createdAt).getTime()) / 1000);
+  });
 
   useEffect(() => {
+    if (readyAt) {
+      setAge(Math.floor((new Date(readyAt).getTime() - new Date(createdAt).getTime()) / 1000));
+      return;
+    }
     const interval = setInterval(() => {
       setAge(Math.floor((Date.now() - new Date(createdAt).getTime()) / 1000));
     }, 1000);
     return () => clearInterval(interval);
-  }, [createdAt]);
+  }, [createdAt, readyAt]);
 
-  return age;
+  return Math.max(0, age);
 }
 
 function formatAge(seconds: number): string {
@@ -115,12 +121,20 @@ function TicketCard({
     (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
   )[0];
 
-  const ageSeconds = useAgeSeconds(oldest?.created_at || new Date().toISOString());
-  const isUrgent   = ageSeconds > URGENT_SECS;
-
   const allReady     = tickets.every((t) => t.kds_status === 'ready');
   const anyPending   = tickets.some((t) => t.kds_status === 'pending');
   const anyPreparing = tickets.some((t) => t.kds_status === 'preparing' || t.kds_status === 'acknowledged');
+
+  let latestReadyAt = null;
+  if (allReady) {
+    const sortedReady = [...tickets].filter(t => t.kds_ready_at).sort(
+      (a, b) => new Date(b.kds_ready_at!).getTime() - new Date(a.kds_ready_at!).getTime()
+    );
+    if (sortedReady.length > 0) latestReadyAt = sortedReady[0].kds_ready_at;
+  }
+
+  const ageSeconds = useAgeSeconds(oldest?.created_at || new Date().toISOString(), latestReadyAt);
+  const isUrgent   = !allReady && ageSeconds > URGENT_SECS;
 
   return (
     <div
@@ -206,19 +220,10 @@ function TicketCard({
       {/* Footer */}
       <div className="p-4 border-t border-slate-700 bg-slate-900/70">
         {allReady ? (
-          <button
-            onClick={() => {
-              const ids = tickets.map((t) => t.order_item_id);
-              onBump(ids);
-            }}
-            disabled={isBumping}
-            className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 transition-all text-white font-bold py-2.5 px-3 text-sm disabled:opacity-50"
-          >
-            {isBumping
-              ? <Loader2 size={15} className="animate-spin" />
-              : <CheckCircle size={15} />}
-            Done — Bump
-          </button>
+          <div className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-semibold py-2.5 px-3 text-sm">
+            <CheckCircle size={15} />
+            Ready for Service
+          </div>
         ) : (
           <div className={cn('grid gap-3', anyPending && anyPreparing ? 'grid-cols-2' : 'grid-cols-1')}>
             {anyPending && (
@@ -443,23 +448,7 @@ export default function KdsPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          {readyCount > 0 && (
-            <button
-              onClick={() => {
-                const ids = filtered
-                  .filter((i: KDSItem) => i.kds_status === 'ready')
-                  .map((i: KDSItem) => i.order_item_id);
-                bump(ids);
-              }}
-              disabled={bumping.size > 0}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition-colors disabled:opacity-50"
-            >
-              {bumping.size > 0
-                ? <Loader2 size={12} className="animate-spin" />
-                : <CheckCircle size={12} />}
-              Bump All ({readyCount})
-            </button>
-          )}
+
           <button
             onClick={() => setSoundOn((s) => !s)}
             className={cn(

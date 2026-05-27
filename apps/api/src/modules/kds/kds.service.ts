@@ -31,6 +31,7 @@ export class KdsService {
         oi.notes,
         oi.kds_status,
         oi.created_at,
+        oi.kds_ready_at,
         oi.menu_item_id,
         o.id                     AS order_id,
         o.order_number           AS order_order_number,
@@ -49,7 +50,7 @@ export class KdsService {
         AND oi.is_voided = false
         AND COALESCE(oi.void_reason, '') <> $3
         AND o.status NOT IN ('cancelled', 'billed', 'void')
-      ORDER BY oi.created_at ASC
+      ORDER BY oi.created_at DESC
     `, [branchId, tenantId, KDS_BUMPED_MARKER]);
   }
 
