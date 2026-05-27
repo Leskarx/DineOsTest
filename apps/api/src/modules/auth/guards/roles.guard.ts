@@ -6,6 +6,8 @@ const ROLE_HIERARCHY: Record<string, number> = {
   superadmin: 100,
   owner: 90,
   manager: 70,
+  restaurant_manager: 60,
+  hotel_manager: 60,
   cashier: 50,
   waiter: 40,
   inventory: 35,

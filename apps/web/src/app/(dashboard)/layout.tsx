@@ -28,43 +28,43 @@ const navSections: NavSection[] = [
   {
     section: 'Restaurant',
     items: [
-      { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, exact: true, roles: ['owner', 'manager'] },
+      { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, exact: true, roles: ['owner', 'manager', 'restaurant_manager'] },
       { href: '/cashier', label: 'Home', icon: LayoutDashboard, exact: true, roles: ['cashier'] },
       { href: '/waiter', label: 'Home', icon: LayoutDashboard, exact: true, roles: ['waiter'] },
-      { href: '/pos', label: 'POS', icon: ShoppingCart, roles: ['owner', 'manager', 'cashier', 'waiter'] },
-      { href: '/kds', label: 'Kitchen Display', icon: Monitor, roles: ['owner', 'manager', 'kitchen'] },
-      { href: '/tables', label: 'Tables', icon: Layout, roles: ['owner', 'manager', 'cashier', 'waiter'] },
-      { href: '/menu', label: 'Menu', icon: BookOpen, roles: ['owner', 'manager'] },
-      { href: '/inventory', label: 'Inventory', icon: Package, roles: ['owner', 'manager', 'inventory'] },
-      { href: '/billing', label: 'Bills', icon: Receipt, roles: ['owner', 'manager', 'cashier'] },
-      { href: '/shifts', label: 'Shifts', icon: Clock, roles: ['owner', 'manager'] },
-      { href: '/reports', label: 'Reports', icon: BarChart3, roles: ['owner', 'manager'] },
+      { href: '/pos', label: 'POS', icon: ShoppingCart, roles: ['owner', 'manager', 'restaurant_manager', 'cashier', 'waiter'] },
+      { href: '/kds', label: 'Kitchen Display', icon: Monitor, roles: ['owner', 'manager', 'restaurant_manager', 'kitchen'] },
+      { href: '/tables', label: 'Tables', icon: Layout, roles: ['owner', 'manager', 'restaurant_manager', 'cashier', 'waiter'] },
+      { href: '/menu', label: 'Menu', icon: BookOpen, roles: ['owner', 'manager', 'restaurant_manager'] },
+      { href: '/inventory', label: 'Inventory', icon: Package, roles: ['owner', 'manager', 'restaurant_manager', 'inventory'] },
+      { href: '/billing', label: 'Bills', icon: Receipt, roles: ['owner', 'manager', 'restaurant_manager', 'cashier'] },
+      { href: '/shifts', label: 'Shifts', icon: Clock, roles: ['owner', 'manager', 'restaurant_manager'] },
+      { href: '/reports', label: 'Reports', icon: BarChart3, roles: ['owner', 'manager', 'restaurant_manager'] },
     ],
   },
   {
     section: 'Hotel',
     items: [
-      { href: '/hotel/dashboard', label: 'Dashboard', icon: BarChart3, roles: ['owner', 'manager'] },
-      { href: '/hotel', label: 'Front Desk', icon: Hotel, exact: true, roles: ['owner', 'manager', 'cashier', 'receptionist'] },
-      { href: '/hotel/reservations', label: 'Reservations', icon: CalendarDays, roles: ['owner', 'manager', 'receptionist'] },
+      { href: '/hotel/dashboard', label: 'Dashboard', icon: BarChart3, roles: ['owner', 'manager', 'hotel_manager'] },
+      { href: '/hotel', label: 'Front Desk', icon: Hotel, exact: true, roles: ['owner', 'manager', 'hotel_manager', 'cashier', 'receptionist'] },
+      { href: '/hotel/reservations', label: 'Reservations', icon: CalendarDays, roles: ['owner', 'manager', 'hotel_manager', 'receptionist'] },
       {
         href: '/hotel/rooms',
         label: 'Rooms',
         icon: BedDouble,
-        roles: ['owner', 'manager']
+        roles: ['owner', 'manager', 'hotel_manager']
       },
-      { href: '/hotel/housekeeping', label: 'Housekeeping', icon: SprayCan, roles: ['owner', 'manager', 'housekeeping', 'receptionist'] },
+      { href: '/hotel/housekeeping', label: 'Housekeeping', icon: SprayCan, roles: ['owner', 'manager', 'hotel_manager', 'housekeeping', 'receptionist'] },
     
-      { href: '/hotel/billing', label: 'Billing', icon: Receipt, roles: ['owner', 'manager', 'cashier'] },
+      { href: '/hotel/billing', label: 'Billing', icon: Receipt, roles: ['owner', 'manager', 'hotel_manager', 'cashier'] },
     ],
   },
   {
     section: 'Admin',
     items: [
-      { href: '/employees', label: 'Employees', icon: Users, roles: ['owner', 'manager'] },
+      { href: '/employees', label: 'Employees', icon: Users, roles: ['owner', 'manager', 'restaurant_manager', 'hotel_manager'] },
       { href: '/branches', label: 'Branches', icon: Building2, roles: ['owner'] },
       { href: '/audit', label: 'Audit Log', icon: Shield, roles: ['owner'] },
-      { href: '/settings', label: 'Settings', icon: Settings, roles: ['owner', 'manager'] },
+      { href: '/settings', label: 'Settings', icon: Settings, roles: ['owner', 'manager', 'restaurant_manager', 'hotel_manager'] },
     ],
   },
 ];
@@ -160,6 +160,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </nav>
 
         <div className="p-3 border-t border-slate-800 space-y-2">
+          <div className="flex items-center gap-2 px-2 py-2 bg-slate-800/40 rounded-lg border border-slate-700/50">
+            <div className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
+              {user?.firstName?.[0]}{user?.lastName?.[0]}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-medium text-white truncate">{user?.firstName} {user?.lastName}</div>
+              <div className="text-[10px] text-amber-400/90 capitalize truncate font-semibold">
+                {user?.role === 'manager' ? 'Branch Manager' : user?.role?.replace('_', ' ')}
+              </div>
+            </div>
+          </div>
+
           <div className={cn('flex items-center gap-2 text-xs px-2 py-1 rounded', isOnline ? 'text-emerald-400' : 'text-amber-400')}>
             {isOnline ? <Wifi size={12} /> : <WifiOff size={12} />}
             <span>{isOnline ? 'Online' : 'Offline — syncing queued'}</span>

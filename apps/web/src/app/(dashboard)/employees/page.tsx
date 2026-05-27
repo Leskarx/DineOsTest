@@ -17,32 +17,46 @@ const DEPARTMENT_LABELS: Record<Department, string> = {
 };
 
 const ROLES_BY_DEPARTMENT: Record<Department, string[]> = {
-  restaurant: ['manager', 'cashier', 'waiter', 'kitchen', 'inventory'],
-  hotel: ['manager', 'receptionist', 'housekeeping'],
-  both: ['owner', 'manager', 'cashier', 'waiter', 'kitchen', 'inventory', 'receptionist', 'housekeeping'],
+  restaurant: ['restaurant_manager', 'cashier', 'waiter', 'kitchen', 'inventory'],
+  hotel: ['hotel_manager', 'receptionist', 'housekeeping'],
+  both: ['owner', 'manager'],
 };
 
 const ROLE_COLORS: Record<string, string> = {
-  owner: 'badge-yellow', manager: 'badge-blue', cashier: 'badge-green',
-  waiter: 'badge-slate', kitchen: 'badge-red', inventory: 'badge-slate',
-  housekeeping: 'badge-blue', receptionist: 'badge-purple',
+  owner: 'badge-yellow', manager: 'badge-blue', 
+  restaurant_manager: 'badge-blue', hotel_manager: 'badge-blue',
+  cashier: 'badge-green', waiter: 'badge-slate', kitchen: 'badge-red', 
+  inventory: 'badge-slate', housekeeping: 'badge-blue', receptionist: 'badge-purple',
 };
 
 const ROLE_DEPARTMENT: Record<string, string> = {
   owner: 'Both', manager: 'Both',
+  restaurant_manager: 'Restaurant', hotel_manager: 'Hotel',
   cashier: 'Restaurant', waiter: 'Restaurant', kitchen: 'Restaurant', inventory: 'Restaurant',
   receptionist: 'Hotel', housekeeping: 'Hotel',
 };
 
 function detectDepartment(role: string): Department {
-  if (['cashier', 'waiter', 'kitchen', 'inventory'].includes(role)) return 'restaurant';
-  if (['receptionist', 'housekeeping'].includes(role)) return 'hotel';
+  if (['restaurant_manager', 'cashier', 'waiter', 'kitchen', 'inventory'].includes(role)) return 'restaurant';
+  if (['hotel_manager', 'receptionist', 'housekeeping'].includes(role)) return 'hotel';
   return 'both';
+}
+
+function getAvailableRoles(dept: Department, userRole?: string): string[] {
+  return ROLES_BY_DEPARTMENT[dept].filter(r => {
+    if (userRole === 'owner') return true;
+    if (userRole === 'manager') return !['owner', 'manager'].includes(r);
+    // Dept managers can only create staff, no managers
+    if (['restaurant_manager', 'hotel_manager'].includes(userRole || '')) {
+      return !['owner', 'manager', 'restaurant_manager', 'hotel_manager'].includes(r);
+    }
+    return false;
+  });
 }
 
 export default function EmployeesPage() {
   const qc = useQueryClient();
-  const { user } = useAuthStore();
+  const { user, branchId } = useAuthStore();
   const [showForm, setShowForm] = useState(false);
   const [editUser, setEditUser] = useState<any>(null);
   const [department, setDepartment] = useState<Department>('restaurant');
@@ -96,17 +110,20 @@ export default function EmployeesPage() {
   // When department changes, reset role to first available role in that department
   const handleDepartmentChange = (dept: Department) => {
     setDepartment(dept);
-    const availableRoles = ROLES_BY_DEPARTMENT[dept].filter(r =>
-      user?.role === 'owner' ? true : !['owner', 'manager'].includes(r)
-    );
-    if (availableRoles.length > 0 && !ROLES_BY_DEPARTMENT[dept].includes(form.role)) {
+    const availableRoles = getAvailableRoles(dept, user?.role);
+    if (availableRoles.length > 0 && !getAvailableRoles(dept, user?.role).includes(form.role)) {
       setForm({ ...form, role: availableRoles[0] });
     }
   };
 
-  const filteredRoles = ROLES_BY_DEPARTMENT[department].filter(r =>
-    user?.role === 'owner' ? true : !['owner', 'manager'].includes(r)
-  );
+  const filteredRoles = getAvailableRoles(department, user?.role);
+
+  const availableDepartments = (Object.keys(DEPARTMENT_LABELS) as Department[]).filter(dept => {
+    if (user?.role === 'owner' || user?.role === 'manager') return true;
+    if (user?.role === 'restaurant_manager') return dept === 'restaurant';
+    if (user?.role === 'hotel_manager') return dept === 'hotel';
+    return false;
+  });
 
   return (
     <div className="p-6 space-y-6">
@@ -162,7 +179,7 @@ export default function EmployeesPage() {
             <div>
               <label className="label">Department *</label>
               <div className="flex gap-2">
-                {(Object.keys(DEPARTMENT_LABELS) as Department[]).map((dept) => (
+                {availableDepartments.map((dept) => (
                   <button
                     key={dept}
                     type="button"
@@ -188,17 +205,33 @@ export default function EmployeesPage() {
               <div>
                 <label className="label">Role *</label>
                 <select className="input" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
-                  {filteredRoles.map((r) => <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
+                  {filteredRoles.map((r) => {
+                    const label = r === 'manager' ? 'Branch Manager' 
+                                : r === 'restaurant_manager' ? 'Restaurant Manager'
+                                : r === 'hotel_manager' ? 'Hotel Manager'
+                                : r.charAt(0).toUpperCase() + r.slice(1);
+                    return <option key={r} value={r}>{label}</option>
+                  })}
                 </select>
               </div>
               <div><label className="label">Employee Code</label><input className="input" value={form.employeeCode} onChange={(e) => setForm({ ...form, employeeCode: e.target.value })} /></div>
-              {user?.role === 'owner' && (
+              {user?.role === 'owner' && !branchId && form.role !== 'owner' && (
                 <div>
                   <label className="label">Assign Branch</label>
                   <select className="input" value={form.branchId} onChange={(e) => setForm({ ...form, branchId: e.target.value })}>
-                    <option value="">Current Branch (Default)</option>
+                    <option value="">Select Branch (Global Mode)</option>
                     {branches?.map((b: any) => <option key={b.id} value={b.id}>{b.name}</option>)}
                   </select>
+                </div>
+              )}
+              {user?.role === 'owner' && branchId && form.role !== 'owner' && (
+                <div className="col-span-2 mt-2 text-xs text-amber-400 bg-amber-400/10 p-2.5 rounded-lg border border-amber-400/20">
+                  This employee will be automatically assigned to your currently selected branch. Switch to "All Branches" to assign to a different location.
+                </div>
+              )}
+              {form.role === 'owner' && (
+                <div className="col-span-2 mt-2 text-xs text-blue-400 bg-blue-400/10 p-2.5 rounded-lg border border-blue-400/20">
+                  Owners have global system access and are not restricted to any specific branch.
                 </div>
               )}
               {!editUser && <div><label className="label">Password *</label><input className="input" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></div>}
