@@ -7,6 +7,8 @@ export enum UserRole {
   SUPERADMIN = 'superadmin',
   OWNER = 'owner',
   MANAGER = 'manager',
+  RESTAURANT_MANAGER = 'restaurant_manager',
+  HOTEL_MANAGER = 'hotel_manager',
   CASHIER = 'cashier',
   WAITER = 'waiter',
   KITCHEN = 'kitchen',
