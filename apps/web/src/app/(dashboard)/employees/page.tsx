@@ -25,7 +25,26 @@ export default function EmployeesPage() {
   const { data: users } = useQuery({ queryKey: ['users'], queryFn: () => apiFetch('/api/v1/users').then((r) => r.data) });
 
   const saveMutation = useMutation({
-    mutationFn: () => editUser ? apiPut(`/api/v1/users/${editUser.id}`, form) : apiPost('/api/v1/users', form),
+    mutationFn: () => {
+      const payload: any = {
+        firstName: form.firstName,
+        lastName: form.lastName,
+        email: form.email,
+        phone: form.phone,
+        role: form.role,
+        pin: form.pin,
+        employeeCode: form.employeeCode,
+      };
+
+      // Only send password when creating or changing password
+      if (form.password) {
+        payload.password = form.password;
+      }
+
+      return editUser
+        ? apiPut(`/api/v1/users/${editUser.id}`, payload)
+        : apiPost('/api/v1/users', payload);
+    },
     onSuccess: () => { toast.success('Employee saved'); qc.invalidateQueries({ queryKey: ['users'] }); setShowForm(false); setEditUser(null); setForm({ firstName: '', lastName: '', email: '', phone: '', role: 'cashier', password: '', pin: '', employeeCode: '' }); },
     onError: (e: any) => toast.error(e.response?.data?.message || 'Failed'),
   });
