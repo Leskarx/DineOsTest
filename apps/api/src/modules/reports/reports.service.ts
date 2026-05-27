@@ -123,14 +123,14 @@ export class ReportsService {
       await Promise.all([
         this.db.query(`
           SELECT COALESCE(SUM(grand_total),0) AS today_sales, COUNT(*) AS today_bills
-          FROM bills WHERE branch_id=$1 AND tenant_id=$2
+          FROM bills WHERE branch_id=$1 AND tenant_id=$2 AND source='pos'
           AND status NOT IN ('void','refunded')
           AND DATE(created_at AT TIME ZONE 'Asia/Kolkata')=$3
         `, [branchId, tenantId, today]),
 
         this.db.query(`
           SELECT COALESCE(SUM(grand_total),0) AS week_sales
-          FROM bills WHERE branch_id=$1 AND tenant_id=$2
+          FROM bills WHERE branch_id=$1 AND tenant_id=$2 AND source='pos'
           AND status NOT IN ('void','refunded')
           AND created_at >= NOW() - INTERVAL '7 days'
         `, [branchId, tenantId]),
@@ -229,5 +229,82 @@ export class ReportsService {
       GROUP BY DATE_TRUNC('month', issued_at AT TIME ZONE 'Asia/Kolkata')
       ORDER BY month
     `, [branchId, tenantId, from, to]);
+  }
+
+  async getHotelDashboardSummary(branchId: string, tenantId: string) {
+    const today = new Date().toISOString().slice(0, 10);
+    const [todaySales, weekSales, todayCheckins, todayCheckouts, roomsData, weeklyChart] = await Promise.all([
+      // Today's Hotel Sales
+      this.db.query(`
+        SELECT COALESCE(SUM(grand_total),0) AS revenue, COUNT(*) AS count
+        FROM bills WHERE branch_id=$1 AND tenant_id=$2 AND source='hotel'
+        AND status NOT IN ('void','refunded')
+        AND DATE(created_at AT TIME ZONE 'Asia/Kolkata')=$3
+      `, [branchId, tenantId, today]),
+
+      // This Week's Hotel Sales
+      this.db.query(`
+        SELECT COALESCE(SUM(grand_total),0) AS revenue
+        FROM bills WHERE branch_id=$1 AND tenant_id=$2 AND source='hotel'
+        AND status NOT IN ('void','refunded')
+        AND created_at >= NOW() - INTERVAL '7 days'
+      `, [branchId, tenantId]),
+
+      // Today's Check-ins
+      this.db.query(`
+        SELECT COUNT(*) AS count
+        FROM hotel_reservations WHERE branch_id=$1 AND tenant_id=$2
+        AND check_in_date=$3 AND status NOT IN ('cancelled', 'no_show')
+      `, [branchId, tenantId, today]),
+
+      // Today's Check-outs
+      this.db.query(`
+        SELECT COUNT(*) AS count
+        FROM hotel_reservations WHERE branch_id=$1 AND tenant_id=$2
+        AND check_out_date=$3 AND status NOT IN ('cancelled', 'no_show')
+      `, [branchId, tenantId, today]),
+
+      // Occupancy (Rooms sold vs Total rooms)
+      this.db.query(`
+        SELECT 
+          (SELECT COUNT(*) FROM hotel_rooms WHERE branch_id=$1 AND tenant_id=$2 AND status != 'out_of_order') as total_rooms,
+          (SELECT COUNT(*) FROM hotel_reservations WHERE branch_id=$1 AND tenant_id=$2 AND status IN ('checked_in')) as occupied_rooms
+      `, [branchId, tenantId]),
+
+      // Weekly Revenue Chart (last 7 days grouped by date)
+      this.db.query(`
+        SELECT 
+          TO_CHAR(date_trunc('day', created_at AT TIME ZONE 'Asia/Kolkata'), 'Mon DD') AS date,
+          COALESCE(SUM(grand_total), 0) AS revenue
+        FROM bills
+        WHERE branch_id=$1 AND tenant_id=$2 AND source='hotel'
+        AND status NOT IN ('void','refunded')
+        AND created_at >= NOW() - INTERVAL '7 days'
+        GROUP BY date_trunc('day', created_at AT TIME ZONE 'Asia/Kolkata')
+        ORDER BY date_trunc('day', created_at AT TIME ZONE 'Asia/Kolkata') ASC
+      `, [branchId, tenantId])
+    ]);
+
+    const totalRooms = Number(roomsData[0]?.total_rooms || 0);
+    const occupiedRooms = Number(roomsData[0]?.occupied_rooms || 0);
+    const occupancyRate = totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 100) : 0;
+    
+    // ADR (Average Daily Rate) = Today's Revenue / Occupied Rooms
+    const todayRev = Number(todaySales[0]?.revenue || 0);
+    const adr = occupiedRooms > 0 ? todayRev / occupiedRooms : 0;
+
+    return {
+      todaySales: todayRev,
+      todayBills: Number(todaySales[0]?.count || 0),
+      weekSales: Number(weekSales[0]?.revenue || 0),
+      todayCheckins: Number(todayCheckins[0]?.count || 0),
+      todayCheckouts: Number(todayCheckouts[0]?.count || 0),
+      occupancyRate,
+      adr: Math.round(adr),
+      weeklyChart: weeklyChart.map((r: any) => ({
+        date: r.date,
+        revenue: Number(r.revenue || 0)
+      }))
+    };
   }
 }

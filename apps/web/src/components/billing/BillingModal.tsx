@@ -21,9 +21,16 @@ const PAYMENT_METHODS: { id: PayMethod; label: string; icon: string }[] = [
   { id: 'complimentary', label: 'Comp',   icon: '🎁' },
 ];
 
-// ← Round to 2 decimal places safely
 function round2(n: number): number {
-  return Math.round((n + Number.EPSILON) * 100) / 100;
+  return Math.round((Number(n || 0) + Number.EPSILON) * 100) / 100;
+}
+
+function nearestRupee(n: number): number {
+  return Math.round(round2(n));
+}
+
+function formatInputAmount(n: number): string {
+  return Number.isInteger(n) ? String(n) : n.toFixed(2);
 }
 
 interface Props {
@@ -37,40 +44,50 @@ interface Props {
 }
 
 export function BillingModal({
-  shiftId, grandTotal: rawGrandTotal, subtotal: rawSubtotal, gstTotal: rawGstTotal,
-  orderId, onClose, onSuccess,
+  shiftId,
+  grandTotal: rawGrandTotal,
+  subtotal: rawSubtotal,
+  gstTotal: rawGstTotal,
+  orderId,
+  onClose,
+  onSuccess,
 }: Props) {
   const { branchId, tenantId } = useAuthStore();
   const { cart, orderType, tableId, tableName, discountAmount, discountPercent } = usePosStore();
 
-  // ← Round all incoming values
-  const grandTotal = round2(rawGrandTotal);
-  const subtotal   = round2(rawSubtotal);
-  const gstTotal   = round2(rawGstTotal);
+  // Exact amounts from POS
+  const exactGrandTotal = round2(rawGrandTotal);
+  const subtotal = round2(rawSubtotal);
+  const gstTotal = round2(rawGstTotal);
 
-  const [method, setMethod]               = useState<PayMethod>('cash');
-  const [cashEntered, setCashEntered]     = useState(Math.ceil(grandTotal).toString());
-  const [customerName, setCustomerName]   = useState('');
+  // Default billing behavior: nearest rupee
+  const defaultPayable = nearestRupee(exactGrandTotal);
+  const defaultRoundOff = round2(defaultPayable - exactGrandTotal);
+
+  const [method, setMethod] = useState<PayMethod>('cash');
+  const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerGstin, setCustomerGstin] = useState('');
   const [splitPayments, setSplitPayments] = useState<Array<{ method: PayMethod; amount: number }>>([]);
-  const [isSplit, setIsSplit]             = useState(false);
-  const [billed, setBilled]               = useState(false);
-  const [billData, setBillData]           = useState<any>(null);
+  const [isSplit, setIsSplit] = useState(false);
+  const [billed, setBilled] = useState(false);
+  const [billData, setBillData] = useState<any>(null);
 
-  // ← This will be updated to server total after order creation
-  const [finalTotal, setFinalTotal]       = useState(grandTotal);
-  // ← Track if user manually edited the charge amount
+  // Bill amount cashier will charge
+  const [finalTotal, setFinalTotal] = useState<number>(defaultPayable);
   const [manualOverride, setManualOverride] = useState(false);
 
-  const cashAmount = parseFloat(cashEntered) || 0;
-  const change     = round2(cashAmount - finalTotal);
+  // Cash tendered defaults to payable amount, not ceil()
+  const [cashEntered, setCashEntered] = useState<string>(formatInputAmount(defaultPayable));
+
+  const cashAmount = round2(parseFloat(cashEntered) || 0);
+  const change = round2(cashAmount - finalTotal);
 
   const billMutation = useMutation({
     mutationFn: async () => {
       let oid = orderId;
 
-      // 1. Create order if none exists
+      // 1. Create order if needed
       if (!oid) {
         const orderRes = await apiPost('/api/v1/orders', {
           type: orderType,
@@ -85,7 +102,7 @@ export function BillingModal({
         oid = orderRes.data.id;
       }
 
-      // 2. Apply discount and wait for server to recalculate
+      // 2. Apply discount before billing
       if ((discountPercent > 0 || discountAmount > 0) && oid) {
         await apiPatch(`/api/v1/orders/${oid}/discount`, {
           discountPercent,
@@ -93,26 +110,37 @@ export function BillingModal({
         });
       }
 
-      // 3. Fetch the server-confirmed total AFTER order+discount
+      // 3. Fetch server-confirmed total
       const orderRes = await apiFetch(`/api/v1/orders/${oid}`);
-      const serverTotal = round2(Number(orderRes.data.grandTotal));
+      const serverGrandTotal = round2(Number(orderRes.data.grandTotal));
 
-      // 4. Determine the bill amount
-      //    If cashier manually overrode the amount, respect that
-      //    Otherwise use the server-calculated total
-      const billAmount = manualOverride ? finalTotal : serverTotal;
+      // 4. Use cashier override if manually changed, else use server total
+      const billAmount = manualOverride ? round2(finalTotal) : serverGrandTotal;
 
-      // Update displayed total to match what we're actually billing
+      // Keep UI in sync with actual billed amount
       setFinalTotal(billAmount);
 
-      // 5. Build payments using the bill amount
-      const paymentAmount = method === 'cash'
-        ? Math.max(cashAmount, billAmount)  // cash must cover at least the bill
-        : billAmount;
+      // If cashier didn’t manually touch cash amount, keep it aligned too
+      if (!manualOverride && method === 'cash') {
+        setCashEntered(formatInputAmount(billAmount));
+      }
 
+      // 5. Payments
       const payments = isSplit
         ? splitPayments
-        : [{ method, amount: round2(paymentAmount) }];
+        : [
+            {
+              method,
+              amount: method === 'cash' ? round2(parseFloat(cashEntered) || 0) : billAmount,
+            },
+          ];
+
+      const totalPaid = payments.reduce((s, p) => s + Number(p.amount || 0), 0);
+      if (totalPaid < billAmount - 0.01) {
+        throw new Error(
+          `Payment ₹${round2(totalPaid).toFixed(2)} is less than bill amount ₹${billAmount.toFixed(2)}. Please adjust.`
+        );
+      }
 
       // 6. Create bill
       const res = await apiPost('/api/v1/billing/bills', {
@@ -120,17 +148,17 @@ export function BillingModal({
         branchId,
         tenantId,
         shiftId: shiftId || undefined,
-        customerName:  customerName  || undefined,
+        customerName: customerName || undefined,
         customerPhone: customerPhone || undefined,
         customerGstin: customerGstin || undefined,
         payments,
       });
 
-      return { ...res.data, serverTotal };
+      return { ...res.data, serverGrandTotal: billAmount };
     },
     onSuccess: (data) => {
       setBillData(data);
-      setFinalTotal(data.serverTotal);
+      setFinalTotal(round2(data.serverGrandTotal));
       setBilled(true);
       toast.success('Bill created successfully!');
     },
@@ -145,27 +173,27 @@ export function BillingModal({
     try {
       printHtml({
         restaurantName: 'Dine&Stay Restaurant',
-        billNumber:     billData.billNumber,
-        invoiceDate:    new Date().toLocaleString('en-IN'),
-        tableName:      tableName || undefined,
+        billNumber: billData.billNumber,
+        invoiceDate: new Date().toLocaleString('en-IN'),
+        tableName: tableName || undefined,
         orderType,
-        customerName:   customerName || undefined,
-        customerGstin:  customerGstin || undefined,
+        customerName: customerName || undefined,
+        customerGstin: customerGstin || undefined,
         items: cart.map((i: any) => ({
-          name:   i.name,
-          qty:    i.qty,
-          rate:   i.price,
+          name: i.name,
+          qty: i.qty,
+          rate: round2(i.price),
           amount: round2(i.price * i.qty),
         })),
         subtotal,
         discountAmount: round2(discountAmount),
-        totalTax:   gstTotal,
-        grandTotal: finalTotal,
+        totalTax: gstTotal,
+        grandTotal: round2(finalTotal),
         payments: isSplit
           ? splitPayments
-          : [{ method, amount: method === 'cash' ? cashAmount : finalTotal }],
-        changeAmount: method === 'cash' && !isSplit ? Math.max(0, change) : 0,
-        gstSummary:  billData.gstSummary,
+          : [{ method, amount: method === 'cash' ? cashAmount : round2(finalTotal) }],
+        changeAmount: method === 'cash' && !isSplit ? Math.max(0, round2(change)) : 0,
+        gstSummary: billData.gstSummary,
       });
     } catch (err) {
       console.error('Print failed:', err);
@@ -182,62 +210,77 @@ export function BillingModal({
           <h2 className="text-lg font-bold text-white">
             {billed ? 'Bill Generated ✓' : 'Generate Bill'}
           </h2>
-          <button onClick={onClose} className="btn-ghost p-1"><X size={18} /></button>
+          <button onClick={onClose} className="btn-ghost p-1">
+            <X size={18} />
+          </button>
         </div>
 
-        {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto">
           {billed ? (
-            /* ── Success ── */
             <div className="p-6 space-y-4">
               <div className="flex flex-col items-center gap-3 py-4">
                 <CheckCircle size={48} className="text-emerald-400" />
                 <div className="text-center">
-                  <div className="text-white font-bold text-xl">₹{finalTotal.toFixed(2)}</div>
+                  <div className="text-white font-bold text-xl">₹{round2(finalTotal).toFixed(2)}</div>
                   <div className="text-slate-400 text-sm">Bill #{billData?.billNumber}</div>
                   {method === 'cash' && change > 0 && (
                     <div className="mt-2 text-amber-400 font-semibold text-lg">
-                      Change: ₹{change.toFixed(2)}
+                      Change: ₹{round2(change).toFixed(2)}
                     </div>
                   )}
                 </div>
                 <div className="text-xs text-slate-500 text-center">
-                  {amountInWords(finalTotal)}
+                  {amountInWords(round2(finalTotal))}
                 </div>
               </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <button onClick={handlePrint} className="btn-secondary">
                   <Printer size={14} /> Print Receipt
                 </button>
-                <button onClick={onSuccess} className="btn-primary">Done</button>
+                <button onClick={onSuccess} className="btn-primary">
+                  Done
+                </button>
               </div>
             </div>
           ) : (
-            /* ── Form ── */
             <div className="p-6 space-y-5">
 
               {/* Summary */}
               <div className="bg-slate-800 rounded-xl p-4 space-y-2 text-sm">
                 <div className="flex justify-between text-slate-400">
-                  <span>Subtotal</span><span>₹{subtotal.toFixed(2)}</span>
+                  <span>Subtotal</span>
+                  <span>₹{subtotal.toFixed(2)}</span>
                 </div>
+
                 {discountAmount > 0 && (
                   <div className="flex justify-between text-emerald-400">
                     <span>Discount ({discountPercent}%)</span>
                     <span>-₹{round2(discountAmount).toFixed(2)}</span>
                   </div>
                 )}
+
                 <div className="flex justify-between text-slate-400">
-                  <span>GST</span><span>₹{gstTotal.toFixed(2)}</span>
+                  <span>GST</span>
+                  <span>₹{gstTotal.toFixed(2)}</span>
                 </div>
+
+                {defaultRoundOff !== 0 && !manualOverride && (
+                  <div className="flex justify-between text-slate-400">
+                    <span>Round Off</span>
+                    <span>{defaultRoundOff > 0 ? '+' : ''}₹{Math.abs(defaultRoundOff).toFixed(2)}</span>
+                  </div>
+                )}
+
                 <div className="flex justify-between text-white font-bold text-base border-t border-slate-700 pt-2">
                   <span>Grand Total</span>
-                  <span>₹{grandTotal.toFixed(2)}</span>
+                  <span>₹{round2(finalTotal).toFixed(2)}</span>
                 </div>
-                {manualOverride && Math.abs(finalTotal - grandTotal) > 0.01 && (
+
+                {manualOverride && Math.abs(finalTotal - defaultPayable) > 0.01 && (
                   <div className="flex justify-between text-amber-400 text-xs">
                     <span>Adjusted Total</span>
-                    <span>₹{finalTotal.toFixed(2)}</span>
+                    <span>₹{round2(finalTotal).toFixed(2)}</span>
                   </div>
                 )}
               </div>
@@ -255,25 +298,26 @@ export function BillingModal({
                     type="number"
                     min={0}
                     step={0.01}
-                    value={round2(finalTotal)}
+                    value={formatInputAmount(finalTotal)}
                     onChange={(e) => {
                       const val = round2(parseFloat(e.target.value) || 0);
                       setFinalTotal(val);
                       setManualOverride(true);
-                      setCashEntered(Math.ceil(val).toString());
+                      setCashEntered(formatInputAmount(val));
                     }}
                   />
                 </div>
-                {manualOverride && Math.abs(finalTotal - grandTotal) > 0.01 && (
+
+                {manualOverride && (
                   <button
                     className="text-xs text-slate-500 hover:text-slate-300 mt-1"
                     onClick={() => {
-                      setFinalTotal(grandTotal);
+                      setFinalTotal(defaultPayable);
                       setManualOverride(false);
-                      setCashEntered(Math.ceil(grandTotal).toString());
+                      setCashEntered(formatInputAmount(defaultPayable));
                     }}
                   >
-                    Reset to ₹{grandTotal.toFixed(2)}
+                    Reset to ₹{defaultPayable.toFixed(2)}
                   </button>
                 )}
               </div>
@@ -282,18 +326,30 @@ export function BillingModal({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="label">Customer Name</label>
-                  <input className="input" placeholder="Optional"
-                    value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
+                  <input
+                    className="input"
+                    placeholder="Optional"
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                  />
                 </div>
                 <div>
                   <label className="label">Phone</label>
-                  <input className="input" placeholder="Optional"
-                    value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} />
+                  <input
+                    className="input"
+                    placeholder="Optional"
+                    value={customerPhone}
+                    onChange={(e) => setCustomerPhone(e.target.value)}
+                  />
                 </div>
                 <div className="col-span-2">
                   <label className="label">Customer GSTIN (for B2B)</label>
-                  <input className="input" placeholder="Optional — triggers IGST"
-                    value={customerGstin} onChange={(e) => setCustomerGstin(e.target.value)} />
+                  <input
+                    className="input"
+                    placeholder="Optional — triggers IGST"
+                    value={customerGstin}
+                    onChange={(e) => setCustomerGstin(e.target.value)}
+                  />
                 </div>
               </div>
 
@@ -301,22 +357,33 @@ export function BillingModal({
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="label mb-0">Payment Method</label>
-                  <button onClick={() => setIsSplit(!isSplit)}
-                    className={cn('text-xs px-2 py-1 rounded',
-                      isSplit ? 'bg-amber-500/20 text-amber-400' : 'text-slate-400 hover:text-white')}>
+                  <button
+                    onClick={() => setIsSplit(!isSplit)}
+                    className={cn(
+                      'text-xs px-2 py-1 rounded',
+                      isSplit
+                        ? 'bg-amber-500/20 text-amber-400'
+                        : 'text-slate-400 hover:text-white'
+                    )}
+                  >
                     Split Payment
                   </button>
                 </div>
+
                 <div className="grid grid-cols-3 gap-2">
                   {PAYMENT_METHODS.map((m) => (
-                    <button key={m.id} onClick={() => setMethod(m.id)}
+                    <button
+                      key={m.id}
+                      onClick={() => setMethod(m.id)}
                       className={cn(
                         'flex flex-col items-center gap-1 rounded-xl py-3 text-xs font-medium transition-all border',
                         method === m.id && !isSplit
                           ? 'border-amber-500 bg-amber-500/10 text-amber-400'
                           : 'border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-600',
-                      )}>
-                      <span className="text-lg">{m.icon}</span>{m.label}
+                      )}
+                    >
+                      <span className="text-lg">{m.icon}</span>
+                      {m.label}
                     </button>
                   ))}
                 </div>
@@ -326,23 +393,41 @@ export function BillingModal({
               {method === 'cash' && !isSplit && (
                 <div>
                   <label className="label">Cash Tendered</label>
-                  <input className="input text-lg font-bold" type="number"
-                    value={cashEntered} onChange={(e) => setCashEntered(e.target.value)} />
-                  {change >= 0
-                    ? <div className="mt-1 text-sm text-amber-400">Change: ₹{change.toFixed(2)}</div>
-                    : <div className="mt-1 text-sm text-red-400">Short by ₹{Math.abs(change).toFixed(2)}</div>}
+                  <input
+                    className="input text-lg font-bold"
+                    type="number"
+                    value={cashEntered}
+                    onChange={(e) => setCashEntered(e.target.value)}
+                  />
+
+                  {change >= 0 ? (
+                    <div className="mt-1 text-sm text-amber-400">
+                      Change: ₹{round2(change).toFixed(2)}
+                    </div>
+                  ) : (
+                    <div className="mt-1 text-sm text-red-400">
+                      Short by ₹{Math.abs(round2(change)).toFixed(2)}
+                    </div>
+                  )}
+
                   <div className="flex gap-2 mt-2 flex-wrap">
-                    {[finalTotal,
+                    {[
+                      round2(finalTotal),
                       Math.ceil(finalTotal / 10) * 10,
                       Math.ceil(finalTotal / 50) * 50,
                       Math.ceil(finalTotal / 100) * 100,
                       Math.ceil(finalTotal / 500) * 500,
-                    ].filter((v, i, arr) => arr.indexOf(v) === i).map((amt) => (
-                      <button key={amt} onClick={() => setCashEntered(amt.toString())}
-                        className="text-xs px-2 py-1 rounded bg-slate-700 hover:bg-slate-600 text-slate-300">
-                        ₹{amt}
-                      </button>
-                    ))}
+                    ]
+                      .filter((v, i, arr) => arr.indexOf(v) === i)
+                      .map((amt) => (
+                        <button
+                          key={amt}
+                          onClick={() => setCashEntered(formatInputAmount(amt))}
+                          className="text-xs px-2 py-1 rounded bg-slate-700 hover:bg-slate-600 text-slate-300"
+                        >
+                          ₹{amt}
+                        </button>
+                      ))}
                   </div>
                 </div>
               )}
@@ -350,7 +435,7 @@ export function BillingModal({
           )}
         </div>
 
-        {/* Fixed footer */}
+        {/* Footer */}
         {!billed && (
           <div className="px-6 pb-6 pt-2 border-t border-slate-800 flex-shrink-0">
             <button
@@ -363,7 +448,7 @@ export function BillingModal({
             >
               {billMutation.isPending
                 ? <><Loader2 size={16} className="animate-spin" /> Processing...</>
-                : `Collect ₹${finalTotal.toFixed(2)}`}
+                : `Collect ₹${round2(finalTotal).toFixed(2)}`}
             </button>
           </div>
         )}

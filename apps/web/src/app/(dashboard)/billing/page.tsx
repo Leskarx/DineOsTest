@@ -24,7 +24,7 @@ export default function BillingPage() {
   const { data: bills } = useQuery({
     queryKey: ['bills', from, to],
     // listBills now returns { data: Bill[], total, page, limit } — unwrap the inner array
-    queryFn: () => apiFetch(`/api/v1/billing/bills?from=${from}T00:00:00&to=${to}T23:59:59&limit=200`).then((r) => r.data?.data ?? r.data),
+    queryFn: () => apiFetch(`/api/v1/billing/bills?source=pos&from=${from}T00:00:00&to=${to}T23:59:59&limit=200`).then((r) => r.data?.data ?? r.data),
   });
 
   const { data: billDetail } = useQuery({

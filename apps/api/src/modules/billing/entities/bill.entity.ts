@@ -18,6 +18,11 @@ export enum InvoiceStatus {
   REFUNDED = 'refunded',
 }
 
+export enum BillSource {
+  POS = 'pos',
+  HOTEL = 'hotel',
+}
+
 export enum GstType {
   CGST_SGST = 'cgst_sgst',
   IGST = 'igst',
@@ -47,8 +52,23 @@ export class Bill {
   @Column({
     name: 'order_id',
     type: 'uuid',
+    nullable: true,
   })
-  orderId: string;
+  orderId: string | null;
+
+  @Column({
+    name: 'reservation_id',
+    type: 'uuid',
+    nullable: true,
+  })
+  reservationId: string | null;
+
+  @Column({
+    type: 'enum',
+    enum: BillSource,
+    default: BillSource.POS,
+  })
+  source: BillSource;
 
   @Column({
     name: 'shift_id',

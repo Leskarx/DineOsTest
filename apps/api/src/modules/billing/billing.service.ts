@@ -139,10 +139,10 @@ export class BillingService {
     });
     if (!bill) throw new NotFoundException('Bill not found');
 
-    const order = await this.orderRepo.findOne({
+    const order = bill.orderId ? await this.orderRepo.findOne({
       where: { id: bill.orderId },
       relations: ['items'],
-    });
+    }) : null;
     return { ...bill, orderItems: order?.items.filter((i) => !i.isVoided) };
   }
 
@@ -153,6 +153,7 @@ export class BillingService {
     to?: Date,
     page = 1,
     limit = 50,
+    source?: string,
   ) {
     const qb = this.billRepo.createQueryBuilder('b')
       .where('b.branch_id = :branchId AND b.tenant_id = :tenantId', { branchId, tenantId })
@@ -161,6 +162,7 @@ export class BillingService {
       .skip((page - 1) * limit);
     if (from) qb.andWhere('b.created_at >= :from', { from });
     if (to) qb.andWhere('b.created_at <= :to', { to });
+    if (source) qb.andWhere('b.source = :source', { source });
     const [data, total] = await qb.getManyAndCount();
     return { data, total, page, limit };
   }
@@ -228,7 +230,7 @@ export class BillingService {
     const bill = await this.billRepo.findOne({ where: { id: billId, tenantId }, relations: ['payments'] });
     if (!bill) throw new NotFoundException('Bill not found');
 
-    const order  = await this.orderRepo.findOne({ where: { id: bill.orderId }, relations: ['items'] });
+    const order  = bill.orderId ? await this.orderRepo.findOne({ where: { id: bill.orderId }, relations: ['items'] }) : null;
     const branch = await this.branchRepo.findOne({ where: { id: bill.branchId } });
 
     const items = (order?.items ?? [])

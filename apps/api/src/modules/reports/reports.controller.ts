@@ -19,6 +19,11 @@ export class ReportsController {
   @ApiOperation({ summary: 'Live dashboard summary stats' })
   dashboard(@TenantId() t: string, @BranchId() b: string) { return this.svc.getDashboardSummary(b, t); }
 
+  @Get('hotel-dashboard')
+  @Roles('manager', 'owner')
+  @ApiOperation({ summary: 'Live hotel sales dashboard stats' })
+  hotelDashboard(@TenantId() t: string, @BranchId() b: string) { return this.svc.getHotelDashboardSummary(b, t); }
+
   @Get('hourly')
   @Roles('cashier', 'manager', 'owner')
   @ApiOperation({ summary: 'Hourly sales breakdown for a given date' })
