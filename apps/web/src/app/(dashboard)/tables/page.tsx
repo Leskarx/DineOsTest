@@ -67,18 +67,23 @@ export default function TablesPage() {
       setEditTable(null);
       setTableForm({ name: '', capacity: 4, sectionId: '' });
     },
-    onError: () => toast.error('Failed to save table'),
+    onError: (e: any) => toast.error(e.response?.data?.message || 'Failed to save table'),
   });
 
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
       apiPut(`/api/v1/tables/${id}`, { status }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['tables'] }),
+    onSuccess: (_data, { status }) => {
+      toast.success(`Table marked as ${status}`);
+      qc.invalidateQueries({ queryKey: ['tables'] });
+    },
+    onError: (e: any) => toast.error(e.response?.data?.message || 'Failed to update table status'),
   });
 
   const deleteTableMutation = useMutation({
     mutationFn: (id: string) => apiDelete(`/api/v1/tables/${id}`),
-    onSuccess: () => { toast.success('Table removed'); qc.invalidateQueries({ queryKey: ['tables'] }); },
+    onSuccess: () => { toast.success('Table removed successfully'); qc.invalidateQueries({ queryKey: ['tables'] }); },
+    onError: (e: any) => toast.error(e.response?.data?.message || 'Failed to delete table'),
   });
 
   // ── Section mutations ──────────────────────────────────────────────────────
@@ -100,7 +105,7 @@ export default function TablesPage() {
       setEditSection(null);
       setSectionForm({ name: '', description: '', sortOrder: '' });
     },
-    onError: (e: any) => toast.error(e.response?.data?.message || 'Failed'),
+    onError: (e: any) => toast.error(e.response?.data?.message || 'Failed to save section'),
   });
 
   const deleteSectionMutation = useMutation({
@@ -264,7 +269,31 @@ export default function TablesPage() {
                         <Edit2 size={10} className="inline" />
                       </button>
                       <button
-                        onClick={() => deleteTableMutation.mutate(table.id)}
+                        onClick={() => {
+                          if (table.status === 'occupied') {
+                            toast.error(`Cannot delete "${table.name}" — table is currently occupied`);
+                            return;
+                          }
+                          toast((t) => (
+                            <div className="flex flex-col gap-2">
+                              <span className="font-medium">Delete table &quot;{table.name}&quot;?</span>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => { toast.dismiss(t.id); deleteTableMutation.mutate(table.id); }}
+                                  className="px-3 py-1 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600"
+                                >
+                                  Delete
+                                </button>
+                                <button
+                                  onClick={() => toast.dismiss(t.id)}
+                                  className="px-3 py-1 text-sm bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ), { duration: 10000 });
+                        }}
                         className="flex-1 text-xs py-1 rounded bg-black/20 hover:bg-red-900/30 text-red-400"
                       >
                         <Trash2 size={10} className="inline" />
@@ -330,10 +359,28 @@ export default function TablesPage() {
                   <button
                     onClick={() => {
                       if (sectionTables.length > 0) {
-                        toast.error('Move all tables out of this section first');
+                        toast.error(`Cannot delete "${sec.name}" — move all ${sectionTables.length} table(s) to another section first`);
                         return;
                       }
-                      if (confirm(`Delete section "${sec.name}"?`)) deleteSectionMutation.mutate(sec.id);
+                      toast((t) => (
+                        <div className="flex flex-col gap-2">
+                          <span className="font-medium">Delete section &quot;{sec.name}&quot;?</span>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => { toast.dismiss(t.id); deleteSectionMutation.mutate(sec.id); }}
+                              className="px-3 py-1 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600"
+                            >
+                              Delete
+                            </button>
+                            <button
+                              onClick={() => toast.dismiss(t.id)}
+                              className="px-3 py-1 text-sm bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ), { duration: 10000 });
                     }}
                     className="btn-ghost p-1.5 text-red-400 hover:text-red-300"
                   >
@@ -403,7 +450,13 @@ export default function TablesPage() {
             <div className="flex gap-3 pt-1">
               <button onClick={() => setShowTableForm(false)} className="btn-secondary flex-1">Cancel</button>
               <button
-                onClick={() => saveTableMutation.mutate()}
+                onClick={() => {
+                  if (!tableForm.sectionId) {
+                    toast.error('Please select a section before saving');
+                    return;
+                  }
+                  saveTableMutation.mutate();
+                }}
                 disabled={saveTableMutation.isPending || !tableForm.name}
                 className="btn-primary flex-1"
               >
