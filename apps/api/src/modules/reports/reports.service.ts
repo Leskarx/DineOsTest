@@ -557,72 +557,72 @@ export class ReportsService {
     };
   }
 
-  async getOwnerDashboardSummary(branchId: string, tenantId: string) {
+  async getOwnerDashboardSummary(branchId: string | null, tenantId: string) {
     const today = new Date().toISOString().slice(0, 10);
     const [
       totalRevToday, totalRevWeek, posSalesToday, hotelSalesToday,
       pendingOrders, occupancy, checkins, checkouts,
-      weeklyChart, paymentBreakdown, lowStock
+      weeklyChart, paymentBreakdown, lowStock, branchComparison
     ] = await Promise.all([
       // Total revenue today (POS + Hotel combined)
       this.db.query(`
         SELECT COALESCE(SUM(grand_total),0) AS revenue, COUNT(*) AS bills
-        FROM bills WHERE branch_id=$1 AND tenant_id=$2
+        FROM bills WHERE ($1::uuid IS NULL OR branch_id = $1) AND tenant_id=$2
         AND status NOT IN ('void','refunded')
         AND DATE(created_at AT TIME ZONE 'Asia/Kolkata')=$3
-      `, [branchId, tenantId, today]),
+      `, [branchId || null, tenantId, today]),
 
       // Total revenue 7 days (POS + Hotel combined)
       this.db.query(`
         SELECT COALESCE(SUM(grand_total),0) AS revenue
-        FROM bills WHERE branch_id=$1 AND tenant_id=$2
+        FROM bills WHERE ($1::uuid IS NULL OR branch_id = $1) AND tenant_id=$2
         AND status NOT IN ('void','refunded')
         AND created_at >= NOW() - INTERVAL '7 days'
-      `, [branchId, tenantId]),
+      `, [branchId || null, tenantId]),
 
       // POS-only today
       this.db.query(`
         SELECT COALESCE(SUM(grand_total),0) AS revenue, COUNT(*) AS bills
-        FROM bills WHERE branch_id=$1 AND tenant_id=$2 AND source='pos'
+        FROM bills WHERE ($1::uuid IS NULL OR branch_id = $1) AND tenant_id=$2 AND source='pos'
         AND status NOT IN ('void','refunded')
         AND DATE(created_at AT TIME ZONE 'Asia/Kolkata')=$3
-      `, [branchId, tenantId, today]),
+      `, [branchId || null, tenantId, today]),
 
       // Hotel-only today
       this.db.query(`
         SELECT COALESCE(SUM(grand_total),0) AS revenue, COUNT(*) AS bills
-        FROM bills WHERE branch_id=$1 AND tenant_id=$2 AND source='hotel'
+        FROM bills WHERE ($1::uuid IS NULL OR branch_id = $1) AND tenant_id=$2 AND source='hotel'
         AND status NOT IN ('void','refunded')
         AND DATE(created_at AT TIME ZONE 'Asia/Kolkata')=$3
-      `, [branchId, tenantId, today]),
+      `, [branchId || null, tenantId, today]),
 
       // Pending orders
       this.db.query(`
         SELECT COUNT(*) AS count
-        FROM orders WHERE branch_id=$1 AND tenant_id=$2
+        FROM orders WHERE ($1::uuid IS NULL OR branch_id = $1) AND tenant_id=$2
         AND status NOT IN ('billed','cancelled')
-      `, [branchId, tenantId]),
+      `, [branchId || null, tenantId]),
 
       // Occupancy
       this.db.query(`
         SELECT
-          (SELECT COUNT(*) FROM hotel_rooms WHERE branch_id=$1 AND tenant_id=$2 AND status != 'out_of_order') AS total_rooms,
-          (SELECT COUNT(*) FROM hotel_reservations WHERE branch_id=$1 AND tenant_id=$2 AND status IN ('checked_in')) AS occupied_rooms
-      `, [branchId, tenantId]),
+          (SELECT COUNT(*) FROM hotel_rooms WHERE ($1::uuid IS NULL OR branch_id = $1) AND tenant_id=$2 AND status != 'out_of_order') AS total_rooms,
+          (SELECT COUNT(*) FROM hotel_reservations WHERE ($1::uuid IS NULL OR branch_id = $1) AND tenant_id=$2 AND status IN ('checked_in')) AS occupied_rooms
+      `, [branchId || null, tenantId]),
 
       // Today's check-ins
       this.db.query(`
         SELECT COUNT(*) AS count
-        FROM hotel_reservations WHERE branch_id=$1 AND tenant_id=$2
+        FROM hotel_reservations WHERE ($1::uuid IS NULL OR branch_id = $1) AND tenant_id=$2
         AND check_in_date=$3 AND status NOT IN ('cancelled','no_show')
-      `, [branchId, tenantId, today]),
+      `, [branchId || null, tenantId, today]),
 
       // Today's check-outs
       this.db.query(`
         SELECT COUNT(*) AS count
-        FROM hotel_reservations WHERE branch_id=$1 AND tenant_id=$2
+        FROM hotel_reservations WHERE ($1::uuid IS NULL OR branch_id = $1) AND tenant_id=$2
         AND check_out_date=$3 AND status NOT IN ('cancelled','no_show')
-      `, [branchId, tenantId, today]),
+      `, [branchId || null, tenantId, today]),
 
       // Weekly chart (POS + Hotel stacked by day)
       this.db.query(`
@@ -632,30 +632,42 @@ export class ReportsService {
           COALESCE(SUM(grand_total) FILTER (WHERE source='hotel'), 0) AS hotel,
           COALESCE(SUM(grand_total), 0) AS total
         FROM bills
-        WHERE branch_id=$1 AND tenant_id=$2
+        WHERE ($1::uuid IS NULL OR branch_id = $1) AND tenant_id=$2
         AND status NOT IN ('void','refunded')
         AND created_at >= NOW() - INTERVAL '7 days'
         GROUP BY date_trunc('day', created_at AT TIME ZONE 'Asia/Kolkata')
         ORDER BY date_trunc('day', created_at AT TIME ZONE 'Asia/Kolkata') ASC
-      `, [branchId, tenantId]),
+      `, [branchId || null, tenantId]),
 
       // Payment method breakdown today
       this.db.query(`
         SELECT method, COALESCE(SUM(amount),0) AS total
         FROM payments
-        WHERE branch_id=$1 AND tenant_id=$2
+        WHERE ($1::uuid IS NULL OR branch_id = $1) AND tenant_id=$2
         AND status='success'
         AND DATE(created_at AT TIME ZONE 'Asia/Kolkata')=$3
         GROUP BY method ORDER BY total DESC
-      `, [branchId, tenantId, today]),
+      `, [branchId || null, tenantId, today]),
 
       // Low stock count
       this.db.query(`
         SELECT COUNT(*) AS count
         FROM inventory_items
-        WHERE (branch_id=$1 OR branch_id IS NULL) AND tenant_id=$2
+        WHERE ($1::uuid IS NULL OR branch_id = $1) AND tenant_id=$2
         AND current_stock <= min_stock_level AND is_active=true
-      `, [branchId, tenantId]),
+      `, [branchId || null, tenantId]),
+
+      // Branch Comparison (only meaningful in global mode)
+      branchId ? Promise.resolve([]) : this.db.query(`
+        SELECT b.name AS branch_name, COALESCE(SUM(bills.grand_total), 0) AS revenue
+        FROM branches b
+        LEFT JOIN bills ON bills.branch_id = b.id 
+          AND bills.status NOT IN ('void','refunded') 
+          AND bills.created_at >= NOW() - INTERVAL '7 days'
+        WHERE b.tenant_id=$1
+        GROUP BY b.id, b.name
+        ORDER BY revenue DESC
+      `, [tenantId]),
     ]);
 
     const totalRooms = Number(occupancy[0]?.total_rooms || 0);
@@ -684,6 +696,10 @@ export class ReportsService {
       paymentBreakdown: (paymentBreakdown || []).map((r: any) => ({
         method: r.method,
         total: Number(r.total || 0),
+      })),
+      branchComparison: (branchComparison || []).map((r: any) => ({
+        name: r.branch_name,
+        revenue: Number(r.revenue || 0),
       })),
     };
   }

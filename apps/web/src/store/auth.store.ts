@@ -20,7 +20,7 @@ interface AuthState {
   login: (payload: { accessToken: string; refreshToken: string; user?: AuthUser }) => void;
   logout: () => void;
   setTokens: (accessToken: string, refreshToken: string) => void;
-  setBranch: (branchId: string) => void;
+  setBranch: (branchId: string | null) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -38,7 +38,7 @@ export const useAuthStore = create<AuthState>()(
           refreshToken: payload.refreshToken,
           user: payload.user || null,
           tenantId: payload.user?.tenantId || null,
-          branchId: payload.user?.branchId || null,
+          branchId: payload.user?.role === 'owner' ? null : (payload.user?.branchId || null),
         }),
 
       logout: () =>

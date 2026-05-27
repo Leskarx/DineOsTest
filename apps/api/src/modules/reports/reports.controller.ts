@@ -27,7 +27,7 @@ export class ReportsController {
   hotelDashboard(@TenantId() t: string, @BranchId() b: string) { return this.svc.getHotelDashboardSummary(b, t); }
 
   @Get('owner-dashboard')
-  @Roles('owner')
+  @Roles('owner', 'manager')
   @ApiOperation({ summary: 'Executive owner dashboard — combined POS + Hotel' })
   ownerDashboard(@TenantId() t: string, @BranchId() b: string) { return this.svc.getOwnerDashboardSummary(b, t); }
 

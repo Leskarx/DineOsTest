@@ -5,17 +5,19 @@ import Link from 'next/link';
 import {
   IndianRupee, TrendingUp, ShoppingCart, BedDouble, Key, LogOut,
   AlertTriangle, Clock, Activity, CreditCard, Banknote, Smartphone,
-  Wallet, ArrowRight,
+  Wallet, ArrowRight, Building2,
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { cn } from '@/lib/utils';
 import dayjs from 'dayjs';
+import { useAuthStore } from '@/store/auth.store';
 
 const PAYMENT_ICONS: Record<string, React.ElementType> = {
   cash: Banknote, card: CreditCard, upi: Smartphone, wallet: Wallet,
 };
 
 export default function OwnerDashboardPage() {
+  const { user, branchId } = useAuthStore();
   const { data: s, isLoading } = useQuery({
     queryKey: ['owner-dashboard'],
     queryFn: () => apiFetch('/api/v1/reports/owner-dashboard').then((r) => r.data),
@@ -44,8 +46,10 @@ export default function OwnerDashboardPage() {
       {/* ── Header ──────────────────────────────────────────────── */}
       <div className="flex items-center justify-between border-b border-slate-800 pb-5">
         <div>
-          <h1 className="text-2xl font-bold text-white">Executive Dashboard</h1>
-          <p className="text-slate-400 text-sm mt-1">{dayjs().format('dddd, D MMMM YYYY')} · Property-wide overview</p>
+          <h1 className="text-2xl font-bold text-white">
+            {user?.role === 'owner' ? 'Owner Dashboard' : 'Branch Summary'}
+          </h1>
+          <p className="text-slate-400 text-sm mt-1">{dayjs().format('dddd, D MMMM YYYY')} · {user?.role === 'owner' ? 'Global overview' : 'Location overview'}</p>
         </div>
       </div>
 
@@ -168,6 +172,37 @@ export default function OwnerDashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* ── Branch Comparison (Global Mode Only) ──────────────── */}
+      {!branchId && user?.role === 'owner' && (
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm mt-6">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h2 className="text-sm font-semibold text-slate-300">Branch Performance (7 Days)</h2>
+              <p className="text-xs text-slate-500 mt-1">Comparing total revenue across all locations</p>
+            </div>
+            <Building2 size={16} className="text-amber-400" />
+          </div>
+          {(!s?.branchComparison || s.branchComparison.length === 0) ? (
+            <div className="h-[200px] flex items-center justify-center text-sm text-slate-600">No branch data available</div>
+          ) : (
+            <div className="h-[280px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={s.branchComparison} margin={{ top: 0, right: 0, bottom: 0, left: 0 }} layout="vertical">
+                  <XAxis type="number" tick={{ fill: '#94a3b8', fontSize: 11 }} tickFormatter={(v) => `₹${v}`} />
+                  <YAxis type="category" dataKey="name" tick={{ fill: '#94a3b8', fontSize: 11 }} width={120} />
+                  <Tooltip
+                    cursor={{ fill: '#1e293b' }}
+                    contentStyle={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 8, color: '#f8fafc' }}
+                    formatter={(v: any) => [`₹${Number(v).toLocaleString('en-IN')}`, 'Revenue']}
+                  />
+                  <Bar dataKey="revenue" fill="#f59e0b" radius={[0, 4, 4, 0]} barSize={24} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Quick Links ─────────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">

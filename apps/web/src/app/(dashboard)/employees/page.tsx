@@ -46,9 +46,10 @@ export default function EmployeesPage() {
   const [showForm, setShowForm] = useState(false);
   const [editUser, setEditUser] = useState<any>(null);
   const [department, setDepartment] = useState<Department>('restaurant');
-  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phone: '', role: 'cashier', password: '', pin: '', employeeCode: '' });
+  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phone: '', role: 'cashier', password: '', pin: '', employeeCode: '', branchId: '' });
 
   const { data: users } = useQuery({ queryKey: ['users'], queryFn: () => apiFetch('/api/v1/users').then((r) => r.data) });
+  const { data: branches } = useQuery({ queryKey: ['branches'], queryFn: () => apiFetch('/api/v1/branches').then((r) => r.data), enabled: user?.role === 'owner' });
 
   const saveMutation = useMutation({
     mutationFn: () => {
@@ -61,6 +62,10 @@ export default function EmployeesPage() {
         pin: form.pin,
         employeeCode: form.employeeCode,
       };
+
+      if (user?.role === 'owner' && form.branchId) {
+        payload.branchId = form.branchId;
+      }
 
       // Only send password when creating or changing password
       if (form.password) {
@@ -77,7 +82,7 @@ export default function EmployeesPage() {
       setShowForm(false);
       setEditUser(null);
       setDepartment('restaurant');
-      setForm({ firstName: '', lastName: '', email: '', phone: '', role: 'cashier', password: '', pin: '', employeeCode: '' });
+      setForm({ firstName: '', lastName: '', email: '', phone: '', role: 'cashier', password: '', pin: '', employeeCode: '', branchId: '' });
     },
     onError: (e: any) => toast.error(e.response?.data?.message || 'Failed'),
   });
@@ -110,7 +115,7 @@ export default function EmployeesPage() {
           <h1 className="text-xl font-bold text-white">Employees</h1>
           <p className="text-sm text-slate-400">{users?.length || 0} active staff members</p>
         </div>
-        <button onClick={() => { setEditUser(null); setDepartment('restaurant'); setForm({ firstName: '', lastName: '', email: '', phone: '', role: 'cashier', password: '', pin: '', employeeCode: '' }); setShowForm(true); }} className="btn-primary"><Plus size={14} /> Add Employee</button>
+        <button onClick={() => { setEditUser(null); setDepartment('restaurant'); setForm({ firstName: '', lastName: '', email: '', phone: '', role: 'cashier', password: '', pin: '', employeeCode: '', branchId: '' }); setShowForm(true); }} className="btn-primary"><Plus size={14} /> Add Employee</button>
       </div>
 
       <div className="card p-0 overflow-hidden">
@@ -135,7 +140,7 @@ export default function EmployeesPage() {
                       setEditUser(u);
                       const dept = detectDepartment(u.role);
                       setDepartment(dept);
-                      setForm({ firstName: u.firstName, lastName: u.lastName || '', email: u.email || '', phone: u.phone || '', role: u.role, password: '', pin: u.pin || '', employeeCode: u.employeeCode || '' });
+                      setForm({ firstName: u.firstName, lastName: u.lastName || '', email: u.email || '', phone: u.phone || '', role: u.role, password: '', pin: u.pin || '', employeeCode: u.employeeCode || '', branchId: u.branchId || '' });
                       setShowForm(true);
                     }} className="btn-ghost p-1.5"><Edit2 size={13} /></button>
                     <button onClick={() => { if (confirm('Deactivate this employee?')) deactivateMutation.mutate(u.id); }} className="btn-ghost p-1.5 text-red-400 hover:text-red-300"><UserX size={13} /></button>
@@ -187,6 +192,15 @@ export default function EmployeesPage() {
                 </select>
               </div>
               <div><label className="label">Employee Code</label><input className="input" value={form.employeeCode} onChange={(e) => setForm({ ...form, employeeCode: e.target.value })} /></div>
+              {user?.role === 'owner' && (
+                <div>
+                  <label className="label">Assign Branch</label>
+                  <select className="input" value={form.branchId} onChange={(e) => setForm({ ...form, branchId: e.target.value })}>
+                    <option value="">Current Branch (Default)</option>
+                    {branches?.map((b: any) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                  </select>
+                </div>
+              )}
               {!editUser && <div><label className="label">Password *</label><input className="input" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></div>}
               <div><label className="label">PIN (4-6 digits)</label><input className="input" type="password" maxLength={6} value={form.pin} onChange={(e) => setForm({ ...form, pin: e.target.value })} placeholder="Optional fast login" /></div>
             </div>

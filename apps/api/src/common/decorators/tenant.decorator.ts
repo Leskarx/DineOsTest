@@ -5,9 +5,16 @@ export const TenantId = createParamDecorator((data: unknown, ctx: ExecutionConte
   return req.user?.tenantId || req.tenantId;
 });
 
-export const BranchId = createParamDecorator((data: unknown, ctx: ExecutionContext): string => {
+export const BranchId = createParamDecorator((data: unknown, ctx: ExecutionContext): string | null => {
   const req = ctx.switchToHttp().getRequest();
-  return req.user?.branchId || req.branchId;
+  
+  if (req.user?.role === 'owner') {
+    const headerBranch = req.headers['x-branch-id'];
+    if (headerBranch === 'all' || !headerBranch) return null;
+    return headerBranch as string;
+  }
+  
+  return req.user?.branchId || req.branchId || (req.headers['x-branch-id'] as string) || null;
 });
 
 export const CurrentUser = createParamDecorator((data: unknown, ctx: ExecutionContext) => {

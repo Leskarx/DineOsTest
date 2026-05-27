@@ -24,7 +24,8 @@ export default function LoginPage() {
       const role = userData?.user?.role;
       let redirectUrl = '/dashboard';
       if (role === 'superadmin') redirectUrl = '/admin';
-      else if (role === 'owner') redirectUrl = '/owner';
+      else if (role === 'owner') redirectUrl = '/executive';
+      else if (role === 'manager') redirectUrl = '/executive';
       else if (role === 'cashier') redirectUrl = '/cashier';
       else if (role === 'waiter') redirectUrl = '/waiter';
       else if (role === 'kitchen') redirectUrl = '/kds';

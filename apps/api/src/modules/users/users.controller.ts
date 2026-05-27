@@ -13,17 +13,21 @@ import { User } from './entities/user.entity';
 @Controller({ path: 'users', version: '1' })
 export class UsersController {
   constructor(private readonly svc: UsersService) {}
-  @Get() @Roles('manager') findAll(@TenantId() t: string, @BranchId() b: string, @Query('branchId') bid?: string) { return this.svc.findAll(t, bid || b); }
+  @Get() @Roles('owner', 'manager') findAll(@TenantId() t: string, @BranchId() b: string, @Query('branchId') bid?: string) { return this.svc.findAll(t, bid || b); }
   @Get(':id') findOne(@Param('id') id: string, @TenantId() t: string) { return this.svc.findOne(id, t); }
-  @Post() @Roles('manager') create(@Body() body: any, @TenantId() t: string, @BranchId() b: string, @CurrentUser() reqUser: any) {
+  @Post() @Roles('owner', 'manager') create(@Body() body: any, @TenantId() t: string, @BranchId() b: string, @CurrentUser() reqUser: any) {
     if (['owner', 'manager'].includes(body.role) && reqUser.role !== 'owner') {
       throw new ForbiddenException('Only owners can create managers or owners');
     }
-    return this.svc.create({ ...body, tenantId: t, branchId: b });
+    const finalBranchId = (reqUser.role === 'owner' && body.branchId) ? body.branchId : b;
+    return this.svc.create({ ...body, tenantId: t, branchId: finalBranchId });
   }
-  @Put(':id') @Roles('manager') update(@Param('id') id: string, @Body() body: Partial<User>, @TenantId() t: string, @CurrentUser() reqUser: any) {
+  @Put(':id') @Roles('owner', 'manager') update(@Param('id') id: string, @Body() body: Partial<User>, @TenantId() t: string, @CurrentUser() reqUser: any) {
     if (body.role && ['owner', 'manager'].includes(body.role) && reqUser.role !== 'owner') {
       throw new ForbiddenException('Only owners can assign manager or owner roles');
+    }
+    if (body.branchId && reqUser.role !== 'owner') {
+      delete body.branchId; // Only owners can change a user's branch
     }
     return this.svc.update(id, t, body);
   }

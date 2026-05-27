@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { useSubscriptionWall } from '@/hooks/useSubscriptionWall';
 import { SubscriptionWall } from '@/components/ui/SubscriptionWall';
+import { BranchSwitcher } from '@/components/BranchSwitcher';
 
 interface NavItem { href: string; label: string; icon: React.ElementType; exact?: boolean; roles?: string[] }
 interface NavSection { section: string; items: NavItem[] }
@@ -21,7 +22,7 @@ const navSections: NavSection[] = [
   {
     section: 'Overview',
     items: [
-      { href: '/owner', label: 'Executive Dashboard', icon: LayoutDashboard, exact: true, roles: ['owner'] },
+      { href: '/executive', label: 'Executive Dashboard', icon: LayoutDashboard, exact: true, roles: ['owner', 'manager'] },
     ],
   },
   {
@@ -61,7 +62,7 @@ const navSections: NavSection[] = [
     section: 'Admin',
     items: [
       { href: '/employees', label: 'Employees', icon: Users, roles: ['owner', 'manager'] },
-      { href: '/branches', label: 'Branches', icon: Building2, roles: ['owner', 'manager'] },
+      { href: '/branches', label: 'Branches', icon: Building2, roles: ['owner'] },
       { href: '/audit', label: 'Audit Log', icon: Shield, roles: ['owner'] },
       { href: '/settings', label: 'Settings', icon: Settings, roles: ['owner', 'manager'] },
     ],
@@ -71,7 +72,7 @@ const navSections: NavSection[] = [
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, accessToken, logout } = useAuthStore();
+  const { user, accessToken, logout, branchId } = useAuthStore();
   const [hydrated, setHydrated] = useState(false);
   const isOnline = useOnlineStatus();
   const { isBlocked, plan, daysLeft } = useSubscriptionWall();
@@ -112,8 +113,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </div>
 
+        <div className="pt-3">
+          <BranchSwitcher />
+        </div>
+
         <nav className="flex-1 p-2 overflow-y-auto scrollbar-thin">
           {navSections.map(({ section, items }) => {
+            // Hide branch-specific sections when in Global Mode (branchId is null)
+            if (!branchId && (section === 'Restaurant' || section === 'Hotel')) {
+              return null;
+            }
+
             const allowedItems = items.filter(
               (item) => !item.roles || (user?.role && item.roles.includes(user.role))
             );
@@ -128,6 +138,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <div className="space-y-0.5">
                   {allowedItems.map(({ href, label, icon: Icon, exact }) => {
                     const isActive = exact ? pathname === href : pathname === href || pathname.startsWith(href + '/');
+                    const displayLabel = href === '/executive' 
+                      ? (user?.role === 'owner' ? 'Owner Dashboard' : 'Branch Summary')
+                      : label;
+                    
                     return (
                       <Link
                         key={href}
@@ -135,7 +149,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         className={cn('sidebar-link', isActive && 'sidebar-link-active')}
                       >
                         <Icon size={16} />
-                        <span>{label}</span>
+                        <span>{displayLabel}</span>
                       </Link>
                     );
                   })}
