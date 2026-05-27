@@ -36,12 +36,12 @@ export interface CreateBillDto {
 @Injectable()
 export class BillingService {
   constructor(
-    @InjectRepository(Bill)     private readonly billRepo:    Repository<Bill>,
-    @InjectRepository(Payment)  private readonly paymentRepo: Repository<Payment>,
-    @InjectRepository(Order)    private readonly orderRepo:   Repository<Order>,
-    @InjectRepository(OrderItem)private readonly itemRepo:    Repository<OrderItem>,
-    @InjectRepository(Shift)    private readonly shiftRepo:   Repository<Shift>,
-    @InjectRepository(Branch)   private readonly branchRepo:  Repository<Branch>,
+    @InjectRepository(Bill)      private readonly billRepo:    Repository<Bill>,
+    @InjectRepository(Payment)   private readonly paymentRepo: Repository<Payment>,
+    @InjectRepository(Order)     private readonly orderRepo:   Repository<Order>,
+    @InjectRepository(OrderItem) private readonly itemRepo:    Repository<OrderItem>,
+    @InjectRepository(Shift)     private readonly shiftRepo:   Repository<Shift>,
+    @InjectRepository(Branch)    private readonly branchRepo:  Repository<Branch>,
     private readonly dataSource: DataSource,
     private readonly mailer:     MailerService,
     private readonly pdf:        PdfService,
@@ -53,8 +53,8 @@ export class BillingService {
       relations: ['items'],
     });
     if (!order) throw new NotFoundException('Order not found');
-    if (order.status === OrderStatus.BILLED)    throw new BadRequestException('Order already billed');
-    if (order.status === OrderStatus.CANCELLED)  throw new BadRequestException('Order is cancelled');
+    if (order.status === OrderStatus.BILLED)   throw new BadRequestException('Order already billed');
+    if (order.status === OrderStatus.CANCELLED) throw new BadRequestException('Order is cancelled');
 
     const totalPaid = dto.payments.reduce((s, p) => s + Number(p.amount), 0);
     if (totalPaid < Number(order.grandTotal) - 0.01) {
@@ -114,18 +114,18 @@ export class BillingService {
 
       const payments = dto.payments.map((p) =>
         em.create(Payment, {
-          tenantId:   dto.tenantId,
-          branchId:   dto.branchId,
-          billId:     bill.id,
-          orderId:    dto.orderId,
-          shiftId:    dto.shiftId,
-          method:     p.method,
-          amount:     p.amount,
+          tenantId:    dto.tenantId,
+          branchId:    dto.branchId,
+          billId:      bill.id,
+          orderId:     dto.orderId,
+          shiftId:     dto.shiftId,
+          method:      p.method,
+          amount:      p.amount,
           referenceNo: p.referenceNo,
-          cardLast4:  p.cardLast4,
-          upiId:      p.upiId,
-          walletName: p.walletName,
-          isSplit:    dto.payments.length > 1,
+          cardLast4:   p.cardLast4,
+          upiId:       p.upiId,
+          walletName:  p.walletName,
+          isSplit:     dto.payments.length > 1,
         }),
       );
       await em.save(payments);
@@ -150,10 +150,10 @@ export class BillingService {
     });
     if (!bill) throw new NotFoundException('Bill not found');
 
-    const order = bill.orderId ? await this.orderRepo.findOne({
-      where: { id: bill.orderId },
-      relations: ['items'],
-    }) : null;
+    const order = bill.orderId
+      ? await this.orderRepo.findOne({ where: { id: bill.orderId }, relations: ['items'] })
+      : null;
+
     return { ...bill, orderItems: order?.items.filter((i) => !i.isVoided) };
   }
 
@@ -173,14 +173,11 @@ export class BillingService {
       .take(limit)
       .skip((page - 1) * limit);
 
-    if (from) qb.andWhere('b.created_at >= :from', { from });
-<<<<<<< HEAD
-    if (to) qb.andWhere('b.created_at <= :to', { to });
-    if (source) qb.andWhere('b.source = :source', { source });
-=======
-    if (to)   qb.andWhere('b.created_at <= :to',   { to });
+    if (from)   qb.andWhere('b.created_at >= :from',   { from });
+    if (to)     qb.andWhere('b.created_at <= :to',     { to });
+    // ← kept from friend's branch — filters hotel vs pos bills
+    if (source) qb.andWhere('b.source = :source',      { source });
 
->>>>>>> 8dc1fcf (WIP billing and reports changes)
     const [data, total] = await qb.getManyAndCount();
     return { data, total, page, limit };
   }
@@ -201,7 +198,9 @@ export class BillingService {
     });
     if (!bill) throw new NotFoundException('Bill not found');
 
-    const order  = bill.orderId ? await this.orderRepo.findOne({ where: { id: bill.orderId }, relations: ['items'] }) : null;
+    const order = bill.orderId
+      ? await this.orderRepo.findOne({ where: { id: bill.orderId }, relations: ['items'] })
+      : null;
     const branch = await this.branchRepo.findOne({ where: { id: bill.branchId } });
 
     const items = (order?.items ?? [])
@@ -322,11 +321,11 @@ export class BillingService {
 
     for (const p of payments) {
       switch (p.method) {
-        case 'cash':          shift.cashSales    = Number(shift.cashSales)    + p.amount; break;
-        case 'card':          shift.cardSales    = Number(shift.cardSales)    + p.amount; break;
-        case 'upi':           shift.upiSales     = Number(shift.upiSales)     + p.amount; break;
-        case 'wallet':        shift.walletSales  = Number(shift.walletSales)  + p.amount; break;
-        case 'credit':        shift.creditSales  = Number(shift.creditSales)  + p.amount; break;
+        case 'cash':          shift.cashSales     = Number(shift.cashSales)     + p.amount; break;
+        case 'card':          shift.cardSales     = Number(shift.cardSales)     + p.amount; break;
+        case 'upi':           shift.upiSales      = Number(shift.upiSales)      + p.amount; break;
+        case 'wallet':        shift.walletSales   = Number(shift.walletSales)   + p.amount; break;
+        case 'credit':        shift.creditSales   = Number(shift.creditSales)   + p.amount; break;
         case 'complimentary': shift.complimentary = Number(shift.complimentary) + p.amount; break;
       }
     }
@@ -339,27 +338,14 @@ export class BillingService {
   }
 
   /**
-   * Generates a consistent, sequential bill number that:
+   * Generates a unique, GST-compliant daily sequential bill number.
    *
-   * 1. Resets to 00001 every day (expected by accountants and GST auditors)
-   * 2. Is scoped to TENANT so multi-branch tenants share one invoice sequence
-   *    (this is the correct GST-compliant approach — one GSTIN = one sequence)
-   * 3. Uses a PostgreSQL advisory lock to prevent duplicates under concurrent load
-   *
-   * Format: INV-YYYYMMDD-NNNNN
+   * Format:  INV-YYYYMMDD-NNNNN
    * Example: INV-20260527-00001
    *
-   * Why tenant-scoped instead of branch-scoped?
-   * ─────────────────────────────────────────────
-   * Under Indian GST, a single GSTIN (registered to the tenant/business) must
-   * maintain ONE continuous invoice series. If you scope to branch you end up
-   * with:
-   *   Branch A: INV-20260527-00001
-   *   Branch B: INV-20260527-00001   ← duplicate invoice number under same GSTIN
-   * That is non-compliant.
-   *
-   * If different branches have DIFFERENT GSTINs (separate registrations),
-   * change the lock key and COUNT filter to use branchId instead of tenantId.
+   * Scoped to TENANT (not branch) because Indian GST requires one continuous
+   * invoice series per GSTIN. Uses a PostgreSQL advisory lock to prevent
+   * race conditions under concurrent billing load.
    */
   private async generateBillNumber(
     tenantId: string,
@@ -369,19 +355,16 @@ export class BillingService {
     const today  = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     const prefix = `INV-${today}-`;
 
-    // Advisory lock scoped to tenant + today
-    // Ensures concurrent billing requests queue up rather than racing
     const [{ lock_key }] = await em.query(
       `SELECT abs(hashtext($1))::bigint AS lock_key`,
       [`bill_seq:${tenantId}:${today}`],
     );
     await em.query(`SELECT pg_advisory_xact_lock($1)`, [lock_key]);
 
-    // Count only today's bills for this tenant to get the daily sequence
     const [{ count }] = await em.query(
       `SELECT COUNT(*)::int AS count
        FROM bills
-       WHERE tenant_id  = $1
+       WHERE tenant_id   = $1
          AND bill_number LIKE $2`,
       [tenantId, `${prefix}%`],
     );
