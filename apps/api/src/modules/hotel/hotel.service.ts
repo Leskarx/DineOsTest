@@ -4,9 +4,9 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, Between, Like, ILike } from 'typeorm';
 
-import { RoomType }        from './entities/room-type.entity';
+import { RoomType } from './entities/room-type.entity';
 import { Room, RoomStatus } from './entities/room.entity';
-import { Guest }            from './entities/guest.entity';
+import { Guest } from './entities/guest.entity';
 import {
   Reservation, ReservationStatus, BookingSource,
 } from './entities/reservation.entity';
@@ -91,14 +91,14 @@ export interface ListReservationsQuery {
 @Injectable()
 export class HotelService {
   constructor(
-    @InjectRepository(RoomType)          private readonly roomTypeRepo: Repository<RoomType>,
-    @InjectRepository(Room)              private readonly roomRepo: Repository<Room>,
-    @InjectRepository(Guest)             private readonly guestRepo: Repository<Guest>,
-    @InjectRepository(Reservation)       private readonly reservationRepo: Repository<Reservation>,
-    @InjectRepository(FolioCharge)       private readonly folioRepo: Repository<FolioCharge>,
-    @InjectRepository(HousekeepingTask)  private readonly hkRepo: Repository<HousekeepingTask>,
+    @InjectRepository(RoomType) private readonly roomTypeRepo: Repository<RoomType>,
+    @InjectRepository(Room) private readonly roomRepo: Repository<Room>,
+    @InjectRepository(Guest) private readonly guestRepo: Repository<Guest>,
+    @InjectRepository(Reservation) private readonly reservationRepo: Repository<Reservation>,
+    @InjectRepository(FolioCharge) private readonly folioRepo: Repository<FolioCharge>,
+    @InjectRepository(HousekeepingTask) private readonly hkRepo: Repository<HousekeepingTask>,
     private readonly dataSource: DataSource,
-  ) {}
+  ) { }
 
   // ── Room Types ──────────────────────────────────────────────────────────────
 
@@ -147,11 +147,38 @@ export class HotelService {
     return saved;
   }
 
-  async listRooms(tenantId: string, branchId?: string, status?: RoomStatus): Promise<Room[]> {
-    const where: any = { tenantId, isActive: true };
+  async listRooms(
+    tenantId: string,
+    branchId?: string,
+    status?: RoomStatus,
+  ): Promise<Room[]> {
+
+    console.log('TENANT ID:', tenantId);
+    console.log('BRANCH ID:', branchId);
+    console.log('STATUS:', status);
+
+    const where: any = {
+      tenantId,
+      isActive: true,
+    };
+
     if (branchId) where.branchId = branchId;
-    if (status)   where.status   = status;
-    return this.roomRepo.find({ where, relations: ['roomType'], order: { floor: 'ASC', roomNumber: 'ASC' } });
+    if (status) where.status = status;
+
+    console.log('WHERE:', where);
+
+    const rooms = await this.roomRepo.find({
+      where,
+      relations: ['roomType'],
+      order: {
+        floor: 'ASC',
+        roomNumber: 'ASC',
+      },
+    });
+
+    console.log('ROOMS FOUND:', rooms);
+
+    return rooms;
   }
 
   async updateRoom(id: string, tenantId: string, data: Partial<Room>): Promise<Room> {
@@ -230,46 +257,46 @@ export class HotelService {
       // 3. Check for overlapping reservations
       const overlap = await em
         .createQueryBuilder(Reservation, 'r')
-        .where('r.room_id = :roomId', { roomId: dto.roomId })
+        .where('r.roomId = :roomId', { roomId: dto.roomId })
         .andWhere('r.status NOT IN (:...bad)', { bad: [ReservationStatus.CANCELLED, ReservationStatus.NO_SHOW, ReservationStatus.CHECKED_OUT] })
-        .andWhere('r.check_in_date < :checkOut', { checkOut: dto.checkOutDate })
-        .andWhere('r.check_out_date > :checkIn', { checkIn: dto.checkInDate })
+        .andWhere('r.checkInDate < :checkOut', { checkOut: dto.checkOutDate })
+        .andWhere('r.checkOutDate > :checkIn', { checkIn: dto.checkInDate })
         .getOne();
       if (overlap) throw new ConflictException(`Room ${room.roomNumber} is already booked for the selected dates`);
 
       // 4. Calculate financials
-      const numNights   = this.calcNights(dto.checkInDate, dto.checkOutDate);
-      const rate        = dto.ratePerNight ?? Number(room.roomType?.baseRate ?? 0);
-      const subtotal    = rate * numNights;
-      const taxRate     = 0.12;   // 12% GST on accommodation
-      const taxAmount   = Math.round(subtotal * taxRate * 100) / 100;
+      const numNights = this.calcNights(dto.checkInDate, dto.checkOutDate);
+      const rate = dto.ratePerNight ?? Number(room.roomType?.baseRate ?? 0);
+      const subtotal = rate * numNights;
+      const taxRate = 0.12;   // 12% GST on accommodation
+      const taxAmount = Math.round(subtotal * taxRate * 100) / 100;
       const totalAmount = subtotal + taxAmount;
       const advancePaid = dto.advancePaid ?? 0;
-      const balanceDue  = totalAmount - advancePaid;
+      const balanceDue = totalAmount - advancePaid;
 
       // 5. Create reservation
       const reservation = em.create(Reservation, {
         tenantId,
-        branchId:       dto.branchId,
-        roomId:         dto.roomId,
+        branchId: dto.branchId,
+        roomId: dto.roomId,
         primaryGuestId: guestId,
-        numAdults:      dto.numAdults ?? 1,
-        numChildren:    dto.numChildren ?? 0,
-        checkInDate:    dto.checkInDate,
-        checkOutDate:   dto.checkOutDate,
-        status:         ReservationStatus.CONFIRMED,
-        ratePerNight:   rate,
+        numAdults: dto.numAdults ?? 1,
+        numChildren: dto.numChildren ?? 0,
+        checkInDate: dto.checkInDate,
+        checkOutDate: dto.checkOutDate,
+        status: ReservationStatus.CONFIRMED,
+        ratePerNight: rate,
         numNights,
         subtotal,
         taxAmount,
         totalAmount,
         advancePaid,
         balanceDue,
-        source:          dto.source ?? BookingSource.WALK_IN,
-        bookingRef:      dto.bookingRef,
+        source: dto.source ?? BookingSource.WALK_IN,
+        bookingRef: dto.bookingRef,
         specialRequests: dto.specialRequests,
-        notes:           dto.notes,
-        createdById:     userId,
+        notes: dto.notes,
+        createdById: userId,
       });
       const saved = await em.save(reservation);
 
@@ -281,10 +308,10 @@ export class HotelService {
         const charge = em.create(FolioCharge, {
           tenantId,
           reservationId: saved.id,
-          description:   'Advance payment',
-          amount:        -advancePaid,
-          chargeType:    ChargeType.ADVANCE,
-          date:          new Date().toISOString().split('T')[0],
+          description: 'Advance payment',
+          amount: -advancePaid,
+          chargeType: ChargeType.ADVANCE,
+          date: new Date().toISOString().split('T')[0],
         });
         await em.save(charge);
       }
@@ -304,21 +331,23 @@ export class HotelService {
       .leftJoinAndSelect('r.room', 'room')
       .leftJoinAndSelect('room.roomType', 'roomType')
       .leftJoinAndSelect('r.primaryGuest', 'guest')
-      .where('r.tenant_id = :tenantId', { tenantId });
+      .where('r.tenantId = :tenantId', { tenantId });
 
-    if (branchId) qb.andWhere('r.branch_id = :branchId', { branchId });
-    if (status)   qb.andWhere('r.status = :status', { status });
-    if (from)     qb.andWhere('r.check_in_date >= :from', { from });
-    if (to)       qb.andWhere('r.check_out_date <= :to', { to });
+    if (branchId) qb.andWhere('r.branchId = :branchId', { branchId });
+    if (status) qb.andWhere('r.status = :status', { status });
+    if (from) qb.andWhere('r.checkInDate >= :from', { from });
+    if (to) qb.andWhere('r.checkOutDate <= :to', { to });
     if (search) {
       qb.andWhere(
-        '(guest.name ILIKE :s OR guest.phone ILIKE :s OR room.room_number ILIKE :s OR r.booking_ref ILIKE :s)',
+        '(guest.name ILIKE :s OR guest.phone ILIKE :s OR room.roomNumber ILIKE :s OR r.bookingRef ILIKE :s)',
         { s: `%${search}%` },
       );
     }
 
+    console.log(qb.getSql());
+
     const [data, total] = await qb
-      .orderBy('r.check_in_date', 'DESC')
+      .orderBy('r.checkInDate', 'DESC')
       .skip((page - 1) * limit)
       .take(limit)
       .getManyAndCount();
@@ -345,7 +374,7 @@ export class HotelService {
     await this.dataSource.transaction(async (em) => {
       // Update reservation
       await em.update(Reservation, { id }, {
-        status:       ReservationStatus.CHECKED_IN,
+        status: ReservationStatus.CHECKED_IN,
         actualCheckIn: new Date(),
       });
       // Mark room occupied
@@ -355,10 +384,10 @@ export class HotelService {
       const charge = em.create(FolioCharge, {
         tenantId,
         reservationId: id,
-        description:   `Room charge — Night 1`,
-        amount:        Number(r.ratePerNight),
-        chargeType:    ChargeType.ROOM_CHARGE,
-        date:          r.checkInDate,
+        description: `Room charge — Night 1`,
+        amount: Number(r.ratePerNight),
+        chargeType: ChargeType.ROOM_CHARGE,
+        date: r.checkInDate,
       });
       await em.save(charge);
     });
@@ -375,7 +404,7 @@ export class HotelService {
 
     await this.dataSource.transaction(async (em) => {
       await em.update(Reservation, { id }, {
-        status:        ReservationStatus.CHECKED_OUT,
+        status: ReservationStatus.CHECKED_OUT,
         actualCheckOut: new Date(),
       });
       // Mark room as needing cleaning
@@ -387,13 +416,13 @@ export class HotelService {
       // Auto-create housekeeping task
       const task = em.create(HousekeepingTask, {
         tenantId,
-        branchId:      r.branchId,
-        roomId:        r.roomId,
+        branchId: r.branchId,
+        roomId: r.roomId,
         reservationId: id,
-        taskType:      HkTaskType.CHECKOUT_CLEAN,
-        status:        HkStatus.PENDING,
-        priority:      HkPriority.HIGH,
-        scheduledFor:  new Date().toISOString().split('T')[0],
+        taskType: HkTaskType.CHECKOUT_CLEAN,
+        status: HkStatus.PENDING,
+        priority: HkPriority.HIGH,
+        scheduledFor: new Date().toISOString().split('T')[0],
       });
       await em.save(task);
     });
@@ -410,8 +439,8 @@ export class HotelService {
 
     await this.dataSource.transaction(async (em) => {
       await em.update(Reservation, { id }, {
-        status:       ReservationStatus.CANCELLED,
-        cancelledAt:  new Date(),
+        status: ReservationStatus.CANCELLED,
+        cancelledAt: new Date(),
         cancelReason: reason,
       });
       // Free the room back to available (only if it was reserved, not occupied)
@@ -437,7 +466,7 @@ export class HotelService {
       order: { createdAt: 'ASC' },
     });
 
-    const total    = charges.reduce((s, c) => s + Number(c.amount), 0);
+    const total = charges.reduce((s, c) => s + Number(c.amount), 0);
     const payments = charges
       .filter((c) => c.chargeType === ChargeType.ADVANCE || c.chargeType === ChargeType.SETTLEMENT)
       .reduce((s, c) => s + Math.abs(Number(c.amount)), 0);
@@ -453,12 +482,12 @@ export class HotelService {
       tenantId,
       reservationId,
       description: dto.description,
-      amount:      dto.chargeType === ChargeType.ADVANCE || dto.chargeType === ChargeType.DISCOUNT
+      amount: dto.chargeType === ChargeType.ADVANCE || dto.chargeType === ChargeType.DISCOUNT
         ? -Math.abs(dto.amount)   // credits are stored as negative
         : dto.amount,
-      chargeType:  dto.chargeType,
+      chargeType: dto.chargeType,
       referenceId: dto.referenceId,
-      date:        dto.date ?? new Date().toISOString().split('T')[0],
+      date: dto.date ?? new Date().toISOString().split('T')[0],
     });
     return this.folioRepo.save(charge);
   }
@@ -477,9 +506,9 @@ export class HotelService {
     if (!task) throw new NotFoundException('Task not found');
 
     task.status = status;
-    if (notes)                        task.notes = notes;
-    if (status === HkStatus.IN_PROGRESS && !task.startedAt)  task.startedAt  = new Date();
-    if (status === HkStatus.DONE      && !task.completedAt)  task.completedAt = new Date();
+    if (notes) task.notes = notes;
+    if (status === HkStatus.IN_PROGRESS && !task.startedAt) task.startedAt = new Date();
+    if (status === HkStatus.DONE && !task.completedAt) task.completedAt = new Date();
 
     const saved = await this.hkRepo.save(task);
 
@@ -502,14 +531,14 @@ export class HotelService {
   }) {
     const task = this.hkRepo.create({
       tenantId,
-      branchId:     dto.branchId,
-      roomId:       dto.roomId,
-      taskType:     dto.taskType,
-      priority:     dto.priority ?? HkPriority.NORMAL,
+      branchId: dto.branchId,
+      roomId: dto.roomId,
+      taskType: dto.taskType,
+      priority: dto.priority ?? HkPriority.NORMAL,
       scheduledFor: dto.scheduledFor ?? new Date().toISOString().split('T')[0],
-      notes:        dto.notes,
-      assignedTo:   dto.assignedTo,
-      status:       HkStatus.PENDING,
+      notes: dto.notes,
+      assignedTo: dto.assignedTo,
+      status: HkStatus.PENDING,
     });
     return this.hkRepo.save(task);
   }
@@ -521,8 +550,8 @@ export class HotelService {
 
     const roomsQuery = this.roomRepo
       .createQueryBuilder('r')
-      .where('r.tenant_id = :tenantId AND r.is_active = true', { tenantId });
-    if (branchId) roomsQuery.andWhere('r.branch_id = :branchId', { branchId });
+      .where('r.tenantId = :tenantId AND r.isActive = true', { tenantId });
+    if (branchId) roomsQuery.andWhere('r.branchId = :branchId', { branchId });
 
     const rooms = await roomsQuery.getMany();
 
@@ -532,12 +561,12 @@ export class HotelService {
     }, {});
 
     const [arrivalsToday, departuresToday, inHouse] = await Promise.all([
-      this.reservationRepo.count({ where: { tenantId, ...(branchId ? { branchId } : {}), checkInDate: today,  status: ReservationStatus.CONFIRMED } }),
+      this.reservationRepo.count({ where: { tenantId, ...(branchId ? { branchId } : {}), checkInDate: today, status: ReservationStatus.CONFIRMED } }),
       this.reservationRepo.count({ where: { tenantId, ...(branchId ? { branchId } : {}), checkOutDate: today, status: ReservationStatus.CHECKED_IN } }),
       this.reservationRepo.count({ where: { tenantId, ...(branchId ? { branchId } : {}), status: ReservationStatus.CHECKED_IN } }),
     ]);
 
-    const totalRooms  = rooms.length;
+    const totalRooms = rooms.length;
     const occupancyPct = totalRooms > 0 ? Math.round((byStatus[RoomStatus.OCCUPIED] ?? 0) / totalRooms * 100) : 0;
 
     return {
