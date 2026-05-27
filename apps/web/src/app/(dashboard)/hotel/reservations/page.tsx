@@ -211,7 +211,7 @@ function NewReservationDrawer({ onClose, onCreated }: { onClose: () => void; onC
                 .sort((a, b) => a.roomNumber.localeCompare(b.roomNumber))
                 .map((r) => (
                   <option key={r.id} value={r.id}>
-                    {r.roomNumber} — {r.roomType?.name} (₹{Number(r.roomType?.baseRate).toLocaleString('en-IN')}/night)
+                    Room {r.roomNumber} — {r.roomType?.name}
                   </option>
                 ))}
             </select>
