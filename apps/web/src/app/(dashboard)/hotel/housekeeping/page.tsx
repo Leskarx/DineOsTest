@@ -191,6 +191,10 @@ function NewTaskModal({ date, onClose }: { date: string; onClose: () => void }) 
     staleTime: 60_000,
   });
 
+  const safeRooms = Array.isArray(rooms)
+    ? rooms
+    : [];
+
   const [form, setForm] = useState({
     roomId: '',
     taskType: 'stayover' as HkTaskType,
@@ -229,7 +233,7 @@ function NewTaskModal({ date, onClose }: { date: string; onClose: () => void }) 
             className="input-field text-sm w-full"
           >
             <option value="">Select room…</option>
-            {rooms.map((r) => (
+            {safeRooms.map((r) => (
               <option key={r.id} value={r.id}>Room {r.roomNumber} – {r.roomType?.name}</option>
             ))}
           </select>

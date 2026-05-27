@@ -142,15 +142,29 @@ export default function HotelPage() {
     staleTime: 30_000,
   });
 
-  const { data: arrivalsData } = useQuery<{ data: Reservation[] }>({
+  const { data: arrivals = [] } = useQuery<Reservation[]>({
     queryKey: ['hotel-arrivals'],
-    queryFn: () => api.get(`/api/v1/hotel/reservations?status=confirmed&from=${new Date().toISOString().split('T')[0]}&to=${new Date().toISOString().split('T')[0]}&limit=10`).then((r) => r.data),
+    queryFn: async () => {
+      const res = await api.get(`/api/v1/hotel/reservations?status=confirmed&from=${new Date().toISOString().split('T')[0]}&to=${new Date().toISOString().split('T')[0]}&limit=10`);
+      const d = res.data;
+      if (Array.isArray(d)) return d;
+      if (d?.data && Array.isArray(d.data)) return d.data;
+      if (d?.data?.data && Array.isArray(d.data.data)) return d.data.data;
+      return [];
+    },
     staleTime: 60_000,
   });
 
-  const { data: departuresData } = useQuery<{ data: Reservation[] }>({
+  const { data: departures = [] } = useQuery<Reservation[]>({
     queryKey: ['hotel-departures'],
-    queryFn: () => api.get(`/api/v1/hotel/reservations?status=checked_in&to=${new Date().toISOString().split('T')[0]}&limit=10`).then((r) => r.data),
+    queryFn: async () => {
+      const res = await api.get(`/api/v1/hotel/reservations?status=checked_in&to=${new Date().toISOString().split('T')[0]}&limit=10`);
+      const d = res.data;
+      if (Array.isArray(d)) return d;
+      if (d?.data && Array.isArray(d.data)) return d.data;
+      if (d?.data?.data && Array.isArray(d.data.data)) return d.data.data;
+      return [];
+    },
     staleTime: 60_000,
   });
 
@@ -248,17 +262,17 @@ export default function HotelPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-sm font-semibold text-white">
                 <ArrowRight size={14} className="text-amber-400" />
-                Today's Arrivals ({arrivalsData?.data?.length ?? 0})
+                Today's Arrivals ({arrivals.length})
               </div>
               <Link href="/hotel/reservations?status=confirmed" className="text-xs text-slate-500 hover:text-slate-300">
                 View all
               </Link>
             </div>
-            {(arrivalsData?.data ?? []).length === 0 ? (
+            {arrivals.length === 0 ? (
               <p className="text-xs text-slate-600 py-4 text-center">No arrivals today</p>
             ) : (
               <div className="divide-y divide-slate-800/60">
-                {(arrivalsData?.data ?? []).map((r) => (
+                {arrivals.map((r) => (
                   <div key={r.id} className="py-2 flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <div className="text-sm text-white font-medium truncate">{r.primaryGuest?.name}</div>
@@ -280,17 +294,17 @@ export default function HotelPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-sm font-semibold text-white">
                 <ArrowLeft size={14} className="text-violet-400" />
-                Today's Departures ({departuresData?.data?.length ?? 0})
+                Today's Departures ({departures.length})
               </div>
               <Link href="/hotel/reservations?status=checked_in" className="text-xs text-slate-500 hover:text-slate-300">
                 View all
               </Link>
             </div>
-            {(departuresData?.data ?? []).length === 0 ? (
+            {departures.length === 0 ? (
               <p className="text-xs text-slate-600 py-4 text-center">No departures today</p>
             ) : (
               <div className="divide-y divide-slate-800/60">
-                {(departuresData?.data ?? []).map((r) => (
+                {departures.map((r) => (
                   <div key={r.id} className="py-2 flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <div className="text-sm text-white font-medium truncate">{r.primaryGuest?.name}</div>

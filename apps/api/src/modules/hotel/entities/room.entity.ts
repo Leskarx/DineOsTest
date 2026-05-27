@@ -5,10 +5,10 @@ import {
 import { RoomType } from './room-type.entity';
 
 export enum RoomStatus {
-  AVAILABLE   = 'available',
-  OCCUPIED    = 'occupied',
-  RESERVED    = 'reserved',
-  CLEANING    = 'cleaning',
+  AVAILABLE = 'available',
+  OCCUPIED = 'occupied',
+  RESERVED = 'reserved',
+  CLEANING = 'cleaning',
   MAINTENANCE = 'maintenance',
   OUT_OF_ORDER = 'out_of_order',
 }
@@ -18,16 +18,21 @@ export enum RoomStatus {
 export class Room {
   @PrimaryGeneratedColumn('uuid') id: string;
 
-  @Column({ name: 'tenant_id' }) @Index() tenantId: string;
-  @Column({ name: 'branch_id' })           branchId: string;
+  @Column({ name: 'tenant_id', type: 'uuid' })
+  @Index()
+  tenantId: string;
 
-  @Column({ name: 'room_type_id' })        roomTypeId: string;
+  @Column({ name: 'branch_id', type: 'uuid' })
+  branchId: string;
+
+  @Column({ name: 'room_type_id', type: 'uuid' })
+  roomTypeId: string;
   @ManyToOne(() => RoomType)
   @JoinColumn({ name: 'room_type_id' })
   roomType: RoomType;
 
   @Column({ name: 'room_number', length: 20 }) roomNumber: string;
-  @Column({ type: 'smallint', default: 1 })    floor: number;
+  @Column({ type: 'smallint', default: 1 }) floor: number;
 
   @Column({
     type: 'enum', enum: RoomStatus,
