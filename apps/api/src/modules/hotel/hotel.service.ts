@@ -270,7 +270,15 @@ export class HotelService {
         .andWhere('r.checkOutDate > :checkIn', { checkIn: dto.checkInDate })
         .getOne();
       if (overlap) throw new ConflictException(`Room ${room.roomNumber} is already booked for the selected dates`);
+      // 4. Validate dates
+      const checkIn = new Date(dto.checkInDate);
+      const checkOut = new Date(dto.checkOutDate);
 
+      if (checkOut <= checkIn) {
+        throw new BadRequestException(
+          'Check-out date must be after check-in date',
+        );
+      }
       // 4. Calculate financials
       const numNights = this.calcNights(dto.checkInDate, dto.checkOutDate);
       const rate = dto.ratePerNight ?? Number(room.roomType?.baseRate ?? 0);
