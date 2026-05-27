@@ -98,23 +98,35 @@ export function ListRowSkeleton({ count = 4 }: { count?: number }) {
 // ─── KDS ticket card skeleton ─────────────────────────────────────────────────
 export function KdsTicketSkeleton({ count = 3 }: { count?: number }) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="card p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <Skeleton className="h-5 w-20" />
-            <Skeleton className="h-5 w-16 rounded-full" />
+        <div key={i} className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-300 dark:border-slate-700 shadow-sm overflow-hidden flex flex-col min-h-[280px]">
+          {/* Header */}
+          <div className="px-5 py-4 bg-slate-50 dark:bg-slate-800 border-b border-slate-300 dark:border-slate-700 flex items-start justify-between">
+            <div className="space-y-2">
+              <Skeleton className="h-6 w-24 bg-slate-200 dark:bg-slate-700" />
+              <Skeleton className="h-4 w-32 bg-slate-200 dark:bg-slate-700" />
+            </div>
+            <Skeleton className="h-6 w-16 rounded-lg bg-slate-200 dark:bg-slate-700" />
           </div>
-          <Skeleton className="h-3 w-28" />
-          <div className="space-y-2 pt-1">
+          
+          {/* Items */}
+          <div className="flex-1 p-5 space-y-4">
             {Array.from({ length: 3 }).map((_, j) => (
-              <div key={j} className="flex justify-between">
-                <Skeleton className="h-4 w-32" />
-                <Skeleton className="h-4 w-8" />
+              <div key={j} className="flex justify-between items-start">
+                <div className="space-y-2">
+                  <Skeleton className="h-5 w-32" />
+                  <Skeleton className="h-3 w-16" />
+                </div>
+                <Skeleton className="h-5 w-8" />
               </div>
             ))}
           </div>
-          <Skeleton className="h-9 w-full rounded-xl mt-2" />
+
+          {/* Footer Action */}
+          <div className="p-4 border-t border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/70">
+            <Skeleton className="h-10 w-full rounded-xl" />
+          </div>
         </div>
       ))}
     </div>

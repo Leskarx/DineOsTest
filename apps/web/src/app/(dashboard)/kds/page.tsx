@@ -8,6 +8,7 @@ import {
   AlertCircle, Volume2, VolumeX, FlameKindling, Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { KdsTicketSkeleton } from '@/components/ui/Skeleton';
 
 // ─── Audio ────────────────────────────────────────────────────────────────────
 let audioContext: AudioContext | null = null;
@@ -337,12 +338,21 @@ export default function KdsPage() {
 
   const startCooking = useCallback(async (ids: string[]) => {
     setStarting((s) => new Set([...s, ...ids]));
+    
+    // Optimistic update
+    qc.setQueryData(['kds-pending'], (oldData: KDSItem[] | undefined) => {
+      if (!oldData) return oldData;
+      return oldData.map(item => 
+        ids.includes(item.order_item_id) ? { ...item, kds_status: 'preparing' } : item
+      );
+    });
+
     try {
       await Promise.all(
         ids.map((id) => apiPatch(`/api/v1/kds/items/${id}/status`, { status: 'preparing' })),
       );
-      qc.invalidateQueries({ queryKey: ['kds-pending'] });
     } finally {
+      qc.invalidateQueries({ queryKey: ['kds-pending'] });
       setStarting((s) => {
         const n = new Set(s);
         ids.forEach((id) => n.delete(id));
@@ -353,12 +363,21 @@ export default function KdsPage() {
 
   const markReady = useCallback(async (ids: string[]) => {
     setMarking((s) => new Set([...s, ...ids]));
+    
+    // Optimistic update
+    qc.setQueryData(['kds-pending'], (oldData: KDSItem[] | undefined) => {
+      if (!oldData) return oldData;
+      return oldData.map(item => 
+        ids.includes(item.order_item_id) ? { ...item, kds_status: 'ready' } : item
+      );
+    });
+
     try {
       await Promise.all(
         ids.map((id) => apiPatch(`/api/v1/kds/items/${id}/status`, { status: 'ready' })),
       );
-      qc.invalidateQueries({ queryKey: ['kds-pending'] });
     } finally {
+      qc.invalidateQueries({ queryKey: ['kds-pending'] });
       setMarking((s) => {
         const n = new Set(s);
         ids.forEach((id) => n.delete(id));
@@ -369,12 +388,19 @@ export default function KdsPage() {
 
   const bump = useCallback(async (ids: string[]) => {
     setBumping((s) => new Set([...s, ...ids]));
+
+    // Optimistic update
+    qc.setQueryData(['kds-pending'], (oldData: KDSItem[] | undefined) => {
+      if (!oldData) return oldData;
+      return oldData.filter(item => !ids.includes(item.order_item_id));
+    });
+
     try {
       await Promise.all(
         ids.map((id) => apiPatch(`/api/v1/kds/items/${id}/bump`, {})),
       );
-      qc.invalidateQueries({ queryKey: ['kds-pending'] });
     } finally {
+      qc.invalidateQueries({ queryKey: ['kds-pending'] });
       setBumping((s) => {
         const n = new Set(s);
         ids.forEach((id) => n.delete(id));
@@ -399,10 +425,16 @@ export default function KdsPage() {
 
   if (isLoading) {
     return (
-      <div className="h-full bg-slate-50 dark:bg-slate-950 flex items-center justify-center">
-        <div className="text-center">
-          <ChefHat className="animate-pulse text-amber-600 dark:text-amber-400 mx-auto mb-4" size={48} />
-          <p className="text-slate-900 dark:text-slate-400">Loading kitchen display...</p>
+      <div className="h-full bg-slate-50 dark:bg-slate-950 flex flex-col">
+        {/* Top bar skeleton */}
+        <div className="flex items-center justify-between px-5 py-3 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+          <div className="flex items-center gap-3">
+            <ChefHat size={20} className="text-amber-600 dark:text-amber-400" />
+            <h1 className="text-lg font-bold text-slate-900 dark:text-white">Kitchen Display</h1>
+          </div>
+        </div>
+        <div className="flex-1 p-5 overflow-y-auto">
+          <KdsTicketSkeleton count={6} />
         </div>
       </div>
     );

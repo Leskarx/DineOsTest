@@ -9,6 +9,7 @@ import { useSocket } from '@/hooks/useSocket';
 import { BillingModal } from '@/components/billing/BillingModal';
 import { TablePickerModal } from '@/components/pos/TablePickerModal';
 import { OrderTypeSelector } from '@/components/pos/OrderTypeSelector';
+import { MenuGridSkeleton, ListRowSkeleton } from '@/components/ui/Skeleton';
 import {
   Search, Plus, Minus, Trash2, Printer, CreditCard, UtensilsCrossed,
   Tag, ChevronDown, ClipboardList, X, Gift, RotateCcw, Clock,
@@ -236,18 +237,18 @@ export default function PosPage() {
   }, [clearCart, setCurrentOrder, setDiscount, setTable]);
 
   // ── Queries ────────────────────────────────────────────────────────────────
-  const { data: categories } = useQuery({
+  const { data: categories, isLoading: isLoadingCategories } = useQuery({
     queryKey: ['categories'],
     queryFn:  () => apiFetch('/api/v1/menu/categories').then((r) => r.data),
   });
 
-  const { data: items } = useQuery({
+  const { data: items, isLoading: isLoadingItems } = useQuery({
     queryKey: ['menuItems', selectedCat],
     queryFn:  () =>
       apiFetch(`/api/v1/menu/items${selectedCat ? `?categoryId=${selectedCat}` : ''}`).then((r) => r.data),
   });
 
-  const { data: openOrders, refetch: refetchOpenOrders } = useQuery({
+  const { data: openOrders, isLoading: isLoadingOpenOrders, refetch: refetchOpenOrders } = useQuery({
     queryKey: ['open-orders-pos'],
     queryFn:  () =>
       apiFetch('/api/v1/orders?status=draft,placed,confirmed,preparing,ready,served&limit=50')
@@ -464,7 +465,9 @@ export default function PosPage() {
                   Open Orders
                 </div>
                 <div className="max-h-64 overflow-y-auto">
-                  {!openOrders?.length ? (
+                  {isLoadingOpenOrders ? (
+                    <div className="p-3"><ListRowSkeleton count={3} /></div>
+                  ) : !openOrders?.length ? (
                     <div className="py-6 text-center text-slate-900 dark:text-slate-500 text-sm">No open orders</div>
                   ) : openOrders.map((o: any) => (
                     <button
@@ -536,34 +539,51 @@ export default function PosPage() {
 
         {/* Categories */}
         <div className="flex gap-2 px-4 py-2 overflow-x-auto scrollbar-none border-b border-slate-200 dark:border-slate-800">
-          <button
-            onClick={() => setSelectedCat(null)}
-            className={cn(
-              'px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors',
-              !selectedCat ? 'bg-amber-500 text-slate-900' : 'bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-400 hover:text-slate-900 dark:text-white',
-            )}
-          >
-            All Items
-          </button>
-          {categories?.map((cat: any) => (
-            <button
-              key={cat.id}
-              onClick={() => setSelectedCat(cat.id)}
-              className={cn(
-                'px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors',
-                selectedCat === cat.id
-                  ? 'bg-amber-500 text-slate-900'
-                  : 'bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-400 hover:text-slate-900 dark:text-white',
-              )}
-            >
-              {cat.name}
-            </button>
-          ))}
+          {isLoadingCategories ? (
+            <>
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="h-8 w-20 bg-slate-200 dark:bg-slate-800 rounded-lg animate-pulse flex-shrink-0" />
+              ))}
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => setSelectedCat(null)}
+                className={cn(
+                  'px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors',
+                  !selectedCat ? 'bg-amber-500 text-slate-900' : 'bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-400 hover:text-slate-900 dark:text-white',
+                )}
+              >
+                All Items
+              </button>
+              {categories?.map((cat: any) => (
+                <button
+                  key={cat.id}
+                  onClick={() => setSelectedCat(cat.id)}
+                  className={cn(
+                    'px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors',
+                    selectedCat === cat.id
+                      ? 'bg-amber-500 text-slate-900'
+                      : 'bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-400 hover:text-slate-900 dark:text-white',
+                  )}
+                >
+                  {cat.name}
+                </button>
+              ))}
+            </>
+          )}
         </div>
 
         {/* Items grid */}
         <div className="flex-1 overflow-y-auto p-4 grid grid-cols-3 xl:grid-cols-4 gap-3 content-start">
-          {filteredItems?.map((item: any) => {
+          {isLoadingItems ? (
+            <div className="col-span-full"><MenuGridSkeleton count={8} /></div>
+          ) : filteredItems?.length === 0 ? (
+            <div className="col-span-full flex flex-col items-center justify-center py-16 text-slate-900 dark:text-slate-500">
+              <Search size={32} className="mb-3 opacity-30" />
+              <p className="text-sm">No items found</p>
+            </div>
+          ) : filteredItems?.map((item: any) => {
             const activeVars = (item.variations || []).filter((v: any) => v.isActive);
             const gstRate    = item.gstRate?.rate ?? 0;
             return (
@@ -596,12 +616,6 @@ export default function PosPage() {
               </button>
             );
           })}
-          {filteredItems?.length === 0 && (
-            <div className="col-span-full flex flex-col items-center justify-center py-16 text-slate-900 dark:text-slate-500">
-              <Search size={32} className="mb-3 opacity-30" />
-              <p className="text-sm">No items found</p>
-            </div>
-          )}
         </div>
       </div>
 
@@ -701,7 +715,9 @@ export default function PosPage() {
 
         {/* Cart items */}
         <div className="flex-1 overflow-y-auto p-3 space-y-2">
-          {cart.length === 0 ? (
+          {loadingOrderId ? (
+            <div className="pt-2"><ListRowSkeleton count={4} /></div>
+          ) : cart.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-slate-600 text-sm gap-2">
               <ShoppingCartIcon />
               <span>Add items to start an order</span>
