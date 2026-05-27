@@ -6,7 +6,7 @@ import { useAuthStore } from '@/store/auth.store';
 import {
   LayoutDashboard, ShoppingCart, Monitor, Layout, BookOpen, Package,
   Receipt, Clock, BarChart3, Users, Building2, Settings, LogOut,
-  Wifi, WifiOff, Shield, Hotel, CalendarDays, SprayCan,
+  Wifi, WifiOff, Shield, Hotel, CalendarDays, SprayCan, BedDouble,
 } from 'lucide-react';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { cn } from '@/lib/utils';
@@ -39,6 +39,12 @@ const navSections: NavSection[] = [
     items: [
       { href: '/hotel', label: 'Front Desk', icon: Hotel, exact: true, roles: ['owner', 'manager', 'cashier'] },
       { href: '/hotel/reservations', label: 'Reservations', icon: CalendarDays, roles: ['owner', 'manager'] },
+      {
+        href: '/hotel/rooms',
+        label: 'Rooms',
+        icon: BedDouble,
+        roles: ['owner', 'manager']
+      },
       { href: '/hotel/housekeeping', label: 'Housekeeping', icon: SprayCan, roles: ['owner', 'manager'] },
     ],
   },

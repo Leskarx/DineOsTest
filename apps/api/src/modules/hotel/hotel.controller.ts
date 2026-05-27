@@ -75,9 +75,16 @@ export class HotelController {
   }
 
   @Post('rooms')
-  @Roles('owner', 'manager')
-  createRoom(@TenantId() tid: string, @Body() body: any) {
-    return this.svc.createRoom(tid, body);
+  createRoom(
+    @TenantId() tid: string,
+    @CurrentUser() user: any,
+    @Body() body: any,
+  ) {
+    return this.svc.createRoom(
+      tid,
+      user?.branchId,
+      body,
+    );
   }
 
   @Patch('rooms/:id')
