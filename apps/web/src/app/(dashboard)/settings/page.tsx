@@ -11,6 +11,7 @@ import {
 import { cn } from '@/lib/utils';
 import { usePrinterSettings } from '@/hooks/usePrinterSettings';
 import type { PrinterWidth } from '@/lib/printer';
+import { useAuthStore } from '@/store/auth.store';
 
 // ─── GSTIN validation ──────────────────────────────────────────────────────────
 const GSTIN_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
@@ -39,18 +40,22 @@ const NOTIF_PREFS = [
 ];
 
 const TABS = [
-  { id: 'business',      label: 'Business Info',  icon: Building2 },
-  { id: 'gst',           label: 'GST & Tax',       icon: FileText },
-  { id: 'subscription',  label: 'Subscription',    icon: CreditCard },
-  { id: 'payments',      label: 'Payments',        icon: Zap },
-  { id: 'printer',       label: 'Printer',         icon: Printer },
-  { id: 'notifications', label: 'Notifications',   icon: Bell },
-  { id: 'security',      label: 'Security',        icon: Monitor },
+  { id: 'business',      label: 'Business Info',  icon: Building2,      roles: ['owner', 'manager', 'restaurant_manager', 'hotel_manager'] },
+  { id: 'gst',           label: 'GST & Tax',       icon: FileText,       roles: ['owner'] },
+  { id: 'subscription',  label: 'Subscription',    icon: CreditCard,     roles: ['owner'] },
+  { id: 'payments',      label: 'Payments',        icon: Zap,            roles: ['owner'] },
+  { id: 'printer',       label: 'Printer',         icon: Printer,        roles: ['owner', 'manager', 'restaurant_manager', 'hotel_manager', 'cashier', 'waiter', 'kitchen', 'receptionist'] },
+  { id: 'notifications', label: 'Notifications',   icon: Bell,           roles: ['owner', 'manager', 'restaurant_manager', 'hotel_manager'] },
+  { id: 'security',      label: 'Security',        icon: Monitor,        roles: ['owner', 'manager', 'restaurant_manager', 'hotel_manager', 'cashier', 'waiter', 'kitchen', 'receptionist', 'inventory', 'housekeeping'] },
 ];
 
 export default function SettingsPage() {
   const qc = useQueryClient();
-  const [tab, setTab]               = useState('business');
+  const user = useAuthStore((s) => s.user);
+  const role = user?.role || 'waiter';
+  const allowedTabs = TABS.filter((t) => !t.roles || t.roles.includes(role));
+
+  const [tab, setTab]               = useState(allowedTabs[0]?.id || 'security');
   const [form, setForm]             = useState<any>(null);
   const [logoUploading, setLogoUploading] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -136,7 +141,7 @@ export default function SettingsPage() {
       {/* Sidebar */}
       <aside className="w-52 flex-shrink-0 border-r border-slate-200 dark:border-slate-800 p-3 space-y-1">
         <div className="text-xs font-semibold text-slate-900 dark:text-slate-500 uppercase mb-3 px-2">Settings</div>
-        {TABS.map(({ id, label, icon: Icon }) => (
+        {allowedTabs.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
             onClick={() => setTab(id)}
