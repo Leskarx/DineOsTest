@@ -1,7 +1,9 @@
 import {
   Entity, PrimaryGeneratedColumn, Column,
   CreateDateColumn, UpdateDateColumn, Index,
+  ManyToOne, JoinColumn
 } from 'typeorm';
+import { Room } from './room.entity';
 
 export enum HkTaskType {
   CHECKOUT_CLEAN = 'checkout_clean',
@@ -35,6 +37,8 @@ export class HousekeepingTask {
   @Column({ name: 'room_id', type: 'uuid' })
   @Index()
   roomId: string;
+  @ManyToOne(() => Room)
+  @JoinColumn({ name: 'room_id' }) room: Room;
 
   @Column({ name: 'reservation_id', type: 'uuid', nullable: true })
   reservationId: string;

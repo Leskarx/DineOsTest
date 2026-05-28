@@ -5,7 +5,7 @@ import {
   ConflictException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, DataSource, Between, Like, ILike } from "typeorm";
+import { Repository, DataSource, Between, Like, ILike, In } from "typeorm";
 
 import { RoomType } from "./entities/room-type.entity";
 import { Room, RoomStatus } from "./entities/room.entity";
@@ -229,8 +229,18 @@ export class HotelService {
   ): Promise<Room> {
     const room = await this.roomRepo.findOne({ where: { id, tenantId } });
     if (!room) throw new NotFoundException("Room not found");
+    
+    const statusChanged = data.status && data.status !== room.status;
+    const newStatus = data.status;
+
     Object.assign(room, data);
-    return this.roomRepo.save(room);
+    const savedRoom = await this.roomRepo.save(room);
+
+    if (statusChanged && newStatus) {
+      await this.syncHousekeepingOnStatusChange(id, tenantId, newStatus, room.branchId);
+    }
+
+    return savedRoom;
   }
 
   async updateRoomStatus(
@@ -240,8 +250,61 @@ export class HotelService {
   ): Promise<Room> {
     const room = await this.roomRepo.findOne({ where: { id, tenantId } });
     if (!room) throw new NotFoundException("Room not found");
+    
+    const statusChanged = status !== room.status;
     room.status = status;
-    return this.roomRepo.save(room);
+    const savedRoom = await this.roomRepo.save(room);
+
+    if (statusChanged) {
+      await this.syncHousekeepingOnStatusChange(id, tenantId, status, room.branchId);
+    }
+
+    return savedRoom;
+  }
+
+  private async syncHousekeepingOnStatusChange(roomId: string, tenantId: string, status: RoomStatus, branchId: string) {
+    if (status === RoomStatus.AVAILABLE) {
+      const today = new Date().toISOString().split("T")[0];
+      await this.hkRepo.update(
+        {
+          roomId,
+          tenantId,
+          scheduledFor: today,
+          status: In([HkStatus.PENDING, HkStatus.IN_PROGRESS]),
+        },
+        {
+          status: HkStatus.DONE,
+          completedAt: new Date(),
+          notes: "Auto-resolved via Room Status update",
+        }
+      );
+    } else if (status === RoomStatus.CLEANING || status === RoomStatus.MAINTENANCE) {
+      const today = new Date().toISOString().split("T")[0];
+      const taskType = status === RoomStatus.CLEANING ? HkTaskType.STAYOVER : HkTaskType.MAINTENANCE;
+      
+      const existingTask = await this.hkRepo.findOne({
+        where: {
+          roomId,
+          tenantId,
+          scheduledFor: today,
+          status: In([HkStatus.PENDING, HkStatus.IN_PROGRESS]),
+        }
+      });
+
+      if (!existingTask) {
+        const newTask = this.hkRepo.create({
+          tenantId,
+          branchId,
+          roomId,
+          taskType,
+          status: HkStatus.PENDING,
+          priority: HkPriority.NORMAL,
+          scheduledFor: today,
+          notes: `Auto-generated from room status update`,
+        });
+        await this.hkRepo.save(newTask);
+      }
+    }
   }
 
   // ── Guests ──────────────────────────────────────────────────────────────────
@@ -783,6 +846,7 @@ export class HotelService {
     where.scheduledFor = date ?? new Date().toISOString().split("T")[0];
     return this.hkRepo.find({
       where,
+      relations: ['room', 'room.roomType'],
       order: { priority: "DESC", createdAt: "ASC" },
     });
   }

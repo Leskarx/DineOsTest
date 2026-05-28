@@ -93,62 +93,115 @@ function TaskCard({
 
   return (
     <div className={cn(
-      'bg-white dark:bg-slate-900 border rounded-xl p-3 space-y-2.5 transition-opacity',
+      'group bg-white dark:bg-slate-900 border rounded-xl p-3 space-y-3 transition-all duration-200',
+      'hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700',
       col?.color ?? 'border-slate-200 dark:border-slate-800',
-      updating && 'opacity-60 pointer-events-none',
+      updating && 'opacity-60 pointer-events-none scale-[0.98]'
     )}>
       {/* Header row */}
       <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-1.5 min-w-0">
-          <TaskIcon size={13} className={cn('flex-shrink-0', taskCfg.color)} />
-          <span className="text-sm font-semibold text-slate-900 dark:text-white">
-            Room {task.room?.roomNumber ?? '—'}
-          </span>
-          <span className="text-xs text-slate-900 dark:text-slate-500">·  Floor {task.room?.floor ?? '—'}</span>
+        <div className="flex items-center gap-2 min-w-0">
+          <div className={cn('p-1.5 rounded-lg flex-shrink-0 bg-slate-50 dark:bg-slate-800/50', taskCfg.color)}>
+            <TaskIcon size={14} />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+              Room {task.room?.roomNumber ?? '—'}
+            </span>
+            <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">Floor {task.room?.floor ?? '—'}</span>
+          </div>
         </div>
-        <span className={cn('flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-md flex-shrink-0', priCfg.color)}>
-          <PriIcon size={9} />
+        <span className={cn('flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full flex-shrink-0 border transition-colors', priCfg.color, 'border-current/10')}>
+          <PriIcon size={10} />
           {priCfg.label}
         </span>
       </div>
 
       {/* Type + room type */}
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-slate-900 dark:text-slate-400">{taskCfg.label}</span>
+      <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/40 p-2 rounded-lg">
+        <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">{taskCfg.label}</span>
         {task.room?.roomType?.name && (
-          <span className="text-[10px] text-slate-600">· {task.room.roomType.name}</span>
+          <>
+            <span className="text-[10px] text-slate-400">•</span>
+            <span className="text-[11px] text-slate-500 font-medium">{task.room.roomType.name}</span>
+          </>
         )}
       </div>
 
       {/* Notes */}
       {task.notes && (
-        <p className="text-xs text-slate-900 dark:text-slate-500 leading-relaxed line-clamp-2">{task.notes}</p>
-      )}
-
-      {/* Assigned to */}
-      {task.assignedTo && (
-        <p className="text-[10px] text-slate-600">Assigned: {task.assignedTo}</p>
-      )}
-
-      {/* Times */}
-      {task.startedAt && (
-        <p className="text-[10px] text-slate-600">
-          Started: {format(new Date(task.startedAt), 'h:mm a')}
-          {task.completedAt && ` · Done: ${format(new Date(task.completedAt), 'h:mm a')}`}
+        <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed bg-amber-50/50 dark:bg-amber-900/10 p-2 rounded-lg border border-amber-100/50 dark:border-amber-900/20 italic">
+          "{task.notes}"
         </p>
       )}
 
-      {/* Action button */}
-      {col?.nextStatus && (
-        <button
-          onClick={() => onStatusChange(task.id, col.nextStatus!)}
-          disabled={updating}
-          className="w-full flex items-center justify-center gap-1.5 text-xs py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 hover:bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:text-white transition-colors"
-        >
-          {updating ? <Loader2 size={11} className="animate-spin" /> : <ChevronRight size={11} />}
-          {col.nextLabel}
-        </button>
-      )}
+      {/* Meta Footer */}
+      <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+        <div className="flex flex-col">
+          {task.assignedTo && (
+            <span className="text-[10px] font-medium text-slate-600 dark:text-slate-400">👤 {task.assignedTo}</span>
+          )}
+          {task.startedAt && (
+            <span className="text-[10px] text-slate-500">
+              {format(new Date(task.startedAt), 'h:mm a')}
+              {task.completedAt && ` → ${format(new Date(task.completedAt), 'h:mm a')}`}
+            </span>
+          )}
+        </div>
+        
+        {/* Action button */}
+        {col?.nextStatus && (
+          <button
+            onClick={() => onStatusChange(task.id, col.nextStatus!)}
+            disabled={updating}
+            className={cn(
+              "flex items-center justify-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-all",
+              "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-sm",
+              "hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white group-hover:border-slate-300 dark:group-hover:border-slate-600",
+              updating ? "text-slate-400" : "text-slate-600 dark:text-slate-300"
+            )}
+          >
+            {updating ? <Loader2 size={12} className="animate-spin" /> : col.nextLabel}
+            {!updating && <ChevronRight size={12} className="opacity-70 group-hover:translate-x-0.5 transition-transform" />}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function HousekeepingSkeleton() {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-0 h-full divide-x divide-slate-200 dark:divide-slate-800">
+      {[1, 2, 3].map((col) => (
+        <div key={col} className="flex flex-col overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60">
+            <div className="h-4 w-24 bg-slate-200 dark:bg-slate-800 rounded animate-pulse" />
+            <div className="h-5 w-6 bg-slate-200 dark:bg-slate-800 rounded-full animate-pulse" />
+          </div>
+          <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
+            {[1, 2].map((card) => (
+              <div key={card} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 space-y-3">
+                <div className="flex justify-between items-start">
+                  <div className="flex gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-slate-200 dark:bg-slate-800 animate-pulse" />
+                    <div className="space-y-1">
+                      <div className="h-3 w-16 bg-slate-200 dark:bg-slate-800 rounded animate-pulse" />
+                      <div className="h-2 w-10 bg-slate-200 dark:bg-slate-800 rounded animate-pulse" />
+                    </div>
+                  </div>
+                  <div className="h-4 w-12 bg-slate-200 dark:bg-slate-800 rounded-full animate-pulse" />
+                </div>
+                <div className="h-8 w-full bg-slate-50 dark:bg-slate-800/40 rounded-lg animate-pulse" />
+                <div className="flex justify-between items-center pt-2 border-t border-slate-100 dark:border-slate-800">
+                  <div className="h-2 w-12 bg-slate-200 dark:bg-slate-800 rounded animate-pulse" />
+                  <div className="h-6 w-20 bg-slate-200 dark:bg-slate-800 rounded-lg animate-pulse" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -323,7 +376,7 @@ export default function HousekeepingPage() {
   const [showNew, setShowNew] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  const { data: tasks = [], isLoading, refetch } = useQuery<HkTask[]>({
+  const { data: tasks = [], isFetching, refetch } = useQuery<HkTask[]>({
     queryKey: ['hotel-housekeeping', date],
     queryFn: () => api.get(`/api/v1/hotel/housekeeping?date=${date}`).then((r) => {
       const d = r.data;
@@ -332,7 +385,9 @@ export default function HousekeepingPage() {
       if (d && Array.isArray(d.data)) return d.data;
       return [];
     }),
-    staleTime: 30_000,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: 'always',
   });
 
   const { mutate: updateStatus } = useMutation({
@@ -409,10 +464,8 @@ export default function HousekeepingPage() {
 
       {/* Board */}
       <div className="flex-1 overflow-hidden">
-        {isLoading ? (
-          <div className="flex items-center justify-center h-full">
-            <Loader2 size={24} className="animate-spin text-slate-600" />
-          </div>
+        {isFetching ? (
+          <HousekeepingSkeleton />
         ) : safeTasks.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-3 text-slate-600">
             <CheckCircle2 size={40} />
