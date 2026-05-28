@@ -245,11 +245,11 @@ function TicketCard({
               </button>
             )}
 
-            {anyPreparing && (
+            {(anyPreparing || anyPending) && (
               <button
                 onClick={() => {
                   const ids = tickets
-                    .filter((t) => t.kds_status === 'preparing' || t.kds_status === 'acknowledged')
+                    .filter((t) => t.kds_status === 'pending' || t.kds_status === 'preparing' || t.kds_status === 'acknowledged')
                     .map((t) => t.order_item_id);
                   onMarkReady(ids);
                 }}
@@ -272,6 +272,7 @@ function TicketCard({
 // ─── Main KDS Page ────────────────────────────────────────────────────────────
 export default function KdsPage() {
   const qc = useQueryClient();
+  const isMutatingRef = useRef(false);
 
   const [soundOn,  setSoundOn]  = useState(true);
   const [station,  setStation]  = useState<StationId>('all');
@@ -302,7 +303,7 @@ export default function KdsPage() {
   const { data: items, refetch, isLoading, error } = useQuery({
     queryKey: ['kds-pending'],
     queryFn:  () => apiFetch('/api/v1/kds/pending').then((r) => r.data),
-    refetchInterval: 15_000,
+    refetchInterval: (starting.size > 0 || marking.size > 0 || bumping.size > 0) ? false : 15_000,
     refetchOnWindowFocus: true,
   });
 
@@ -320,6 +321,7 @@ export default function KdsPage() {
   }, [items, soundOn, station]);
 
   const handleRefetch = useCallback(() => {
+    if (isMutatingRef.current) return;
     qc.invalidateQueries({ queryKey: ['kds-pending'] });
   }, [qc]);
 
@@ -337,8 +339,10 @@ export default function KdsPage() {
   useSocket('kds:itemStatusChanged', handleRefetch);
 
   const startCooking = useCallback(async (ids: string[]) => {
+    isMutatingRef.current = true;
     setStarting((s) => new Set([...s, ...ids]));
     
+    await qc.cancelQueries({ queryKey: ['kds-pending'] });
     // Optimistic update
     qc.setQueryData(['kds-pending'], (oldData: KDSItem[] | undefined) => {
       if (!oldData) return oldData;
@@ -358,12 +362,15 @@ export default function KdsPage() {
         ids.forEach((id) => n.delete(id));
         return n;
       });
+      isMutatingRef.current = false;
     }
   }, [qc]);
 
   const markReady = useCallback(async (ids: string[]) => {
+    isMutatingRef.current = true;
     setMarking((s) => new Set([...s, ...ids]));
     
+    await qc.cancelQueries({ queryKey: ['kds-pending'] });
     // Optimistic update
     qc.setQueryData(['kds-pending'], (oldData: KDSItem[] | undefined) => {
       if (!oldData) return oldData;
@@ -383,12 +390,15 @@ export default function KdsPage() {
         ids.forEach((id) => n.delete(id));
         return n;
       });
+      isMutatingRef.current = false;
     }
   }, [qc]);
 
   const bump = useCallback(async (ids: string[]) => {
+    isMutatingRef.current = true;
     setBumping((s) => new Set([...s, ...ids]));
 
+    await qc.cancelQueries({ queryKey: ['kds-pending'] });
     // Optimistic update
     qc.setQueryData(['kds-pending'], (oldData: KDSItem[] | undefined) => {
       if (!oldData) return oldData;
@@ -406,6 +416,7 @@ export default function KdsPage() {
         ids.forEach((id) => n.delete(id));
         return n;
       });
+      isMutatingRef.current = false;
     }
   }, [qc]);
 

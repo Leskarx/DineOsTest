@@ -413,7 +413,6 @@ export default function PosPage() {
       } else {
         setCart(variables.cart.map(i => ({ ...i, alreadySent: true })));
       }
-      toast.success('Sending KOT...');
     },
     onSuccess: () => {
       toast.success('KOT placed successfully!');
