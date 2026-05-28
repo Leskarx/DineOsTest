@@ -257,9 +257,7 @@ export default function PosPage() {
     refetchInterval: 30_000,
   });
 
-  useEffect(() => {
-    if (showOpenOrders) refetchOpenOrders();
-  }, [showOpenOrders, refetchOpenOrders]);
+  const [isOpeningDropdown, setIsOpeningDropdown] = useState(false);
 
   // ── Socket events ──────────────────────────────────────────────────────────
   const handleOrderEvent = useCallback(() => {
@@ -408,9 +406,13 @@ export default function PosPage() {
         });
       }
     },
-    onMutate: () => {
-      // Optimistically clear the UI for instant feedback
-      resetPosState();
+    onMutate: (variables) => {
+      // Optimistically update the UI for instant feedback
+      if (!variables.currentOrder) {
+        resetPosState();
+      } else {
+        setCart(variables.cart.map(i => ({ ...i, alreadySent: true })));
+      }
       toast.success('Sending KOT...');
     },
     onSuccess: () => {
@@ -455,7 +457,18 @@ export default function PosPage() {
 
           {/* Open orders dropdown */}
           <div className="relative">
-            <button className="btn-secondary" onClick={() => setShowOpenOrders((s) => !s)}>
+            <button
+              className="btn-secondary"
+              onClick={() => {
+                if (!showOpenOrders) {
+                  setIsOpeningDropdown(true);
+                  setShowOpenOrders(true);
+                  refetchOpenOrders().finally(() => setIsOpeningDropdown(false));
+                } else {
+                  setShowOpenOrders(false);
+                }
+              }}
+            >
               <ClipboardList size={14} /> Orders <ChevronDown size={12} />
             </button>
 
@@ -465,7 +478,7 @@ export default function PosPage() {
                   Open Orders
                 </div>
                 <div className="max-h-64 overflow-y-auto">
-                  {isLoadingOpenOrders ? (
+                  {isLoadingOpenOrders || isOpeningDropdown ? (
                     <div className="p-3"><ListRowSkeleton count={3} /></div>
                   ) : !openOrders?.length ? (
                     <div className="py-6 text-center text-slate-900 dark:text-slate-500 text-sm">No open orders</div>
@@ -474,11 +487,11 @@ export default function PosPage() {
                       key={o.id}
                       onClick={async () => {
                         if (loadingOrderId) return;
+                        resetPosState();
                         setLoadingOrderId(o.id);
                         try {
                           const res   = await apiFetch(`/api/v1/orders/${o.id}`);
                           const order = res.data;
-                          resetPosState();
                           setCurrentOrder(order.id);
                           setCurrentOrderNumber(order.orderNumber ?? null);
                           setTable(order.tableId ?? null, order.table?.name ?? null);
