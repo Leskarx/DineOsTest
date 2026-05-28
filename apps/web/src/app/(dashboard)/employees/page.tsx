@@ -23,9 +23,9 @@ const ROLES_BY_DEPARTMENT: Record<Department, string[]> = {
 };
 
 const ROLE_COLORS: Record<string, string> = {
-  owner: 'badge-yellow', manager: 'badge-blue', 
+  owner: 'badge-yellow', manager: 'badge-blue',
   restaurant_manager: 'badge-blue', hotel_manager: 'badge-blue',
-  cashier: 'badge-green', waiter: 'badge-slate', kitchen: 'badge-red', 
+  cashier: 'badge-green', waiter: 'badge-slate', kitchen: 'badge-red',
   inventory: 'badge-slate', housekeeping: 'badge-blue', receptionist: 'badge-purple',
 };
 
@@ -59,6 +59,7 @@ export default function EmployeesPage() {
   const { user, branchId } = useAuthStore();
   const [showForm, setShowForm] = useState(false);
   const [editUser, setEditUser] = useState<any>(null);
+  const [deleteUser, setDeleteUser] = useState<any>(null); // 🚀 State for delete confirmation modal
   const [department, setDepartment] = useState<Department>('restaurant');
   const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phone: '', role: 'cashier', password: '', pin: '', employeeCode: '', branchId: '' });
 
@@ -149,7 +150,16 @@ export default function EmployeesPage() {
 
       <div className="card p-0 overflow-hidden">
         <table className="w-full">
-          <thead className="bg-slate-100/50 dark:bg-slate-800/50"><tr><th className="th">Name</th><th className="th">Contact</th><th className="th">Role</th><th className="th">Dept</th><th className="th">Employee Code</th><th className="th">Actions</th></tr></thead>
+          <thead className="bg-slate-100/50 dark:bg-slate-800/50">
+            <tr>
+              <th className="th">Name</th>
+              <th className="th">Contact</th>
+              <th className="th">Role</th>
+              <th className="th">Dept</th>
+              <th className="th">Employee Code</th>
+              <th className="th">Actions</th>
+            </tr>
+          </thead>
           <tbody>
             {filteredUsers.map((u: any) => (
               <tr key={u.id} className="table-row">
@@ -159,13 +169,16 @@ export default function EmployeesPage() {
                     <div><div className="font-medium">{u.firstName} {u.lastName}</div></div>
                   </div>
                 </td>
-                <td className="td text-slate-900 dark:text-slate-400 text-xs"><div>{u.email}</div><div>{u.phone}</div></td>
+                <td className="td text-slate-900 dark:text-slate-400 text-xs">
+                  <div>{u.email}</div>
+                  <div>{u.phone}</div>
+                </td>
                 <td className="td">
                   <span className={ROLE_COLORS[u.role] || 'badge-slate'}>
-                    {u.role === 'manager' ? 'Branch Manager' : 
-                     u.role === 'restaurant_manager' ? 'Restaurant Manager' : 
-                     u.role === 'hotel_manager' ? 'Hotel Manager' : 
-                     u.role.charAt(0).toUpperCase() + u.role.slice(1).replace('_', ' ')}
+                    {u.role === 'manager' ? 'Branch Manager' :
+                      u.role === 'restaurant_manager' ? 'Restaurant Manager' :
+                        u.role === 'hotel_manager' ? 'Hotel Manager' :
+                          u.role.charAt(0).toUpperCase() + u.role.slice(1).replace('_', ' ')}
                   </span>
                 </td>
                 <td className="td"><span className="text-xs text-slate-900 dark:text-slate-500">{ROLE_DEPARTMENT[u.role] || '—'}</span></td>
@@ -179,7 +192,12 @@ export default function EmployeesPage() {
                       setForm({ firstName: u.firstName, lastName: u.lastName || '', email: u.email || '', phone: u.phone || '', role: u.role, password: '', pin: u.pin || '', employeeCode: u.employeeCode || '', branchId: u.branchId || '' });
                       setShowForm(true);
                     }} className="btn-ghost p-1.5"><Edit2 size={13} /></button>
-                    <button onClick={() => { if (confirm('Deactivate this employee?')) deactivateMutation.mutate(u.id); }} className="btn-ghost p-1.5 text-red-600 dark:text-red-400 hover:text-red-300"><UserX size={13} /></button>
+                    <button
+                      onClick={() => setDeleteUser(u)}
+                      className="btn-ghost p-1.5 text-red-600 dark:text-red-400 hover:text-red-300"
+                    >
+                      <UserX size={13} />
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -225,10 +243,10 @@ export default function EmployeesPage() {
                 <label className="label">Role *</label>
                 <select className="input" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
                   {filteredRoles.map((r) => {
-                    const label = r === 'manager' ? 'Branch Manager' 
-                                : r === 'restaurant_manager' ? 'Restaurant Manager'
-                                : r === 'hotel_manager' ? 'Hotel Manager'
-                                : r.charAt(0).toUpperCase() + r.slice(1);
+                    const label = r === 'manager' ? 'Branch Manager'
+                      : r === 'restaurant_manager' ? 'Restaurant Manager'
+                        : r === 'hotel_manager' ? 'Hotel Manager'
+                          : r.charAt(0).toUpperCase() + r.slice(1);
                     return <option key={r} value={r}>{label}</option>
                   })}
                 </select>
@@ -260,6 +278,67 @@ export default function EmployeesPage() {
               <button onClick={() => setShowForm(false)} className="btn-secondary flex-1">Cancel</button>
               <button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || !form.firstName || (!editUser && !form.password)} className="btn-primary flex-1">
                 {saveMutation.isPending ? 'Saving...' : 'Save Employee'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🚀 Deactivation Confirmation Modal */}
+      {deleteUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-slate-700 bg-white dark:bg-slate-900 p-6 shadow-2xl">
+
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10">
+                <UserX className="text-red-500" size={22} />
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+                  Deactivate Employee
+                </h3>
+
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                  This employee will lose access to the system.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-5 rounded-xl bg-slate-100 dark:bg-slate-800 p-4">
+              <p className="text-sm text-slate-600 dark:text-slate-300">
+                Are you sure you want to deactivate:
+              </p>
+
+              <p className="mt-2 font-semibold text-slate-900 dark:text-white">
+                {deleteUser.firstName} {deleteUser.lastName}
+              </p>
+
+              <p className="text-sm text-slate-500 dark:text-slate-500">
+                {deleteUser.role === 'manager' ? 'Branch Manager' :
+                  deleteUser.role === 'restaurant_manager' ? 'Restaurant Manager' :
+                    deleteUser.role === 'hotel_manager' ? 'Hotel Manager' :
+                      deleteUser.role.charAt(0).toUpperCase() + deleteUser.role.slice(1).replace('_', ' ')}
+              </p>
+            </div>
+
+            <div className="mt-6 flex gap-3">
+              <button
+                onClick={() => setDeleteUser(null)}
+                className="btn-secondary flex-1"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={() => {
+                  deactivateMutation.mutate(deleteUser.id);
+                  setDeleteUser(null);
+                }}
+                className="flex-1 rounded-xl bg-red-600 px-4 py-2 text-white hover:bg-red-700 transition disabled:opacity-50"
+                disabled={deactivateMutation.isPending}
+              >
+                {deactivateMutation.isPending ? 'Deactivating...' : 'Deactivate'}
               </button>
             </div>
           </div>
