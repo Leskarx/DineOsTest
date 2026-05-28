@@ -615,6 +615,7 @@ export default function ReservationsPage() {
   const [showNew, setShowNew] = useState(false);
   const [folioRes, setFolioRes] = useState<Reservation | null>(null);
   const [checkoutRes, setCheckoutRes] = useState<Reservation | null>(null);
+  const [processingId, setProcessingId] = useState<string | null>(null);
 
   useEffect(() => { setPage(1); }, [status, search, from, to]);
 
@@ -681,10 +682,12 @@ export default function ReservationsPage() {
     staleTime: 30_000,
   });
 
-  const mutate = useCallback((url: string, method: 'post' | 'delete', body?: any, successMsg = 'Done') => {
+  const mutate = useCallback((id: string, url: string, method: 'post' | 'delete', body?: any, successMsg = 'Done') => {
+    setProcessingId(id);
     api[method](url, body)
       .then(() => { toast.success(successMsg); qc.invalidateQueries({ queryKey: ['hotel-reservations'] }); qc.invalidateQueries({ queryKey: ['hotel-rooms'] }); qc.invalidateQueries({ queryKey: ['hotel-dashboard'] }); })
-      .catch((e: any) => toast.error(e?.response?.data?.message ?? 'Action failed'));
+      .catch((e: any) => toast.error(e?.response?.data?.message ?? 'Action failed'))
+      .finally(() => setProcessingId(null));
   }, [qc]);
 
   const reservations = Array.isArray(data?.data)
@@ -793,11 +796,12 @@ export default function ReservationsPage() {
                     <div className="flex items-center justify-end gap-1">
                       {r.status === 'confirmed' && (
                         <button
-                          onClick={() => mutate(`/api/v1/hotel/reservations/${r.id}/check-in`, 'post', undefined, 'Checked in')}
-                          className="flex items-center gap-1 px-2 py-1 text-[10px] bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 rounded-lg transition-colors"
+                          onClick={() => mutate(r.id, `/api/v1/hotel/reservations/${r.id}/check-in`, 'post', undefined, 'Checked in')}
+                          disabled={processingId === r.id}
+                          className="flex items-center gap-1 px-2 py-1 text-[10px] bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 rounded-lg transition-colors disabled:opacity-50"
                           title="Check In"
                         >
-                          <LogIn size={11} /> Check In
+                          {processingId === r.id ? <Loader2 size={11} className="animate-spin" /> : <LogIn size={11} />} Check In
                         </button>
                       )}
                       {r.status === 'checked_in' && (
@@ -818,11 +822,12 @@ export default function ReservationsPage() {
                       </button>
                       {['confirmed', 'checked_in'].includes(r.status) && (
                         <button
-                          onClick={() => { if (confirm('Cancel this reservation?')) mutate(`/api/v1/hotel/reservations/${r.id}/cancel`, 'post', { reason: 'Cancelled by staff' }, 'Reservation cancelled'); }}
-                          className="p-1.5 text-red-600 dark:text-red-400/60 hover:text-red-600 dark:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                          onClick={() => { if (confirm('Cancel this reservation?')) mutate(r.id, `/api/v1/hotel/reservations/${r.id}/cancel`, 'post', { reason: 'Cancelled by staff' }, 'Reservation cancelled'); }}
+                          disabled={processingId === r.id}
+                          className="p-1.5 text-red-600 dark:text-red-400/60 hover:text-red-600 dark:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors disabled:opacity-50"
                           title="Cancel"
                         >
-                          <Ban size={12} />
+                          {processingId === r.id ? <Loader2 size={12} className="animate-spin" /> : <Ban size={12} />}
                         </button>
                       )}
                     </div>
