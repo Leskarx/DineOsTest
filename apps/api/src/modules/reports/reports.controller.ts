@@ -15,14 +15,14 @@ export class ReportsController {
   constructor(private readonly svc: ReportsService) {}
 
   @Get('dashboard')
-  @Roles('cashier', 'manager', 'owner')
+  @Roles('cashier', 'manager', 'owner', 'restaurant_manager')
   @ApiOperation({ summary: 'Live dashboard summary stats' })
   dashboard(@TenantId() t: string, @BranchId() b: string) {
     return this.svc.getDashboardSummary(b, t);
   }
 
   @Get('hotel-dashboard')
-  @Roles('manager', 'owner')
+  @Roles('manager', 'owner', 'hotel_manager')
   @ApiOperation({ summary: 'Live hotel sales dashboard stats' })
   hotelDashboard(@TenantId() t: string, @BranchId() b: string) { return this.svc.getHotelDashboardSummary(b, t); }
 
@@ -32,7 +32,7 @@ export class ReportsController {
   ownerDashboard(@TenantId() t: string, @BranchId() b: string) { return this.svc.getOwnerDashboardSummary(b, t); }
 
   @Get('hourly')
-  @Roles('cashier', 'manager', 'owner')
+  @Roles('cashier', 'manager', 'owner', 'restaurant_manager')
   @ApiOperation({ summary: 'Hourly sales breakdown for a given date' })
   hourly(
     @TenantId() t: string,
@@ -43,7 +43,7 @@ export class ReportsController {
   }
 
   @Get('daily-sales')
-  @Roles('manager', 'owner')
+  @Roles('manager', 'owner', 'restaurant_manager', 'hotel_manager')
   @ApiOperation({ summary: 'Daily sales report (date range)' })
   dailySales(
     @TenantId() t: string,
@@ -55,7 +55,7 @@ export class ReportsController {
   }
 
   @Get('items')
-  @Roles('manager', 'owner')
+  @Roles('manager', 'owner', 'restaurant_manager')
   @ApiOperation({ summary: 'Item-level sales report' })
   itemSales(
     @TenantId() t: string,
@@ -67,7 +67,7 @@ export class ReportsController {
   }
 
   @Get('payments')
-  @Roles('manager', 'owner')
+  @Roles('manager', 'owner', 'restaurant_manager', 'hotel_manager')
   @ApiOperation({ summary: 'Payment method breakdown' })
   payments(
     @TenantId() t: string,
@@ -79,7 +79,7 @@ export class ReportsController {
   }
 
   @Get('categories')
-  @Roles('manager', 'owner')
+  @Roles('manager', 'owner', 'restaurant_manager')
   @ApiOperation({ summary: 'Revenue by category' })
   categories(
     @TenantId() t: string,

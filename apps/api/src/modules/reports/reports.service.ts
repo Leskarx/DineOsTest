@@ -479,7 +479,7 @@ export class ReportsService {
       this.db.query(`
         SELECT COALESCE(SUM(grand_total), 0) AS revenue, COUNT(*)::int AS count
         FROM bills
-        WHERE branch_id = $1 AND tenant_id = $2
+        WHERE ($1::uuid IS NULL OR branch_id = $1) AND tenant_id = $2
           AND source = 'hotel'
           AND status NOT IN ('void', 'refunded')
           AND created_at BETWEEN $3 AND $4
@@ -488,7 +488,7 @@ export class ReportsService {
       this.db.query(`
         SELECT COALESCE(SUM(grand_total), 0) AS revenue
         FROM bills
-        WHERE branch_id = $1 AND tenant_id = $2
+        WHERE ($1::uuid IS NULL OR branch_id = $1) AND tenant_id = $2
           AND source = 'hotel'
           AND status NOT IN ('void', 'refunded')
           AND created_at >= NOW() - INTERVAL '7 days'
@@ -497,7 +497,7 @@ export class ReportsService {
       this.db.query(`
         SELECT COUNT(*)::int AS count
         FROM hotel_reservations
-        WHERE branch_id = $1 AND tenant_id = $2
+        WHERE ($1::uuid IS NULL OR branch_id = $1) AND tenant_id = $2
           AND check_in_date = $3
           AND status NOT IN ('cancelled', 'no_show')
       `, [branchId, tenantId, today]),
@@ -505,7 +505,7 @@ export class ReportsService {
       this.db.query(`
         SELECT COUNT(*)::int AS count
         FROM hotel_reservations
-        WHERE branch_id = $1 AND tenant_id = $2
+        WHERE ($1::uuid IS NULL OR branch_id = $1) AND tenant_id = $2
           AND check_out_date = $3
           AND status NOT IN ('cancelled', 'no_show')
       `, [branchId, tenantId, today]),
@@ -519,7 +519,9 @@ export class ReportsService {
           COUNT(*) FILTER (WHERE status = 'reserved')::int AS reserved_rooms,
           COUNT(*) FILTER (WHERE status IN ('maintenance', 'out_of_order'))::int AS maintenance_rooms
         FROM hotel_rooms
-        WHERE branch_id = $1 AND tenant_id = $2
+        WHERE ($1::uuid IS NULL OR branch_id = $1) 
+          AND tenant_id = $2 
+          AND (is_active = true OR is_active IS NULL)
       `, [branchId, tenantId]),
 
       this.db.query(`
@@ -527,7 +529,7 @@ export class ReportsService {
           TO_CHAR(date_trunc('day', created_at AT TIME ZONE 'Asia/Kolkata'), 'Mon DD') AS date,
           COALESCE(SUM(grand_total), 0) AS revenue
         FROM bills
-        WHERE branch_id = $1 AND tenant_id = $2
+        WHERE ($1::uuid IS NULL OR branch_id = $1) AND tenant_id = $2
           AND source = 'hotel'
           AND status NOT IN ('void', 'refunded')
           AND created_at >= NOW() - INTERVAL '7 days'

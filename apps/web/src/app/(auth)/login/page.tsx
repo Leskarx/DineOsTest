@@ -26,6 +26,8 @@ export default function LoginPage() {
       if (role === 'superadmin') redirectUrl = '/admin';
       else if (role === 'owner') redirectUrl = '/executive';
       else if (role === 'manager') redirectUrl = '/executive';
+      else if (role === 'restaurant_manager') redirectUrl = '/dashboard';
+      else if (role === 'hotel_manager') redirectUrl = '/hotel/dashboard';
       else if (role === 'cashier') redirectUrl = '/cashier';
       else if (role === 'waiter') redirectUrl = '/waiter';
       else if (role === 'kitchen') redirectUrl = '/kds';

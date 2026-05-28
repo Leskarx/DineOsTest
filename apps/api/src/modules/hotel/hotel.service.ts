@@ -125,9 +125,10 @@ export class HotelService {
 
   async createRoomType(
     tenantId: string,
+    branchId: string,
     dto: CreateRoomTypeDto,
   ): Promise<RoomType> {
-    const rt = this.roomTypeRepo.create({ tenantId, ...dto });
+    const rt = this.roomTypeRepo.create({ tenantId, ...dto, branchId });
     return this.roomTypeRepo.save(rt);
   }
 

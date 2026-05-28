@@ -1,13 +1,12 @@
 import {
   Controller, Get, Post, Patch, Delete, Body, Param,
-  Query, UseGuards, DefaultValuePipe, ParseIntPipe, HttpCode, HttpStatus,
+  Query, UseGuards, DefaultValuePipe, ParseIntPipe, HttpCode, HttpStatus, BadRequestException
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { TenantId } from '../../common/decorators/tenant.decorator';
-import { CurrentUser } from '../../common/decorators/tenant.decorator';
+import { TenantId, CurrentUser, BranchId } from '../../common/decorators/tenant.decorator';
 import { HotelService } from './hotel.service';
 import { RoomStatus } from './entities/room.entity';
 import { ReservationStatus, BookingSource } from './entities/reservation.entity';
@@ -25,11 +24,11 @@ export class HotelController {
   // ── Dashboard ──────────────────────────────────────────────────────────────
 
   @Get('dashboard')
-  @Roles('owner', 'manager', 'cashier', 'receptionist')
+  @Roles('owner', 'manager', 'cashier', 'receptionist', 'hotel_manager')
   @ApiOperation({ summary: 'Hotel overview — occupancy, arrivals, departures' })
   getDashboard(
     @TenantId() tenantId: string,
-    @Query('branchId') branchId?: string,
+    @BranchId() branchId: string,
   ) {
     return this.svc.getDashboard(tenantId, branchId);
   }
@@ -37,25 +36,25 @@ export class HotelController {
   // ── Room Types ─────────────────────────────────────────────────────────────
 
   @Get('room-types')
-  @Roles('owner', 'manager', 'cashier', 'waiter', 'receptionist')
-  listRoomTypes(@TenantId() tid: string, @Query('branchId') branchId?: string) {
+  @Roles('owner', 'manager', 'cashier', 'waiter', 'receptionist', 'hotel_manager')
+  listRoomTypes(@TenantId() tid: string, @BranchId() branchId: string) {
     return this.svc.listRoomTypes(tid, branchId);
   }
 
   @Post('room-types')
-  @Roles('owner', 'manager')
-  createRoomType(@TenantId() tid: string, @Body() body: any) {
-    return this.svc.createRoomType(tid, body);
+  @Roles('owner', 'manager', 'hotel_manager')
+  createRoomType(@TenantId() tid: string, @BranchId() branchId: string, @Body() body: any) {
+    return this.svc.createRoomType(tid, branchId, body);
   }
 
   @Patch('room-types/:id')
-  @Roles('owner', 'manager')
+  @Roles('owner', 'manager', 'hotel_manager')
   updateRoomType(@Param('id') id: string, @TenantId() tid: string, @Body() body: any) {
     return this.svc.updateRoomType(id, tid, body);
   }
 
   @Delete('room-types/:id')
-  @Roles('owner', 'manager')
+  @Roles('owner', 'manager', 'hotel_manager')
   @HttpCode(HttpStatus.NO_CONTENT)
   deleteRoomType(@Param('id') id: string, @TenantId() tid: string) {
     return this.svc.deleteRoomType(id, tid);
@@ -64,39 +63,39 @@ export class HotelController {
   // ── Rooms ──────────────────────────────────────────────────────────────────
 
   @Get('rooms')
-  @Roles('owner', 'manager', 'cashier', 'waiter', 'housekeeping', 'receptionist')
-  @ApiQuery({ name: 'branchId', required: false })
+  @Roles('owner', 'manager', 'cashier', 'waiter', 'housekeeping', 'receptionist', 'hotel_manager')
   @ApiQuery({ name: 'status', required: false })
   listRooms(
     @TenantId() tid: string,
-    @Query('branchId') branchId?: string,
+    @BranchId() branchId: string,
     @Query('status') status?: RoomStatus,
   ) {
     return this.svc.listRooms(tid, branchId, status);
   }
 
   @Post('rooms')
-  @Roles('owner', 'manager')
+  @Roles('owner', 'manager', 'hotel_manager')
   createRoom(
     @TenantId() tid: string,
-    @CurrentUser() user: any,
+    @BranchId() branchId: string,
     @Body() body: any,
   ) {
+    if (!branchId) throw new BadRequestException('Branch ID is required to create a room');
     return this.svc.createRoom(
       tid,
-      user?.branchId,
+      branchId,
       body,
     );
   }
 
   @Patch('rooms/:id')
-  @Roles('owner', 'manager')
+  @Roles('owner', 'manager', 'hotel_manager')
   updateRoom(@Param('id') id: string, @TenantId() tid: string, @Body() body: any) {
     return this.svc.updateRoom(id, tid, body);
   }
 
   @Patch('rooms/:id/status')
-  @Roles('owner', 'manager', 'cashier', 'housekeeping', 'receptionist')
+  @Roles('owner', 'manager', 'hotel_manager', 'cashier', 'housekeeping', 'receptionist')
   updateRoomStatus(
     @Param('id') id: string,
     @TenantId() tid: string,
