@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch, apiPost, apiPut, apiDelete } from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -64,6 +64,18 @@ export default function EmployeesPage() {
 
   const { data: users } = useQuery({ queryKey: ['users'], queryFn: () => apiFetch('/api/v1/users').then((r) => r.data) });
   const { data: branches } = useQuery({ queryKey: ['branches'], queryFn: () => apiFetch('/api/v1/branches').then((r) => r.data), enabled: user?.role === 'owner' });
+
+  const filteredUsers = useMemo(() => {
+    if (!users) return [];
+    if (user?.role === 'owner' || user?.role === 'manager') return users;
+    if (user?.role === 'restaurant_manager') {
+      return users.filter((u: any) => detectDepartment(u.role) === 'restaurant');
+    }
+    if (user?.role === 'hotel_manager') {
+      return users.filter((u: any) => detectDepartment(u.role) === 'hotel');
+    }
+    return [];
+  }, [users, user?.role]);
 
   const saveMutation = useMutation({
     mutationFn: () => {
@@ -130,7 +142,7 @@ export default function EmployeesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-slate-900 dark:text-white">Employees</h1>
-          <p className="text-sm text-slate-900 dark:text-slate-400">{users?.length || 0} active staff members</p>
+          <p className="text-sm text-slate-900 dark:text-slate-400">{filteredUsers.length} active staff members</p>
         </div>
         <button onClick={() => { setEditUser(null); setDepartment('restaurant'); setForm({ firstName: '', lastName: '', email: '', phone: '', role: 'cashier', password: '', pin: '', employeeCode: '', branchId: '' }); setShowForm(true); }} className="btn-primary"><Plus size={14} /> Add Employee</button>
       </div>
@@ -139,7 +151,7 @@ export default function EmployeesPage() {
         <table className="w-full">
           <thead className="bg-slate-100/50 dark:bg-slate-800/50"><tr><th className="th">Name</th><th className="th">Contact</th><th className="th">Role</th><th className="th">Dept</th><th className="th">Employee Code</th><th className="th">Actions</th></tr></thead>
           <tbody>
-            {users?.map((u: any) => (
+            {filteredUsers.map((u: any) => (
               <tr key={u.id} className="table-row">
                 <td className="td">
                   <div className="flex items-center gap-3">
@@ -172,7 +184,7 @@ export default function EmployeesPage() {
                 </td>
               </tr>
             ))}
-            {users?.length === 0 && <tr><td colSpan={6} className="text-center py-12 text-slate-900 dark:text-slate-500">No employees added yet</td></tr>}
+            {filteredUsers.length === 0 && <tr><td colSpan={6} className="text-center py-12 text-slate-900 dark:text-slate-500">No employees added yet</td></tr>}
           </tbody>
         </table>
       </div>
