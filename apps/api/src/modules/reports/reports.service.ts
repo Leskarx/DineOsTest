@@ -4,7 +4,7 @@ import { DataSource } from 'typeorm';
 
 @Injectable()
 export class ReportsService {
-  constructor(@InjectDataSource() private readonly db: DataSource) {}
+  constructor(@InjectDataSource() private readonly db: DataSource) { }
 
   private assertDate(value: string, name: string): void {
     if (!value || isNaN(new Date(value).getTime())) {
@@ -17,7 +17,7 @@ export class ReportsService {
   private toDateRange(from: string, to: string): { start: string; end: string } {
     return {
       start: `${from}T00:00:00.000+05:30`,
-      end:   `${to}T23:59:59.999+05:30`,
+      end: `${to}T23:59:59.999+05:30`,
     };
   }
 
@@ -230,25 +230,23 @@ export class ReportsService {
       const items = (bill.gst_summary || []).map((g: any) => ({
         num: 1,
         itm_det: {
-          rt:    Number(g.gstRate       || 0),
+          rt: Number(g.gstRate || 0),
           txval: Number(g.taxableAmount || 0),
-          // intra-state: CGST+SGST only, iamt=0
-          // inter-state: IGST only, camt+samt=0
-          camt:  isInterState ? 0 : Number(g.cgstAmount || 0),
-          samt:  isInterState ? 0 : Number(g.sgstAmount || 0),
-          iamt:  isInterState ? Number(g.igstAmount || 0) : 0,
+          camt: isInterState ? 0 : Number(g.cgstAmount || 0),
+          samt: isInterState ? 0 : Number(g.sgstAmount || 0),
+          iamt: isInterState ? Number(g.igstAmount || 0) : 0,
           csamt: 0,
         },
       }));
 
       const invoice = {
-        inum:    bill.bill_number,
-        idt:     invoiceDate,
-        val:     Number(bill.grand_total),
-        pos:     bill.branch_state_code || '27',
-        rchrg:   'N',
+        inum: bill.bill_number,
+        idt: invoiceDate,
+        val: Number(bill.grand_total),
+        pos: bill.branch_state_code || '27',
+        rchrg: 'N',
         inv_typ: isInterState ? 'R' : 'B2CL',
-        itms:    items,
+        itms: items,
       };
 
       if (isInterState) {
@@ -264,12 +262,12 @@ export class ReportsService {
     }
 
     return {
-      gstin:   bills[0]?.branch_gstin || '',
-      fp:      from.slice(0, 7).replace('-', ''),
+      gstin: bills[0]?.branch_gstin || '',
+      fp: from.slice(0, 7).replace('-', ''),
       version: 'GST3.0.4',
-      hash:    'hash',
+      hash: 'hash',
       b2b,
-      b2cs:    b2c,
+      b2cs: b2c,
     };
   }
 
@@ -353,7 +351,8 @@ export class ReportsService {
 
   async getDashboardSummary(branchId: string, tenantId: string) {
     const today = new Date().toISOString().slice(0, 10);
-    const { start: dayStart,  end: dayEnd  } = this.toDateRange(today, today);
+
+    const { start: dayStart, end: dayEnd } = this.toDateRange(today, today);
     const { start: weekStart, end: weekEnd } = this.toDateRange(
       new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
       today,
@@ -443,19 +442,19 @@ export class ReportsService {
     ]);
 
     return {
-      todaySales:     Number(todaySales[0]?.today_sales  || 0),
-      todayBills:     Number(todaySales[0]?.today_bills  || 0),
-      weekSales:      Number(weekSales[0]?.week_sales    || 0),
-      pendingOrders:  Number(pendingOrders[0]?.pending   || 0),
-      lowStockAlerts: Number(stockAlerts[0]?.low_stock   || 0),
+      todaySales: Number(todaySales[0]?.today_sales || 0),
+      todayBills: Number(todaySales[0]?.today_bills || 0),
+      weekSales: Number(weekSales[0]?.week_sales || 0),
+      pendingOrders: Number(pendingOrders[0]?.pending || 0),
+      lowStockAlerts: Number(stockAlerts[0]?.low_stock || 0),
       orderStats: {
-        successful:    Number(orderStats[0]?.successful    || 0),
-        cancelled:     Number(orderStats[0]?.cancelled     || 0),
+        successful: Number(orderStats[0]?.successful || 0),
+        cancelled: Number(orderStats[0]?.cancelled || 0),
         complimentary: Number(orderStats[0]?.complimentary || 0),
-        returns:       Number(orderStats[0]?.returns       || 0),
+        returns: Number(orderStats[0]?.returns || 0),
       },
       revenueLeakage: {
-        voidedItems:        Number(revLeakage[0]?.voided_items         || 0),
+        voidedItems: Number(revLeakage[0]?.voided_items || 0),
         cancelledWithValue: Number(revLeakage[0]?.cancelled_with_value || 0),
       },
       tableStats: {
@@ -470,6 +469,8 @@ export class ReportsService {
 
   async getHotelDashboardSummary(branchId: string, tenantId: string) {
     const today = new Date().toISOString().slice(0, 10);
+    const { start: dayStart, end: dayEnd } = this.toDateRange(today, today);
+
     const [
       todaySales, weekSales, todayCheckins,
       todayCheckouts, roomsData, weeklyChart,
@@ -481,8 +482,8 @@ export class ReportsService {
         WHERE branch_id = $1 AND tenant_id = $2
           AND source = 'hotel'
           AND status NOT IN ('void', 'refunded')
-          AND DATE(created_at AT TIME ZONE 'Asia/Kolkata') = $3
-      `, [branchId, tenantId, today]),
+          AND created_at BETWEEN $3 AND $4
+      `, [branchId, tenantId, dayStart, dayEnd]),
 
       this.db.query(`
         SELECT COALESCE(SUM(grand_total), 0) AS revenue
@@ -535,40 +536,44 @@ export class ReportsService {
       `, [branchId, tenantId]),
     ]);
 
-    const totalRooms    = Number(roomsData[0]?.total_rooms    || 0);
+    const totalRooms = Number(roomsData[0]?.total_rooms || 0);
     const occupiedRooms = Number(roomsData[0]?.occupied_rooms || 0);
     const occupancyRate = totalRooms > 0
       ? Math.round((occupiedRooms / totalRooms) * 100)
       : 0;
 
     const todayRev = Number(todaySales[0]?.revenue || 0);
-    const adr      = occupiedRooms > 0 ? todayRev / occupiedRooms : 0;
+    const adr = occupiedRooms > 0 ? todayRev / occupiedRooms : 0;
 
     return {
-      todaySales:     todayRev,
-      todayBills:     Number(todaySales[0]?.count    || 0),
-      weekSales:      Number(weekSales[0]?.revenue   || 0),
-      todayCheckins:  Number(todayCheckins[0]?.count  || 0),
+      todaySales: todayRev,
+      todayBills: Number(todaySales[0]?.count || 0),
+      weekSales: Number(weekSales[0]?.revenue || 0),
+      todayCheckins: Number(todayCheckins[0]?.count || 0),
       todayCheckouts: Number(todayCheckouts[0]?.count || 0),
       occupancyRate,
       adr: Math.round(adr),
       roomStats: {
-        total:       totalRooms,
-        available:   Number(roomsData[0]?.available_rooms   || 0),
-        occupied:    occupiedRooms,
-        cleaning:    Number(roomsData[0]?.cleaning_rooms    || 0),
-        reserved:    Number(roomsData[0]?.reserved_rooms    || 0),
+        total: totalRooms,
+        available: Number(roomsData[0]?.available_rooms || 0),
+        occupied: occupiedRooms,
+        cleaning: Number(roomsData[0]?.cleaning_rooms || 0),
+        reserved: Number(roomsData[0]?.reserved_rooms || 0),
         maintenance: Number(roomsData[0]?.maintenance_rooms || 0),
       },
       weeklyChart: weeklyChart.map((r: any) => ({
-        date:    r.date,
+        date: r.date,
         revenue: Number(r.revenue || 0),
       })),
     };
   }
 
+  // ── Owner Dashboard Summary ────────────────────────────────────────────────
+
   async getOwnerDashboardSummary(branchId: string | null, tenantId: string) {
     const today = new Date().toISOString().slice(0, 10);
+    const { start: dayStart, end: dayEnd } = this.toDateRange(today, today);
+
     const [
       totalRevToday, totalRevWeek, posSalesToday, hotelSalesToday,
       pendingOrders, occupancy, checkins, checkouts,
@@ -579,8 +584,8 @@ export class ReportsService {
         SELECT COALESCE(SUM(grand_total),0) AS revenue, COUNT(*) AS bills
         FROM bills WHERE ($1::uuid IS NULL OR branch_id = $1) AND tenant_id=$2
         AND status NOT IN ('void','refunded')
-        AND DATE(created_at AT TIME ZONE 'Asia/Kolkata')=$3
-      `, [branchId || null, tenantId, today]),
+        AND created_at BETWEEN $3 AND $4
+      `, [branchId || null, tenantId, dayStart, dayEnd]),
 
       // Total revenue 7 days (POS + Hotel combined)
       this.db.query(`
@@ -593,18 +598,20 @@ export class ReportsService {
       // POS-only today
       this.db.query(`
         SELECT COALESCE(SUM(grand_total),0) AS revenue, COUNT(*) AS bills
-        FROM bills WHERE ($1::uuid IS NULL OR branch_id = $1) AND tenant_id=$2 AND source='pos'
+        FROM bills WHERE ($1::uuid IS NULL OR branch_id = $1) AND tenant_id=$2 
+        AND (source = 'pos' OR source IS NULL)
         AND status NOT IN ('void','refunded')
-        AND DATE(created_at AT TIME ZONE 'Asia/Kolkata')=$3
-      `, [branchId || null, tenantId, today]),
+        AND created_at BETWEEN $3 AND $4
+      `, [branchId || null, tenantId, dayStart, dayEnd]),
 
       // Hotel-only today
       this.db.query(`
         SELECT COALESCE(SUM(grand_total),0) AS revenue, COUNT(*) AS bills
-        FROM bills WHERE ($1::uuid IS NULL OR branch_id = $1) AND tenant_id=$2 AND source='hotel'
+        FROM bills WHERE ($1::uuid IS NULL OR branch_id = $1) AND tenant_id=$2 
+        AND source = 'hotel'
         AND status NOT IN ('void','refunded')
-        AND DATE(created_at AT TIME ZONE 'Asia/Kolkata')=$3
-      `, [branchId || null, tenantId, today]),
+        AND created_at BETWEEN $3 AND $4
+      `, [branchId || null, tenantId, dayStart, dayEnd]),
 
       // Pending orders
       this.db.query(`
@@ -617,7 +624,7 @@ export class ReportsService {
       this.db.query(`
         SELECT
           (SELECT COUNT(*) FROM hotel_rooms WHERE ($1::uuid IS NULL OR branch_id = $1) AND tenant_id=$2 AND status != 'out_of_order') AS total_rooms,
-          (SELECT COUNT(*) FROM hotel_reservations WHERE ($1::uuid IS NULL OR branch_id = $1) AND tenant_id=$2 AND status IN ('checked_in')) AS occupied_rooms
+          (SELECT COUNT(*) FROM hotel_reservations WHERE ($1::uuid IS NULL OR branch_id = $1) AND tenant_id=$2 AND status = 'checked_in') AS occupied_rooms
       `, [branchId || null, tenantId]),
 
       // Today's check-ins
@@ -638,7 +645,7 @@ export class ReportsService {
       this.db.query(`
         SELECT
           TO_CHAR(date_trunc('day', created_at AT TIME ZONE 'Asia/Kolkata'), 'Mon DD') AS date,
-          COALESCE(SUM(grand_total) FILTER (WHERE source='pos'), 0) AS pos,
+          COALESCE(SUM(grand_total) FILTER (WHERE source='pos' OR source IS NULL), 0) AS pos,
           COALESCE(SUM(grand_total) FILTER (WHERE source='hotel'), 0) AS hotel,
           COALESCE(SUM(grand_total), 0) AS total
         FROM bills
@@ -655,9 +662,9 @@ export class ReportsService {
         FROM payments
         WHERE ($1::uuid IS NULL OR branch_id = $1) AND tenant_id=$2
         AND status='success'
-        AND DATE(created_at AT TIME ZONE 'Asia/Kolkata')=$3
+        AND created_at BETWEEN $3 AND $4
         GROUP BY method ORDER BY total DESC
-      `, [branchId || null, tenantId, today]),
+      `, [branchId || null, tenantId, dayStart, dayEnd]),
 
       // Low stock count
       this.db.query(`
@@ -714,4 +721,3 @@ export class ReportsService {
     };
   }
 }
-
