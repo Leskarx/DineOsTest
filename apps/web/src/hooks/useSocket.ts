@@ -27,7 +27,7 @@ function getSocket(): Socket {
   socketToken = accessToken;
   socket = io(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/orders`, {
     auth: { token: accessToken },
-    transports: ['websocket'],
+
     autoConnect: true,
   });
 

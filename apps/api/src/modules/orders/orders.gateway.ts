@@ -16,7 +16,7 @@ export class OrdersGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     private readonly jwtService: JwtService,
     private readonly config: ConfigService,
-  ) {}
+  ) { }
 
   /** Verify JWT on every new WebSocket connection. Reject unauthenticated clients. */
   handleConnection(client: Socket) {

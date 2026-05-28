@@ -37,10 +37,10 @@ function playBeep(frequency = 880, duration = 0.18, volume = 0.4) {
 
 // ─── Stations ─────────────────────────────────────────────────────────────────
 const STATIONS = [
-  { id: 'all',  label: 'All Stations',    icon: '📋', keywords: [] },
-  { id: 'hot',  label: 'Hot Kitchen',     icon: '🔥', keywords: ['starter', 'main', 'curry', 'grill', 'tandoor', 'soup', 'rice', 'tikka', 'dal', 'chicken', 'mutton', 'fish', 'bread', 'roti', 'naan', 'paneer'] },
-  { id: 'cold', label: 'Cold Section',    icon: '🧊', keywords: ['salad', 'raita', 'cold', 'yogurt', 'lassi', 'shake', 'ice', 'dessert', 'sweet', 'gulab', 'kheer', 'halwa'] },
-  { id: 'bar',  label: 'Bar / Beverages', icon: '🥤', keywords: ['beer', 'wine', 'whisky', 'rum', 'gin', 'vodka', 'cocktail', 'mocktail', 'juice', 'soda', 'water', 'beverage', 'drink', 'lime', 'mango lassi'] },
+  { id: 'all', label: 'All Stations', icon: '📋', keywords: [] },
+  { id: 'hot', label: 'Hot Kitchen', icon: '🔥', keywords: ['starter', 'main', 'curry', 'grill', 'tandoor', 'soup', 'rice', 'tikka', 'dal', 'chicken', 'mutton', 'fish', 'bread', 'roti', 'naan', 'paneer'] },
+  { id: 'cold', label: 'Cold Section', icon: '🧊', keywords: ['salad', 'raita', 'cold', 'yogurt', 'lassi', 'shake', 'ice', 'dessert', 'sweet', 'gulab', 'kheer', 'halwa'] },
+  { id: 'bar', label: 'Bar / Beverages', icon: '🥤', keywords: ['beer', 'wine', 'whisky', 'rum', 'gin', 'vodka', 'cocktail', 'mocktail', 'juice', 'soda', 'water', 'beverage', 'drink', 'lime', 'mango lassi'] },
 ] as const;
 
 type StationId = typeof STATIONS[number]['id'];
@@ -122,8 +122,8 @@ function TicketCard({
     (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
   )[0];
 
-  const allReady     = tickets.every((t) => t.kds_status === 'ready');
-  const anyPending   = tickets.some((t) => t.kds_status === 'pending');
+  const allReady = tickets.every((t) => t.kds_status === 'ready');
+  const anyPending = tickets.some((t) => t.kds_status === 'pending');
   const anyPreparing = tickets.some((t) => t.kds_status === 'preparing' || t.kds_status === 'acknowledged');
 
   let latestReadyAt = null;
@@ -135,7 +135,7 @@ function TicketCard({
   }
 
   const ageSeconds = useAgeSeconds(oldest?.created_at || new Date().toISOString(), latestReadyAt);
-  const isUrgent   = !allReady && ageSeconds > URGENT_SECS;
+  const isUrgent = !allReady && ageSeconds > URGENT_SECS;
 
   return (
     <div
@@ -182,9 +182,9 @@ function TicketCard({
             key={ticket.order_item_id}
             className={cn(
               'rounded-xl bg-slate-50 dark:bg-slate-800/70 border p-3 flex items-start gap-3 transition-opacity',
-              ticket.kds_status === 'ready'        && 'border-emerald-500/30 bg-emerald-500/5',
-              ticket.kds_status === 'pending'      && 'border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/5',
-              ticket.kds_status === 'preparing'    && 'border-blue-500/30 bg-blue-500/5',
+              ticket.kds_status === 'ready' && 'border-emerald-500/30 bg-emerald-500/5',
+              ticket.kds_status === 'pending' && 'border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/5',
+              ticket.kds_status === 'preparing' && 'border-blue-500/30 bg-blue-500/5',
               ticket.kds_status === 'acknowledged' && 'border-blue-500/30 bg-blue-500/5',
             )}
           >
@@ -273,10 +273,10 @@ function TicketCard({
 export default function KdsPage() {
   const qc = useQueryClient();
 
-  const [soundOn,  setSoundOn]  = useState(true);
-  const [station,  setStation]  = useState<StationId>('all');
-  const [bumping,  setBumping]  = useState<Set<string>>(new Set());
-  const [marking,  setMarking]  = useState<Set<string>>(new Set());
+  const [soundOn, setSoundOn] = useState(true);
+  const [station, setStation] = useState<StationId>('all');
+  const [bumping, setBumping] = useState<Set<string>>(new Set());
+  const [marking, setMarking] = useState<Set<string>>(new Set());
   const [starting, setStarting] = useState<Set<string>>(new Set());
 
   const prevCountRef = useRef<number | null>(null);
@@ -294,15 +294,15 @@ export default function KdsPage() {
   };
 
   useEffect(() => {
-    const init = () => { if (audioContext) audioContext.resume().catch(() => {}); };
+    const init = () => { if (audioContext) audioContext.resume().catch(() => { }); };
     document.addEventListener('click', init, { once: true });
     return () => document.removeEventListener('click', init);
   }, []);
 
   const { data: items, refetch, isLoading, error } = useQuery({
     queryKey: ['kds-pending'],
-    queryFn:  () => apiFetch('/api/v1/kds/pending').then((r) => r.data),
-    refetchInterval: 15_000,
+    queryFn: () => apiFetch('/api/v1/kds/pending').then((r) => r.data),
+    refetchInterval: 2000,
     refetchOnWindowFocus: true,
   });
 
@@ -338,21 +338,27 @@ export default function KdsPage() {
 
   const startCooking = useCallback(async (ids: string[]) => {
     setStarting((s) => new Set([...s, ...ids]));
-    
+
     // Optimistic update
     qc.setQueryData(['kds-pending'], (oldData: KDSItem[] | undefined) => {
       if (!oldData) return oldData;
-      return oldData.map(item => 
-        ids.includes(item.order_item_id) ? { ...item, kds_status: 'preparing' } : item
+
+      return oldData.map(item =>
+        ids.includes(item.order_item_id)
+          ? { ...item, kds_status: 'preparing' }
+          : item
       );
     });
 
     try {
-      await Promise.all(
-        ids.map((id) => apiPatch(`/api/v1/kds/items/${id}/status`, { status: 'preparing' })),
-      );
+      for (const id of ids) {
+        await apiPatch(`/api/v1/kds/items/${id}/status`, {
+          status: 'preparing',
+        });
+      }
     } finally {
       qc.invalidateQueries({ queryKey: ['kds-pending'] });
+
       setStarting((s) => {
         const n = new Set(s);
         ids.forEach((id) => n.delete(id));
@@ -363,19 +369,19 @@ export default function KdsPage() {
 
   const markReady = useCallback(async (ids: string[]) => {
     setMarking((s) => new Set([...s, ...ids]));
-    
+
     // Optimistic update
     qc.setQueryData(['kds-pending'], (oldData: KDSItem[] | undefined) => {
       if (!oldData) return oldData;
-      return oldData.map(item => 
+      return oldData.map(item =>
         ids.includes(item.order_item_id) ? { ...item, kds_status: 'ready' } : item
       );
     });
 
     try {
-      await Promise.all(
-        ids.map((id) => apiPatch(`/api/v1/kds/items/${id}/status`, { status: 'ready' })),
-      );
+      for (const id of ids) {
+        await apiPatch(`/api/v1/kds/items/${id}/status`, { status: 'ready' });
+      }
     } finally {
       qc.invalidateQueries({ queryKey: ['kds-pending'] });
       setMarking((s) => {
@@ -396,9 +402,9 @@ export default function KdsPage() {
     });
 
     try {
-      await Promise.all(
-        ids.map((id) => apiPatch(`/api/v1/kds/items/${id}/bump`, {})),
-      );
+      for (const id of ids) {
+        await apiPatch(`/api/v1/kds/items/${id}/bump`, {});
+      }
     } finally {
       qc.invalidateQueries({ queryKey: ['kds-pending'] });
       setBumping((s) => {
@@ -421,7 +427,7 @@ export default function KdsPage() {
   }, {});
 
   const pendingCount = filtered.filter((i: KDSItem) => i.kds_status === 'pending').length;
-  const readyCount   = filtered.filter((i: KDSItem) => i.kds_status === 'ready').length;
+  const readyCount = filtered.filter((i: KDSItem) => i.kds_status === 'ready').length;
 
   if (isLoading) {
     return (
