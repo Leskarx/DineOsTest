@@ -59,7 +59,7 @@ export default function EmployeesPage() {
   const { user, branchId } = useAuthStore();
   const [showForm, setShowForm] = useState(false);
   const [editUser, setEditUser] = useState<any>(null);
-  const [deleteUser, setDeleteUser] = useState<any>(null); // 🚀 State for delete confirmation modal
+  const [deleteUser, setDeleteUser] = useState<any>(null);
   const [department, setDepartment] = useState<Department>('restaurant');
   const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phone: '', role: 'cashier', password: '', pin: '', employeeCode: '', branchId: '' });
 
@@ -94,7 +94,6 @@ export default function EmployeesPage() {
         payload.branchId = form.branchId;
       }
 
-      // Only send password when creating or changing password
       if (form.password) {
         payload.password = form.password;
       }
@@ -114,13 +113,15 @@ export default function EmployeesPage() {
     onError: (e: any) => toast.error(e.response?.data?.message || 'Failed'),
   });
 
-  const deactivateMutation = useMutation({
+  const deleteMutation = useMutation({
     mutationFn: (id: string) => apiDelete(`/api/v1/users/${id}`),
-    onSuccess: () => { toast.success('Employee deactivated'); qc.invalidateQueries({ queryKey: ['users'] }); },
-    onError: () => toast.error('Failed'),
+    onSuccess: () => {
+      toast.success('Employee permanently deleted');
+      qc.invalidateQueries({ queryKey: ['users'] });
+    },
+    onError: () => toast.error('Failed to delete employee'),
   });
 
-  // When department changes, reset role to first available role in that department
   const handleDepartmentChange = (dept: Department) => {
     setDepartment(dept);
     const availableRoles = getAvailableRoles(dept, user?.role);
@@ -212,7 +213,6 @@ export default function EmployeesPage() {
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-300 dark:border-slate-700 w-full max-w-md p-6 space-y-4">
             <h3 className="font-bold text-slate-900 dark:text-white text-lg">{editUser ? 'Edit Employee' : 'Add Employee'}</h3>
 
-            {/* Department selector */}
             <div>
               <label className="label">Department *</label>
               <div className="flex gap-2">
@@ -284,42 +284,42 @@ export default function EmployeesPage() {
         </div>
       )}
 
-      {/* 🚀 Deactivation Confirmation Modal */}
+      {/* 🚀 Delete Confirmation Modal - Permanent Deletion */}
       {deleteUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
           <div className="w-full max-w-md rounded-2xl border border-slate-700 bg-white dark:bg-slate-900 p-6 shadow-2xl">
-
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10">
                 <UserX className="text-red-500" size={22} />
               </div>
-
               <div>
                 <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
-                  Deactivate Employee
+                  Permanently Delete Employee
                 </h3>
-
                 <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                  This employee will lose access to the system.
+                  This action cannot be undone. The employee will be permanently removed from the system.
                 </p>
               </div>
             </div>
 
             <div className="mt-5 rounded-xl bg-slate-100 dark:bg-slate-800 p-4">
               <p className="text-sm text-slate-600 dark:text-slate-300">
-                Are you sure you want to deactivate:
+                Are you sure you want to permanently delete:
               </p>
-
               <p className="mt-2 font-semibold text-slate-900 dark:text-white">
                 {deleteUser.firstName} {deleteUser.lastName}
               </p>
-
               <p className="text-sm text-slate-500 dark:text-slate-500">
                 {deleteUser.role === 'manager' ? 'Branch Manager' :
                   deleteUser.role === 'restaurant_manager' ? 'Restaurant Manager' :
                     deleteUser.role === 'hotel_manager' ? 'Hotel Manager' :
                       deleteUser.role.charAt(0).toUpperCase() + deleteUser.role.slice(1).replace('_', ' ')}
               </p>
+              {deleteUser.email && (
+                <p className="text-xs text-slate-400 dark:text-slate-500 mt-2">
+                  Email: {deleteUser.email}
+                </p>
+              )}
             </div>
 
             <div className="mt-6 flex gap-3">
@@ -329,16 +329,15 @@ export default function EmployeesPage() {
               >
                 Cancel
               </button>
-
               <button
                 onClick={() => {
-                  deactivateMutation.mutate(deleteUser.id);
+                  deleteMutation.mutate(deleteUser.id);
                   setDeleteUser(null);
                 }}
                 className="flex-1 rounded-xl bg-red-600 px-4 py-2 text-white hover:bg-red-700 transition disabled:opacity-50"
-                disabled={deactivateMutation.isPending}
+                disabled={deleteMutation.isPending}
               >
-                {deactivateMutation.isPending ? 'Deactivating...' : 'Deactivate'}
+                {deleteMutation.isPending ? 'Deleting...' : 'Permanently Delete'}
               </button>
             </div>
           </div>

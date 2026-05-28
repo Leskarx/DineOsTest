@@ -12,16 +12,27 @@ import { User } from './entities/user.entity';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller({ path: 'users', version: '1' })
 export class UsersController {
-  constructor(private readonly svc: UsersService) {}
-  @Get() @Roles('owner', 'manager', 'restaurant_manager', 'hotel_manager') findAll(@TenantId() t: string, @BranchId() b: string) { return this.svc.findAll(t, b); }
-  @Get(':id') findOne(@Param('id') id: string, @TenantId() t: string) { return this.svc.findOne(id, t); }
-  @Post() @Roles('owner', 'manager', 'restaurant_manager', 'hotel_manager') create(@Body() body: any, @TenantId() t: string, @BranchId() b: string, @CurrentUser() reqUser: any) {
+  constructor(private readonly svc: UsersService) { }
+
+  @Get() @Roles('owner', 'manager', 'restaurant_manager', 'hotel_manager')
+  findAll(@TenantId() t: string, @BranchId() b: string) {
+    return this.svc.findAll(t, b);
+  }
+
+  @Get(':id')
+  findOne(@Param('id') id: string, @TenantId() t: string) {
+    return this.svc.findOne(id, t);
+  }
+
+  @Post() @Roles('owner', 'manager', 'restaurant_manager', 'hotel_manager')
+  create(@Body() body: any, @TenantId() t: string, @BranchId() b: string, @CurrentUser() reqUser: any) {
     this.validateRoleHierarchy(reqUser.role, body.role);
     const finalBranchId = (reqUser.role === 'owner' && body.branchId) ? body.branchId : b;
     return this.svc.create({ ...body, tenantId: t, branchId: finalBranchId });
   }
 
-  @Put(':id') @Roles('owner', 'manager', 'restaurant_manager', 'hotel_manager') update(@Param('id') id: string, @Body() body: Partial<User>, @TenantId() t: string, @CurrentUser() reqUser: any) {
+  @Put(':id') @Roles('owner', 'manager', 'restaurant_manager', 'hotel_manager')
+  update(@Param('id') id: string, @Body() body: Partial<User>, @TenantId() t: string, @CurrentUser() reqUser: any) {
     if (body.role) {
       this.validateRoleHierarchy(reqUser.role, body.role);
     }
@@ -31,6 +42,18 @@ export class UsersController {
     return this.svc.update(id, t, body);
   }
 
+  // ✅ CHANGE THIS - Replace deactivate with permanentDelete
+  @Delete(':id') @Roles('owner')
+  remove(@Param('id') id: string, @TenantId() t: string) {
+    return this.svc.permanentDelete(id, t);
+  }
+
+  // Optional: Keep this if you want to keep soft delete functionality separately
+  // @Patch(':id/deactivate') @Roles('owner', 'manager')
+  // deactivate(@Param('id') id: string, @TenantId() t: string) {
+  //   return this.svc.deactivate(id, t);
+  // }
+
   private validateRoleHierarchy(actorRole: string, targetRole: string) {
     if (['owner', 'manager'].includes(targetRole) && actorRole !== 'owner') {
       throw new ForbiddenException('Only owners can create Branch Managers or Owners');
@@ -39,11 +62,10 @@ export class UsersController {
       throw new ForbiddenException('Only Owners and Branch Managers can create Department Managers');
     }
     if (actorRole === 'restaurant_manager' && !['cashier', 'waiter', 'kitchen', 'inventory'].includes(targetRole)) {
-       throw new ForbiddenException('Restaurant Managers can only create restaurant staff');
+      throw new ForbiddenException('Restaurant Managers can only create restaurant staff');
     }
     if (actorRole === 'hotel_manager' && !['receptionist', 'housekeeping'].includes(targetRole)) {
-       throw new ForbiddenException('Hotel Managers can only create hotel staff');
+      throw new ForbiddenException('Hotel Managers can only create hotel staff');
     }
   }
-  @Delete(':id') @Roles('owner') remove(@Param('id') id: string, @TenantId() t: string) { return this.svc.deactivate(id, t); }
 }
