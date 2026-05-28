@@ -13,7 +13,7 @@ import { User } from './entities/user.entity';
 @Controller({ path: 'users', version: '1' })
 export class UsersController {
   constructor(private readonly svc: UsersService) {}
-  @Get() @Roles('owner', 'manager', 'restaurant_manager', 'hotel_manager') findAll(@TenantId() t: string, @BranchId() b: string, @Query('branchId') bid?: string) { return this.svc.findAll(t, bid || b); }
+  @Get() @Roles('owner', 'manager', 'restaurant_manager', 'hotel_manager') findAll(@TenantId() t: string, @BranchId() b: string) { return this.svc.findAll(t, b); }
   @Get(':id') findOne(@Param('id') id: string, @TenantId() t: string) { return this.svc.findOne(id, t); }
   @Post() @Roles('owner', 'manager', 'restaurant_manager', 'hotel_manager') create(@Body() body: any, @TenantId() t: string, @BranchId() b: string, @CurrentUser() reqUser: any) {
     this.validateRoleHierarchy(reqUser.role, body.role);

@@ -35,7 +35,7 @@ export class TablesController {
     @TenantId() t: string,
     @BranchId() b: string,
   ) {
-    return this.svc.createSection({ ...body, tenantId: t, branchId: b });
+    return this.svc.createSection({ ...body, tenantId: t, branchId: b || body.branchId });
   }
 
   @Put('sections/:id')
@@ -79,7 +79,7 @@ export class TablesController {
     @TenantId() t: string,
     @BranchId() b: string,
   ) {
-    return this.svc.create({ ...body, tenantId: t, branchId: b });
+    return this.svc.create({ ...body, tenantId: t, branchId: b || body.branchId });
   }
 
   @Put(':id')

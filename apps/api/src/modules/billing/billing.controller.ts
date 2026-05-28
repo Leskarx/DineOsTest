@@ -23,7 +23,7 @@ export class BillingController {
   @Post('bills')
   @ApiOperation({ summary: 'Create bill and process payment' })
   createBill(@Body() dto: CreateBillDto, @TenantId() tenantId: string, @BranchId() branchId: string) {
-    return this.svc.createBill({ ...dto, tenantId, branchId: dto.branchId || branchId });
+    return this.svc.createBill({ ...dto, tenantId, branchId: branchId || dto.branchId });
   }
 
   @Get('bills')

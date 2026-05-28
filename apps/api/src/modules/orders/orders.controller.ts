@@ -19,7 +19,7 @@ export class OrdersController {
   @Post()
   @ApiOperation({ summary: 'Create new order' })
   create(@Body() dto: CreateOrderDto, @TenantId() tenantId: string, @BranchId() branchId: string) {
-    return this.svc.createOrder({ ...dto, tenantId, branchId: dto.branchId || branchId });
+    return this.svc.createOrder({ ...dto, tenantId, branchId: branchId || dto.branchId });
   }
 
   @Get()

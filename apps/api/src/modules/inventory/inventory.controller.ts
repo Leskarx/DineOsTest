@@ -40,7 +40,7 @@ export class InventoryController {
   @Roles('manager', 'owner')
   @ApiOperation({ summary: 'Create inventory item' })
   createItem(@Body() body: Partial<InventoryItem>, @TenantId() t: string, @BranchId() b: string) {
-    return this.svc.createItem({ ...body, tenantId: t, branchId: b });
+    return this.svc.createItem({ ...body, tenantId: t, branchId: b || body.branchId });
   }
 
   @Put('items/:id')

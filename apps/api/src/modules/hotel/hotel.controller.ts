@@ -144,11 +144,11 @@ export class HotelController {
   @ApiQuery({ name: 'limit', required: false })
   listReservations(
     @TenantId() tid: string,
+    @BranchId() branchId: string,
     @Query('status') status?: ReservationStatus,
     @Query('from') from?: string,
     @Query('to') to?: string,
     @Query('search') search?: string,
-    @Query('branchId') branchId?: string,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page = 1,
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit = 50,
   ) {
@@ -165,12 +165,13 @@ export class HotelController {
   @Roles('owner', 'manager', 'cashier', 'receptionist')
   createReservation(
     @TenantId() tid: string,
-    @CurrentUser() user: any,
+    @BranchId() branchId: string,
     @Body() body: any,
   ) {
+    if (!branchId) throw new BadRequestException('Branch ID is required to create a reservation');
     return this.svc.createReservation(
       tid,
-      user?.branchId,
+      branchId,
       body,
     );
   }
@@ -232,7 +233,7 @@ export class HotelController {
   @ApiQuery({ name: 'date', required: false })
   listTasks(
     @TenantId() tid: string,
-    @Query('branchId') branchId?: string,
+    @BranchId() branchId: string,
     @Query('date') date?: string,
   ) {
     return this.svc.listHousekeepingTasks(tid, branchId, date);
@@ -242,12 +243,13 @@ export class HotelController {
   @Roles('owner', 'manager')
   createTask(
     @TenantId() tid: string,
-    @CurrentUser() user: any,
+    @BranchId() branchId: string,
     @Body() body: any,
   ) {
+    if (!branchId) throw new BadRequestException('Branch ID is required to create a task');
     return this.svc.createHousekeepingTask(
       tid,
-      user?.branchId,
+      branchId,
       body,
     );
   }
