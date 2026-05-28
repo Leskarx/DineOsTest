@@ -258,6 +258,7 @@ export default function PosPage() {
   });
 
   const [isOpeningDropdown, setIsOpeningDropdown] = useState(false);
+  const [isBillingLoading, setIsBillingLoading] = useState(false);
 
   // ── Socket events ──────────────────────────────────────────────────────────
   const handleOrderEvent = useCallback(() => {
@@ -336,7 +337,11 @@ export default function PosPage() {
       toast.error('You must open a shift first!');
       return;
     }
-    if (currentOrder) await fetchServerTotal(currentOrder);
+    if (currentOrder) {
+      setIsBillingLoading(true);
+      await fetchServerTotal(currentOrder);
+      setIsBillingLoading(false);
+    }
     setShowBilling(true);
   }, [user, shift, currentOrder, fetchServerTotal]);
 
@@ -895,8 +900,16 @@ export default function PosPage() {
                 {placeKotMutation.isPending ? 'Sending...' : 'Send KOT'}
               </button>
               {user?.role !== 'waiter' && (
-                <button onClick={handleOpenBilling} className="btn-primary text-xs">
-                  <CreditCard size={12} /> Bill
+                <button 
+                  onClick={handleOpenBilling} 
+                  disabled={isBillingLoading}
+                  className="btn-primary text-xs flex items-center justify-center gap-1.5"
+                >
+                  {isBillingLoading ? (
+                    <><Loader2 size={12} className="animate-spin" /> Loading...</>
+                  ) : (
+                    <><CreditCard size={12} /> Bill</>
+                  )}
                 </button>
               )}
             </div>
