@@ -24,8 +24,8 @@ function downloadCsv(rows: Record<string, any>[], filename: string) {
     ),
   ].join('\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
   a.href = url; a.download = filename; a.click();
   URL.revokeObjectURL(url);
 }
@@ -40,8 +40,8 @@ async function downloadGstr1(from: string, to: string) {
       { responseType: 'blob' },
     );
     const url = URL.createObjectURL(new Blob([res.data], { type: 'application/json' }));
-    const a   = document.createElement('a');
-    a.href     = url;
+    const a = document.createElement('a');
+    a.href = url;
     a.download = `GSTR1_${from}_${to}.json`;
     a.click();
     URL.revokeObjectURL(url);
@@ -56,70 +56,79 @@ const COLORS = ['#f59e0b', '#3b82f6', '#10b981', '#8b5cf6', '#ef4444', '#6b7280'
 type ReportTab = 'sales' | 'items' | 'payments' | 'gst' | 'shifts' | 'waiters';
 
 const TABS = [
-  { id: 'sales',    label: 'Sales',      icon: TrendingUp },
-  { id: 'items',    label: 'Top Items',  icon: Package    },
-  { id: 'payments', label: 'Payments',   icon: Receipt    },
-  { id: 'gst',      label: 'GST Report', icon: FileText   },
-  { id: 'shifts',   label: 'Shifts',     icon: Clock      },
-  { id: 'waiters',  label: 'Waiters',    icon: Users      },
+  { id: 'sales', label: 'Sales', icon: TrendingUp },
+  { id: 'items', label: 'Top Items', icon: Package },
+  { id: 'payments', label: 'Payments', icon: Receipt },
+  { id: 'gst', label: 'GST Report', icon: FileText },
+  { id: 'shifts', label: 'Shifts', icon: Clock },
+  { id: 'waiters', label: 'Waiters', icon: Users },
 ] as const;
 
 export default function ReportsPage() {
-  const [tab,  setTab]  = useState<ReportTab>('sales');
+  const [tab, setTab] = useState<ReportTab>('sales');
   const [from, setFrom] = useState(dayjs().startOf('month').format('YYYY-MM-DD'));
-  const [to,   setTo]   = useState(dayjs().format('YYYY-MM-DD'));
+  const [to, setTo] = useState(dayjs().format('YYYY-MM-DD'));
   const [expandedShift, setExpandedShift] = useState<string | null>(null);
 
-  // ── Queries ──────────────────────────────────────────────────────────────────
-  const { data: dailySales } = useQuery({
+  // ── Queries with isLoading ──────────────────────────────────────────────────
+  const { data: dailySales, isLoading: salesLoading } = useQuery({
     queryKey: ['report-daily', from, to],
-    queryFn:  () => apiFetch(`/api/v1/reports/daily-sales?from=${from}&to=${to}`).then((r) => r.data),
-    enabled:  tab === 'sales',
+    queryFn: () => apiFetch(`/api/v1/reports/daily-sales?from=${from}&to=${to}`).then((r) => r.data),
+    enabled: tab === 'sales',
   });
 
-  const { data: itemSales } = useQuery({
+  const { data: itemSales, isLoading: itemLoading } = useQuery({
     queryKey: ['report-items', from, to],
-    queryFn:  () => apiFetch(`/api/v1/reports/items?from=${from}&to=${to}`).then((r) => r.data),
-    enabled:  tab === 'items',
+    queryFn: () => apiFetch(`/api/v1/reports/items?from=${from}&to=${to}`).then((r) => r.data),
+    enabled: tab === 'items',
   });
 
-  const { data: payments } = useQuery({
+  const { data: payments, isLoading: paymentsLoading } = useQuery({
     queryKey: ['report-payments', from, to],
-    queryFn:  () => apiFetch(`/api/v1/reports/payments?from=${from}&to=${to}`).then((r) => r.data),
-    enabled:  tab === 'payments',
+    queryFn: () => apiFetch(`/api/v1/reports/payments?from=${from}&to=${to}`).then((r) => r.data),
+    enabled: tab === 'payments',
   });
 
-  const { data: gstReport } = useQuery({
+  const { data: gstReport, isLoading: gstLoading } = useQuery({
     queryKey: ['report-gst', from, to],
-    queryFn:  () => apiFetch(`/api/v1/reports/gst?from=${from}&to=${to}`).then((r) => r.data),
-    enabled:  tab === 'gst',
+    queryFn: () => apiFetch(`/api/v1/reports/gst?from=${from}&to=${to}`).then((r) => r.data),
+    enabled: tab === 'gst',
   });
 
-  const { data: shiftReport } = useQuery({
+  const { data: shiftReport, isLoading: shiftLoading } = useQuery({
     queryKey: ['report-shifts', from, to],
-    queryFn:  () => apiFetch(`/api/v1/reports/shifts?from=${from}&to=${to}`).then((r) => r.data),
-    enabled:  tab === 'shifts',
+    queryFn: () => apiFetch(`/api/v1/reports/shifts?from=${from}&to=${to}`).then((r) => r.data),
+    enabled: tab === 'shifts',
   });
 
-  const { data: waiterReport } = useQuery({
+  const { data: waiterReport, isLoading: waiterLoading } = useQuery({
     queryKey: ['report-waiters', from, to],
-    queryFn:  () => apiFetch(`/api/v1/reports/waiters?from=${from}&to=${to}`).then((r) => r.data),
-    enabled:  tab === 'waiters',
+    queryFn: () => apiFetch(`/api/v1/reports/waiters?from=${from}&to=${to}`).then((r) => r.data),
+    enabled: tab === 'waiters',
   });
+
+  // ── Global loading state ────────────────────────────────────────────────────
+  const loading =
+    salesLoading ||
+    itemLoading ||
+    paymentsLoading ||
+    gstLoading ||
+    shiftLoading ||
+    waiterLoading;
 
   // ── Summary totals ────────────────────────────────────────────────────────────
   const totalSales = dailySales?.reduce((s: number, d: any) => s + Number(d.gross_sales || 0), 0) || 0;
   const totalBills = dailySales?.reduce((s: number, d: any) => s + Number(d.total_bills || 0), 0) || 0;
-  const totalTax   = dailySales?.reduce((s: number, d: any) => s + Number(d.total_tax   || 0), 0) || 0;
+  const totalTax = dailySales?.reduce((s: number, d: any) => s + Number(d.total_tax || 0), 0) || 0;
 
   // ── Export handler ────────────────────────────────────────────────────────────
   const handleExport = () => {
-    if (tab === 'sales'    && dailySales)   downloadCsv(dailySales,   `sales-${from}-${to}.csv`);
-    if (tab === 'items'    && itemSales)    downloadCsv(itemSales,    `item-sales-${from}-${to}.csv`);
-    if (tab === 'payments' && payments)     downloadCsv(payments,     `payments-${from}-${to}.csv`);
-    if (tab === 'gst'      && gstReport)    downloadCsv(gstReport,    `gst-report-${from}-${to}.csv`);
-    if (tab === 'shifts'   && shiftReport)  downloadCsv(shiftReport,  `shifts-${from}-${to}.csv`);
-    if (tab === 'waiters'  && waiterReport) downloadCsv(waiterReport, `waiters-${from}-${to}.csv`);
+    if (tab === 'sales' && dailySales) downloadCsv(dailySales, `sales-${from}-${to}.csv`);
+    if (tab === 'items' && itemSales) downloadCsv(itemSales, `item-sales-${from}-${to}.csv`);
+    if (tab === 'payments' && payments) downloadCsv(payments, `payments-${from}-${to}.csv`);
+    if (tab === 'gst' && gstReport) downloadCsv(gstReport, `gst-report-${from}-${to}.csv`);
+    if (tab === 'shifts' && shiftReport) downloadCsv(shiftReport, `shifts-${from}-${to}.csv`);
+    if (tab === 'waiters' && waiterReport) downloadCsv(waiterReport, `waiters-${from}-${to}.csv`);
   };
 
   const fmt = (n: number) =>
@@ -171,14 +180,26 @@ export default function ReportsPage() {
         ))}
       </div>
 
+      {/* ── Global Loader ────────────────────────────────────────────────────── */}
+      {loading && (
+        <div className="flex items-center justify-center py-20">
+          <div className="flex flex-col items-center gap-3">
+            <div className="h-10 w-10 animate-spin rounded-full border-4 border-amber-500 border-t-transparent" />
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Loading report...
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* ════════ SALES TAB ════════ */}
-      {tab === 'sales' && (
+      {!loading && tab === 'sales' && (
         <div className="space-y-4">
           <div className="grid grid-cols-3 gap-4">
             {[
               { label: 'Gross Sales', value: fmt(totalSales) },
               { label: 'Total Bills', value: totalBills.toLocaleString('en-IN') },
-              { label: 'Total GST',   value: fmt(totalTax) },
+              { label: 'Total GST', value: fmt(totalTax) },
             ].map(({ label, value }) => (
               <div key={label} className="stat-card">
                 <div className="stat-label">{label}</div>
@@ -191,9 +212,9 @@ export default function ReportsPage() {
             <h2 className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-4">Daily Sales</h2>
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={dailySales?.map((d: any) => ({
-                date:  dayjs(d.date).format('D MMM'),
+                date: dayjs(d.date).format('D MMM'),
                 sales: Number(d.gross_sales),
-                tax:   Number(d.total_tax),
+                tax: Number(d.total_tax),
                 bills: Number(d.total_bills),
               })) || []}>
                 <XAxis dataKey="date" tick={{ fill: 'var(--chart-axis-text)', fontSize: 11 }} />
@@ -203,7 +224,7 @@ export default function ReportsPage() {
                   formatter={(v: any) => `₹${Number(v).toLocaleString('en-IN')}`}
                 />
                 <Bar dataKey="sales" fill="#f59e0b" radius={[4, 4, 0, 0]} name="Sales" />
-                <Bar dataKey="tax"   fill="#334155" radius={[4, 4, 0, 0]} name="GST" />
+                <Bar dataKey="tax" fill="#334155" radius={[4, 4, 0, 0]} name="GST" />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -253,7 +274,7 @@ export default function ReportsPage() {
       )}
 
       {/* ════════ TOP ITEMS TAB ════════ */}
-      {tab === 'items' && (
+      {!loading && tab === 'items' && (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-6">
             <div className="card">
@@ -261,7 +282,7 @@ export default function ReportsPage() {
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart
                   data={itemSales?.slice(0, 10).map((i: any) => ({
-                    name:    i.item_name?.slice(0, 12),
+                    name: i.item_name?.slice(0, 12),
                     revenue: Number(i.total_revenue),
                   })) || []}
                   layout="vertical"
@@ -315,7 +336,7 @@ export default function ReportsPage() {
       )}
 
       {/* ════════ PAYMENTS TAB ════════ */}
-      {tab === 'payments' && (
+      {!loading && tab === 'payments' && (
         <div className="grid grid-cols-2 gap-6">
           <div className="card">
             <h2 className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-4">Payment Mix</h2>
@@ -377,7 +398,7 @@ export default function ReportsPage() {
       )}
 
       {/* ════════ GST REPORT TAB ════════ */}
-      {tab === 'gst' && (
+      {!loading && tab === 'gst' && (
         <div className="space-y-4">
           <div className="card p-0 overflow-hidden">
             <table className="w-full text-sm">
@@ -455,12 +476,12 @@ export default function ReportsPage() {
       )}
 
       {/* ════════ SHIFTS TAB ════════ */}
-      {tab === 'shifts' && (
+      {!loading && tab === 'shifts' && (
         <div className="space-y-4">
           {shiftReport?.length > 0 && (
             <div className="grid grid-cols-3 gap-4">
               {[
-                { label: 'Total Shifts',  value: shiftReport.length },
+                { label: 'Total Shifts', value: shiftReport.length },
                 {
                   label: 'Total Revenue',
                   value: fmt(shiftReport.reduce((s: number, r: any) => s + Number(r.total_sales || 0), 0)),
@@ -603,7 +624,7 @@ export default function ReportsPage() {
       )}
 
       {/* ════════ WAITERS TAB ════════ */}
-      {tab === 'waiters' && (
+      {!loading && tab === 'waiters' && (
         <div className="space-y-4">
           {waiterReport?.length > 0 && (
             <div className="grid grid-cols-3 gap-4">
