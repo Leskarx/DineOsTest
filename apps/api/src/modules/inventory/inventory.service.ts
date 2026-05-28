@@ -17,7 +17,7 @@ export class InventoryService {
   getItems(tenantId: string, branchId?: string) {
     const where: any = { tenantId, isActive: true };
     if (branchId) where.branchId = branchId;
-    return this.itemRepo.find({ where, order: { name: 'ASC' } });
+    return this.itemRepo.find({ where, order: { createdAt: 'DESC' } });
   }
 
   async getItem(id: string, tenantId: string) {

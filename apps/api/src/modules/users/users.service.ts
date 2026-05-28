@@ -29,12 +29,14 @@ export class UsersService {
           { tenantId, isActive: true, role: 'manager' as any },
         ],
         select,
+        order: { createdAt: 'DESC' },
       });
     }
 
     return this.repo.find({
       where: { tenantId, isActive: true },
       select,
+      order: { createdAt: 'DESC' },
     });
   }
 

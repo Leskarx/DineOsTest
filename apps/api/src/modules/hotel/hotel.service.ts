@@ -507,7 +507,7 @@ export class HotelService {
     console.log(qb.getSql());
 
     const [data, total] = await qb
-      .orderBy("r.checkInDate", "DESC")
+      .orderBy("r.createdAt", "DESC")
       .skip((page - 1) * limit)
       .take(limit)
       .getManyAndCount();
