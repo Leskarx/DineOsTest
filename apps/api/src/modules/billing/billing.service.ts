@@ -68,27 +68,42 @@ export class BillingService {
     if (order.status === OrderStatus.BILLED)   throw new BadRequestException('Order already billed');
     if (order.status === OrderStatus.CANCELLED) throw new BadRequestException('Order is cancelled');
 
-    // For offline-synced bills, the offline payment amount may not match the server
-    // grand total (floating-point or rounding difference). Auto-adjust to server total.
+    // For offline-synced bills: recalculate grandTotal directly from the order's
+    // current items (which are fresh after KOT sync) instead of trusting the stored
+    // order.grandTotal which may be stale (e.g. items were added offline after the order
+    // was created online, so the stored grandTotal only reflects the original items).
+    let effectiveGrandTotal = Number(order.grandTotal);
     if (isOfflineSync) {
-      const serverTotal = Number(order.grandTotal);
+      // Sum lineTotal from all non-voided items — these are fresh from DB after KOT sync
+      const recalculated = order.items
+        .filter((i) => !i.isVoided)
+        .reduce((sum, i) => sum + Number(i.lineTotal), 0);
+
+      if (recalculated > 0) {
+        effectiveGrandTotal = Math.round(recalculated * 100) / 100;
+      }
+
+      // Auto-adjust payment only for tiny rounding differences (< ₹2)
+      // Never reduce payment for large differences — that would mean swallowing item value
       if (dto.payments?.length > 0) {
         const currentTotal = dto.payments.reduce((s: number, p: any) => s + Number(p.amount), 0);
-        // If offline amount differs from server total, adjust the first payment
-        if (Math.abs(currentTotal - serverTotal) > 0.01) {
-          const diff = serverTotal - currentTotal;
+        const diff = effectiveGrandTotal - currentTotal;
+        if (Math.abs(diff) > 0.01 && Math.abs(diff) < 2) {
+          // Small rounding gap: adjust first payment entry to match
           dto.payments = [
             { ...dto.payments[0], amount: Number(dto.payments[0].amount) + diff },
             ...dto.payments.slice(1),
           ];
         }
+        // If currentTotal > effectiveGrandTotal: customer paid more than calculated — fine (change given)
+        // If currentTotal < effectiveGrandTotal by >=₹2: trust frontend, don't reduce; check below
       }
     }
 
     const totalPaid = dto.payments.reduce((s, p) => s + Number(p.amount), 0);
-    if (totalPaid < Number(order.grandTotal) - 0.01) {
+    if (totalPaid < effectiveGrandTotal - 0.01) {
       throw new BadRequestException(
-        `Insufficient payment. Expected ₹${Number(order.grandTotal).toFixed(2)}, got ₹${totalPaid.toFixed(2)}`,
+        `Insufficient payment. Expected ₹${effectiveGrandTotal.toFixed(2)}, got ₹${totalPaid.toFixed(2)}`,
       );
     }
 
@@ -132,9 +147,9 @@ export class BillingService {
         cessAmount:      order.cessAmount,
         totalTax:        order.totalTax,
         roundOff:        order.roundOff,
-        grandTotal:      order.grandTotal,
+        grandTotal:      isOfflineSync ? effectiveGrandTotal : order.grandTotal,
         paidAmount:      totalPaid,
-        changeAmount:    Math.max(0, totalPaid - Number(order.grandTotal)),
+        changeAmount:    Math.max(0, totalPaid - (isOfflineSync ? effectiveGrandTotal : Number(order.grandTotal))),
         gstSummary,
         notes:           dto.notes,
       });
