@@ -42,10 +42,10 @@ export class OrdersController {
   @ApiOperation({ summary: 'Add items to order (KOT)' })
   addItems(
     @Param('id') id: string,
-    @Body() body: { items: AddItemDto[]; isOfflineSync?: boolean },
+    @Body() body: { items: AddItemDto[] },
     @TenantId() tenantId: string,
   ) {
-    return this.svc.addItems(id, body.items, tenantId, body.isOfflineSync);
+    return this.svc.addItems(id, body.items, tenantId);
   }
 
   @Patch(':id/status')

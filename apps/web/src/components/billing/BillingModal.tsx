@@ -109,7 +109,7 @@ export function BillingModal({
             entityType: 'orders',
             entityId: oid,
             operation: 'create',
-            payload: { ...payload, isOfflineSync: true },
+            payload,
             branchId: branchId || '',
             tenantId: tenantId || '',
           });
