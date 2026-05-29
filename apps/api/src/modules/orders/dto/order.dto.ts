@@ -39,19 +39,19 @@ export class CreateOrderDto {
   @ApiPropertyOptional() @IsString() @IsOptional() tenantId?: string;
 }
 
+export class AddOrderItemDto {
+  @ApiProperty() @IsUUID() menuItemId: string;
+  @ApiProperty() @IsNumber() @Min(1) quantity: number;
+  @ApiPropertyOptional() @IsString() @IsOptional() @MaxLength(500) notes?: string;
+  @ApiPropertyOptional() @IsArray() @IsOptional() modifiers?: any[];
+}
+
 export class AddItemsBodyDto {
   @ApiProperty({ type: [AddOrderItemDto] })
   @IsArray() @ValidateNested({ each: true }) @Type(() => AddOrderItemDto)
   items: AddOrderItemDto[];
 
   @ApiPropertyOptional() @IsBoolean() @IsOptional() isOfflineSync?: boolean;
-}
-
-export class AddOrderItemDto {
-  @ApiProperty() @IsUUID() menuItemId: string;
-  @ApiProperty() @IsNumber() @Min(1) quantity: number;
-  @ApiPropertyOptional() @IsString() @IsOptional() @MaxLength(500) notes?: string;
-  @ApiPropertyOptional() @IsArray() @IsOptional() modifiers?: any[];
 }
 
 export class UpdateOrderItemDto {
