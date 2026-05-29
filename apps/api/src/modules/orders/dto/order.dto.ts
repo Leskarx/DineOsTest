@@ -18,7 +18,8 @@ export class CreateOrderDto {
   @ApiProperty({ enum: OrderType }) @IsEnum(OrderType) @IsOptional() orderType?: OrderType;
   // Also accept 'type' as an alias (frontend sends 'type')
   @ApiPropertyOptional({ enum: OrderType }) @IsEnum(OrderType) @IsOptional() type?: OrderType;
-  @ApiPropertyOptional() @IsUUID() @IsOptional() tableId?: string;
+  // tableId can be null (no table for takeaway) — use IsString to allow null/undefined
+  @ApiPropertyOptional() @IsString() @IsOptional() tableId?: string | null;
   @ApiPropertyOptional() @IsString() @IsOptional() @MaxLength(100) customerName?: string;
   @ApiPropertyOptional() @IsString() @IsOptional() @MaxLength(20) customerPhone?: string;
   @ApiPropertyOptional() @IsString() @IsOptional() customerGstin?: string;
@@ -43,6 +44,7 @@ export class AddOrderItemDto {
   @ApiProperty() @IsUUID() menuItemId: string;
   @ApiProperty() @IsNumber() @Min(1) quantity: number;
   @ApiPropertyOptional() @IsString() @IsOptional() @MaxLength(500) notes?: string;
+  @ApiPropertyOptional() @IsUUID() @IsOptional() variationId?: string;
   @ApiPropertyOptional() @IsArray() @IsOptional() modifiers?: any[];
 }
 
