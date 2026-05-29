@@ -368,7 +368,7 @@ export default function KdsPage() {
 
   const markReady = useCallback(async (ids: string[]) => {
     isMutatingRef.current = true;
-    setMarking((s) => new Set([...s, ...ids]));
+    setMarking((s) => new Set([...Array.from(s), ...ids]));
     
     await qc.cancelQueries({ queryKey: ['kds-pending'] });
     // Optimistic update
@@ -396,7 +396,7 @@ export default function KdsPage() {
 
   const bump = useCallback(async (ids: string[]) => {
     isMutatingRef.current = true;
-    setBumping((s) => new Set([...s, ...ids]));
+    setBumping((s) => new Set([...Array.from(s), ...ids]));
 
     await qc.cancelQueries({ queryKey: ['kds-pending'] });
     // Optimistic update
