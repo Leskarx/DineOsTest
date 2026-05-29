@@ -266,9 +266,16 @@ export async function flushSyncQueue(
         }
       }
       await removeSyncItem(item.id);
-    } catch (err) {
+    } catch (err: any) {
       await incrementRetry(item.id);
-      console.warn('Sync failed for item', item.id, err);
+      // Log full API error details to help diagnose sync failures
+      const apiErr = err?.response?.data;
+      const status = err?.response?.status;
+      console.error(
+        `[Offline Sync] FAILED item=${item.id} entity=${item.entityType} status=${status}`,
+        '\nPayload:', item.payload,
+        '\nAPI Error:', apiErr ?? err?.message ?? err
+      );
     }
     done++;
     onProgress?.(done, items.length);
