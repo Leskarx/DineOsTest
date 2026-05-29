@@ -151,6 +151,30 @@ export async function flushSyncQueue(
       const realId = await apiFn(item, idMap);
       if (realId && typeof realId === 'string' && item.entityId.startsWith('OFFLINE-')) {
         idMap[item.entityId] = realId;
+        
+        // Rewrite all pending items in DB to permanently save the new real ID
+        const db = await getDb();
+        const pending = await db.getAllFromIndex('syncQueue', 'by-time');
+        for (const p of pending) {
+          let changed = false;
+          let payloadStr = p.payload ? JSON.stringify(p.payload) : '';
+          if (payloadStr.includes(item.entityId)) {
+            payloadStr = payloadStr.replaceAll(item.entityId, realId);
+            p.payload = JSON.parse(payloadStr);
+            changed = true;
+          }
+          if (p.entityType && p.entityType.includes(item.entityId)) {
+            p.entityType = p.entityType.replaceAll(item.entityId, realId);
+            changed = true;
+          }
+          if (p.entityId === item.entityId) {
+            p.entityId = realId;
+            changed = true;
+          }
+          if (changed) {
+            await db.put('syncQueue', p);
+          }
+        }
       }
       await removeSyncItem(item.id);
     } catch (err) {
