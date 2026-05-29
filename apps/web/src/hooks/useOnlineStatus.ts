@@ -27,16 +27,17 @@ export function useOnlineStatus(): boolean {
             entityType = entityType.replaceAll(offlineId, realId);
           }
 
-          // Guard: if any OFFLINE- id is still unresolved, this item is stale/unrecoverable.
-          // Drop it from the queue to prevent backend crashes.
+          // Guard: if any OFFLINE- id is still unresolved, the parent order hasn't synced yet
+          // (it likely failed this round). Keep this item in queue (__RETRY__) so it can be
+          // retried on the next online event when the parent order may succeed.
           const stillHasOfflineId =
             payloadStr.includes('"OFFLINE-') ||
             entityType.includes('OFFLINE-') ||
             entityId.startsWith('OFFLINE-');
 
           if (stillHasOfflineId) {
-            console.warn('[Offline] Dropping stale unresolvable item from queue:', item.id, item.entityType);
-            return '__DROP__'; // signal to flush to remove this item
+            console.warn('[Offline] Parent order not yet synced, will retry bill next session:', item.id);
+            return '__RETRY__'; // keep in queue, bump retry count
           }
 
           if (item.operation === 'create') {

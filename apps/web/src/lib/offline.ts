@@ -142,8 +142,22 @@ export async function flushSyncQueue(
   apiFn: (item: SyncItem, idMap: Record<string, string>) => Promise<string | void>,
   onProgress?: (done: number, total: number) => void,
 ) {
+  const MAX_RETRIES = 10;
+
   // Sort by creation time so order→items→bill are always processed in the right sequence
-  const items = (await getPendingSyncItems()).sort((a, b) => a.createdAt - b.createdAt);
+  const allItems = (await getPendingSyncItems()).sort((a, b) => a.createdAt - b.createdAt);
+
+  // Drop items that have exceeded max retries (truly unrecoverable)
+  const items: SyncItem[] = [];
+  for (const item of allItems) {
+    if (item.retryCount >= MAX_RETRIES) {
+      console.warn('[Offline] Dropping item after max retries:', item.id, item.entityType);
+      await removeSyncItem(item.id);
+    } else {
+      items.push(item);
+    }
+  }
+
   let done = 0;
   const idMap: Record<string, string> = {};
 
@@ -151,9 +165,17 @@ export async function flushSyncQueue(
     try {
       const realId = await apiFn(item, idMap);
 
-      // '__DROP__' means the item is stale/unresolvable — purge it silently
+      // '__DROP__' = truly unrecoverable, remove immediately
       if (realId === '__DROP__') {
         await removeSyncItem(item.id);
+        done++;
+        onProgress?.(done, items.length);
+        continue;
+      }
+
+      // '__RETRY__' = parent not ready yet, keep item and bump retry count
+      if (realId === '__RETRY__') {
+        await incrementRetry(item.id);
         done++;
         onProgress?.(done, items.length);
         continue;
