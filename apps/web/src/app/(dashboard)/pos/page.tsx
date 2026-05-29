@@ -378,7 +378,9 @@ export default function PosPage() {
       toast.error('You must open a shift first!');
       return;
     }
-    if (currentOrder) {
+    const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+    // Only fetch server total when online AND order exists with a real UUID
+    if (currentOrder && !isOffline && !currentOrder.startsWith('OFFLINE-')) {
       setIsBillingLoading(true);
       await fetchServerTotal(currentOrder);
       setIsBillingLoading(false);
@@ -548,15 +550,25 @@ export default function PosPage() {
       }
     },
     onMutate: (variables) => {
-      // Optimistically update the UI for instant feedback
-      if (!variables.currentOrder) {
-        resetPosState();
-      } else {
+      // For add-items KOT, mark existing items as sent immediately
+      if (variables.currentOrder) {
         setCart(variables.cart.map(i => ({ ...i, alreadySent: true })));
       }
+      // For new order KOT, we wait for onSuccess before clearing state
     },
-    onSuccess: () => {
+    onSuccess: (data: any, variables) => {
       toast.success('KOT placed successfully!');
+      if (!variables.currentOrder) {
+        // New order created — set currentOrder so BillingModal links to it
+        if (data?.id) {
+          setCurrentOrder(data.id);
+          setCurrentOrderNumber(data.orderNumber ?? null);
+          // Mark all cart items as already sent
+          setCart((prev: any[]) => prev.map(i => ({ ...i, alreadySent: true })));
+        } else {
+          resetPosState();
+        }
+      }
       qc.invalidateQueries({ queryKey: ['orders'] });
       qc.invalidateQueries({ queryKey: ['open-orders-pos'] });
       qc.invalidateQueries({ queryKey: ['tables'] });

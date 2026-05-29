@@ -90,7 +90,7 @@ export function BillingModal({
       const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
       let oid = orderId;
 
-      // 1. Create order if needed
+      // 1. Create order if needed (skip if already have an OFFLINE- or real order ID)
       if (!oid) {
         const payload = {
           type: orderType,
@@ -102,14 +102,14 @@ export function BillingModal({
             variationId: i.variationId ?? undefined,
           })),
         };
-        
+
         if (isOffline) {
           oid = `OFFLINE-${Date.now()}`;
           await enqueueSync({
             entityType: 'orders',
             entityId: oid,
             operation: 'create',
-            payload,
+            payload: { ...payload, isOfflineSync: true, offlineId: oid },
             branchId: branchId || '',
             tenantId: tenantId || '',
           });
