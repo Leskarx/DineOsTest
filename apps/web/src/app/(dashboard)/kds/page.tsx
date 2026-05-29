@@ -340,7 +340,7 @@ export default function KdsPage() {
 
   const startCooking = useCallback(async (ids: string[]) => {
     isMutatingRef.current = true;
-    setStarting((s) => new Set([...s, ...ids]));
+    setStarting((s) => new Set([...Array.from(s), ...ids]));
     
     await qc.cancelQueries({ queryKey: ['kds-pending'] });
     // Optimistic update
@@ -358,9 +358,9 @@ export default function KdsPage() {
     } finally {
       qc.invalidateQueries({ queryKey: ['kds-pending'] });
       setStarting((s) => {
-        const n = new Set(s);
-        ids.forEach((id) => n.delete(id));
-        return n;
+        const next = new Set(Array.from(s));
+        ids.forEach(id => next.delete(id));
+        return next;
       });
       isMutatingRef.current = false;
     }

@@ -63,18 +63,33 @@ export default function EmployeesPage() {
   const [department, setDepartment] = useState<Department>('restaurant');
   const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phone: '', role: 'cashier', password: '', pin: '', employeeCode: '', branchId: '' });
 
-  const { data: users, isLoading } = useQuery({ queryKey: ['users'], queryFn: () => apiFetch('/api/v1/users').then((r) => r.data) });
+  const { data: users, isFetching: isLoading } = useQuery({ 
+    queryKey: ['users'], 
+    queryFn: () => apiFetch('/api/v1/users').then((r) => r.data),
+    staleTime: 0,
+    gcTime: 0,
+  });
   const { data: branches } = useQuery({ queryKey: ['branches'], queryFn: () => apiFetch('/api/v1/branches').then((r) => r.data), enabled: user?.role === 'owner' });
 
   const filteredUsers = useMemo(() => {
     if (!users) return [];
-    if (user?.role === 'owner' || user?.role === 'manager') return users;
+    
+    // Owner sees everyone
+    if (user?.role === 'owner') return users;
+    
+    // Branch manager sees everyone EXCEPT owners and other branch managers
+    if (user?.role === 'manager') {
+      return users.filter((u: any) => !['owner', 'manager'].includes(u.role));
+    }
+    
+    // Dept managers see only their department, EXCEPT higher-ups
     if (user?.role === 'restaurant_manager') {
-      return users.filter((u: any) => detectDepartment(u.role) === 'restaurant');
+      return users.filter((u: any) => detectDepartment(u.role) === 'restaurant' && !['owner', 'manager', 'restaurant_manager'].includes(u.role));
     }
     if (user?.role === 'hotel_manager') {
-      return users.filter((u: any) => detectDepartment(u.role) === 'hotel');
+      return users.filter((u: any) => detectDepartment(u.role) === 'hotel' && !['owner', 'manager', 'hotel_manager'].includes(u.role));
     }
+    
     return [];
   }, [users, user?.role]);
 
@@ -86,7 +101,6 @@ export default function EmployeesPage() {
         email: form.email,
         phone: form.phone,
         role: form.role,
-        pin: form.pin,
         employeeCode: form.employeeCode,
       };
 
@@ -156,6 +170,7 @@ export default function EmployeesPage() {
               <th className="th">Name</th>
               <th className="th">Contact</th>
               <th className="th">Role</th>
+              {user?.role === 'owner' && <th className="th">Branch</th>}
               <th className="th">Dept</th>
               <th className="th">Employee Code</th>
               <th className="th">Actions</th>
@@ -176,6 +191,9 @@ export default function EmployeesPage() {
                     <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-24 animate-pulse"></div>
                   </td>
                   <td className="td"><div className="h-6 bg-slate-200 dark:bg-slate-700 rounded-full w-24 animate-pulse"></div></td>
+                  {user?.role === 'owner' && (
+                    <td className="td"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-20 animate-pulse"></div></td>
+                  )}
                   <td className="td"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-20 animate-pulse"></div></td>
                   <td className="td"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-16 animate-pulse"></div></td>
                   <td className="td"><div className="h-8 bg-slate-200 dark:bg-slate-700 rounded w-16 animate-pulse"></div></td>
@@ -186,7 +204,7 @@ export default function EmployeesPage() {
                 <td className="td">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-900 dark:text-white">{u.firstName?.[0]}{u.lastName?.[0]}</div>
-                    <div><div className="font-medium">{u.firstName} {u.lastName}</div></div>
+                    <div><div className="font-medium">{u.firstName} {u.lastName} {u.id === user?.id && <span className="text-amber-500 ml-1 text-xs font-bold">(You)</span>}</div></div>
                   </div>
                 </td>
                 <td className="td text-slate-900 dark:text-slate-400 text-xs">
@@ -201,6 +219,11 @@ export default function EmployeesPage() {
                           u.role.charAt(0).toUpperCase() + u.role.slice(1).replace('_', ' ')}
                   </span>
                 </td>
+                {user?.role === 'owner' && (
+                  <td className="td text-slate-900 dark:text-slate-400 text-xs">
+                    {u.branchId ? (branches?.find((b: any) => b.id === u.branchId)?.name || 'Unknown Branch') : 'Global'}
+                  </td>
+                )}
                 <td className="td"><span className="text-xs text-slate-900 dark:text-slate-500">{ROLE_DEPARTMENT[u.role] || '—'}</span></td>
                 <td className="td text-slate-900 dark:text-slate-400 font-mono">{u.employeeCode || '—'}</td>
                 <td className="td">
@@ -209,20 +232,22 @@ export default function EmployeesPage() {
                       setEditUser(u);
                       const dept = detectDepartment(u.role);
                       setDepartment(dept);
-                      setForm({ firstName: u.firstName, lastName: u.lastName || '', email: u.email || '', phone: u.phone || '', role: u.role, password: '', pin: u.pin || '', employeeCode: u.employeeCode || '', branchId: u.branchId || '' });
+                      setForm({ firstName: u.firstName, lastName: u.lastName || '', email: u.email || '', phone: u.phone || '', role: u.role, password: '', pin: '', employeeCode: u.employeeCode || '', branchId: u.branchId || '' });
                       setShowForm(true);
                     }} className="btn-ghost p-1.5"><Edit2 size={13} /></button>
-                    <button
-                      onClick={() => setDeleteUser(u)}
-                      className="btn-ghost p-1.5 text-red-600 dark:text-red-400 hover:text-red-300"
-                    >
-                      <UserX size={13} />
-                    </button>
+                    {u.id !== user?.id && (
+                      <button
+                        onClick={() => setDeleteUser(u)}
+                        className="btn-ghost p-1.5 text-red-600 dark:text-red-400 hover:text-red-300"
+                      >
+                        <UserX size={13} />
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>
             ))}
-            {!isLoading && filteredUsers.length === 0 && <tr><td colSpan={6} className="text-center py-12 text-slate-900 dark:text-slate-500">No employees added yet</td></tr>}
+            {!isLoading && filteredUsers.length === 0 && <tr><td colSpan={user?.role === 'owner' ? 7 : 6} className="text-center py-12 text-slate-900 dark:text-slate-500">No employees added yet</td></tr>}
           </tbody>
         </table>
       </div>
@@ -256,11 +281,11 @@ export default function EmployeesPage() {
             <div className="grid grid-cols-2 gap-3">
               <div><label className="label">First Name *</label><input className="input" value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} /></div>
               <div><label className="label">Last Name</label><input className="input" value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} /></div>
-              <div><label className="label">Email</label><input className="input" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
-              <div><label className="label">Phone</label><input className="input" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
+              <div><label className="label">Email *</label><input className="input" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} disabled={!!editUser} /></div>
+              <div><label className="label">Phone *</label><input className="input" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} disabled={!!editUser} /></div>
               <div>
                 <label className="label">Role *</label>
-                <select className="input" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
+                <select className="input" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} disabled={!!(editUser && editUser.id === user?.id)}>
                   {filteredRoles.map((r) => {
                     const label = r === 'manager' ? 'Branch Manager'
                       : r === 'restaurant_manager' ? 'Restaurant Manager'
@@ -290,12 +315,19 @@ export default function EmployeesPage() {
                   Owners have global system access and are not restricted to any specific branch.
                 </div>
               )}
-              {!editUser && <div><label className="label">Password *</label><input className="input" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></div>}
-              <div><label className="label">PIN (4-6 digits)</label><input className="input" type="password" maxLength={6} value={form.pin} onChange={(e) => setForm({ ...form, pin: e.target.value })} placeholder="Optional fast login" /></div>
+              <div>
+                <label className="label">Password {editUser ? '(Leave blank to keep current)' : '*'}</label>
+                <input className="input" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+              </div>
             </div>
             <div className="flex gap-3">
               <button onClick={() => setShowForm(false)} className="btn-secondary flex-1">Cancel</button>
-              <button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || !form.firstName || (!editUser && !form.password)} className="btn-primary flex-1">
+              <button onClick={() => {
+                if (editUser && form.password) {
+                  if (!window.confirm('Are you sure you want to change this employee\'s password?')) return;
+                }
+                saveMutation.mutate();
+              }} disabled={saveMutation.isPending || !form.firstName || (!editUser && !form.password)} className="btn-primary flex-1">
                 {saveMutation.isPending ? 'Saving...' : 'Save Employee'}
               </button>
             </div>

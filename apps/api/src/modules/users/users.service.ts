@@ -70,18 +70,40 @@ export class UsersService {
     return safe;
   }
 
-  async update(id: string, tenantId: string, data: Partial<User>) {
-    await this.findOne(id, tenantId);
-    const patch: Partial<User> = { ...data };
-    if ((patch as any).pin) {
-      (patch as any).pin = await bcrypt.hash(String((patch as any).pin), 10);
+  async update(id: string, tenantId: string, data: Partial<User> & { password?: string }) {
+    const user = await this.findOne(id, tenantId);
+    
+    if (user.role === 'owner' && data.role && data.role !== 'owner') {
+      const ownerCount = await this.repo.count({ where: { tenantId, role: 'owner' as any, isActive: true } });
+      if (ownerCount <= 1) {
+        throw new ConflictException('Cannot change the role of the last active owner');
+      }
     }
+
+    const patch: any = { ...data };
+    
+    if (patch.password) {
+      patch.passwordHash = await bcrypt.hash(patch.password, 12);
+      delete patch.password;
+    }
+    
+    // Remove pin from patch if it exists since it's obsolete
+    if ('pin' in patch) delete patch.pin;
+
     await this.repo.update(id, patch);
     return this.findOne(id, tenantId);
   }
 
   async deactivate(id: string, tenantId: string) {
-    await this.findOne(id, tenantId);
+    const user = await this.findOne(id, tenantId);
+    
+    if (user.role === 'owner') {
+      const ownerCount = await this.repo.count({ where: { tenantId, role: 'owner' as any, isActive: true } });
+      if (ownerCount <= 1) {
+        throw new ConflictException('Cannot deactivate the last active owner account');
+      }
+    }
+
     return this.repo.update(id, { isActive: false });
   }
 
@@ -89,9 +111,11 @@ export class UsersService {
   async permanentDelete(id: string, tenantId: string) {
     const user = await this.findOne(id, tenantId);
 
-    // Optional: Prevent deletion of owner accounts for security
     if (user.role === 'owner') {
-      throw new ConflictException('Cannot permanently delete owner account');
+      const ownerCount = await this.repo.count({ where: { tenantId, role: 'owner' as any } });
+      if (ownerCount <= 1) {
+        throw new ConflictException('Cannot permanently delete the last owner account');
+      }
     }
 
     // Permanent delete from database
