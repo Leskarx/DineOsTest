@@ -8,7 +8,7 @@ import { User } from './entities/user.entity';
 export class UsersService {
   constructor(
     @InjectRepository(User) private readonly repo: Repository<User>,
-  ) {}
+  ) { }
 
   findAll(tenantId: string, branchId?: string) {
     const select: (keyof import('./entities/user.entity').User)[] = [
@@ -83,5 +83,23 @@ export class UsersService {
   async deactivate(id: string, tenantId: string) {
     await this.findOne(id, tenantId);
     return this.repo.update(id, { isActive: false });
+  }
+
+  // ✅ ADD THIS NEW METHOD FOR PERMANENT DELETION
+  async permanentDelete(id: string, tenantId: string) {
+    const user = await this.findOne(id, tenantId);
+
+    // Optional: Prevent deletion of owner accounts for security
+    if (user.role === 'owner') {
+      throw new ConflictException('Cannot permanently delete owner account');
+    }
+
+    // Permanent delete from database
+    await this.repo.delete(id);
+
+    return {
+      success: true,
+      message: 'User permanently deleted successfully',
+    };
   }
 }
