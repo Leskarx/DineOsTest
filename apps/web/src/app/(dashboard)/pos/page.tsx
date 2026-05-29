@@ -472,7 +472,7 @@ export default function PosPage() {
             entityType: 'orders',
             entityId: tempId,
             operation: 'create',
-            payload,
+            payload: { ...payload, isOfflineSync: true, offlineId: tempId },
             branchId: branchId || '',
             tenantId: useAuthStore.getState().tenantId || '',
           });
@@ -537,7 +537,7 @@ export default function PosPage() {
             entityType: `orders/${data.currentOrder}/items`,
             entityId: '',
             operation: 'create',
-            payload,
+            payload: { ...payload, isOfflineSync: true },
             branchId: branchId || '',
             tenantId: useAuthStore.getState().tenantId || '',
           });

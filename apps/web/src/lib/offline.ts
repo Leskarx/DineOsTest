@@ -142,7 +142,8 @@ export async function flushSyncQueue(
   apiFn: (item: SyncItem, idMap: Record<string, string>) => Promise<string | void>,
   onProgress?: (done: number, total: number) => void,
 ) {
-  const items = await getPendingSyncItems();
+  // Sort by creation time so order→items→bill are always processed in the right sequence
+  const items = (await getPendingSyncItems()).sort((a, b) => a.createdAt - b.createdAt);
   let done = 0;
   const idMap: Record<string, string> = {};
 

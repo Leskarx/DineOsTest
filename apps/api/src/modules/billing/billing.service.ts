@@ -56,6 +56,10 @@ export class BillingService {
       );
     }
 
+    // Strip internal offline-sync flag — not stored in DB
+    const { isOfflineSync: _isOfflineSync, ...cleanDto } = dto as any;
+    dto = cleanDto;
+
     const order = await this.orderRepo.findOne({
       where: { id: dto.orderId, tenantId: dto.tenantId },
       relations: ['items'],

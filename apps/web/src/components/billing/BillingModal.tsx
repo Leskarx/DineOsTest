@@ -186,17 +186,17 @@ export function BillingModal({
 
       // 6. Create bill
       if (isOffline) {
-        // IMPORTANT: use the same OFFLINE- id as entityId so the DB rewrite engine
-        // can replace orderId in this payload when the order syncs and gets a real UUID
+        // entityId must be the same OFFLINE-xxx as the order so the DB rewrite
+        // engine can update orderId inside this payload when the order syncs.
         await enqueueSync({
           entityType: 'billing/bills',
-          entityId: oid!,        // same OFFLINE-xxx as the order above
+          entityId: oid!,
           operation: 'create',
           payload: { ...billPayload, isOfflineSync: true },
           branchId: branchId || '',
           tenantId: tenantId || '',
         });
-        
+
         return {
           id: oid!,
           billNumber: `OFF-${Math.floor(Math.random() * 10000)}`,
