@@ -198,7 +198,7 @@ export function BillingModal({
         });
         
         return {
-          id: mockBillId,
+          id: oid!,
           billNumber: `OFF-${Math.floor(Math.random() * 10000)}`,
           serverGrandTotal: billAmount,
           gstSummary: [],
