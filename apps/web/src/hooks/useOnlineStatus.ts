@@ -28,16 +28,26 @@ export function useOnlineStatus(): boolean {
             entityType = entityType.replaceAll(offlineId, realId);
           }
 
-          // Guard: if any OFFLINE- id is still unresolved, the parent order hasn't synced yet
-          // (it likely failed this round). Keep this item in queue (__RETRY__) so it can be
-          // retried on the next online event when the parent order may succeed.
-          const stillHasOfflineId =
-            payloadStr.includes('"OFFLINE-') ||
-            entityType.includes('OFFLINE-') ||
-            entityId.startsWith('OFFLINE-');
+          // Guard: if the payload references a FOREIGN OFFLINE- ID that hasn't been
+          // resolved yet, the parent entity (e.g. the order for a bill) hasn't synced.
+          // Keep in queue and retry next session.
+          //
+          // IMPORTANT: mask out the entity's OWN offline ID first — the order-create
+          // payload legitimately contains "offlineId": "OFFLINE-xxx" which should NOT
+          // trigger the guard. Only unrelated OFFLINE- refs should block processing.
+          const ownId = item.entityId; // e.g. 'OFFLINE-1234'
+          const maskedPayload = ownId ? payloadStr.replaceAll(ownId, '__SELF__') : payloadStr;
+          const maskedEntityType = ownId ? entityType.replaceAll(ownId, '__SELF__') : entityType;
+          // entityId after idMap lookup: if still OFFLINE- and it's NOT the item's own id → foreign ref
+          const entityIdIsUnresolved = entityId.startsWith('OFFLINE-') && entityId !== ownId;
 
-          if (stillHasOfflineId) {
-            console.warn('[Offline] Parent order not yet synced, will retry bill next session:', item.id);
+          const stillHasForeignOfflineId =
+            maskedPayload.includes('"OFFLINE-') ||
+            maskedEntityType.includes('OFFLINE-') ||
+            entityIdIsUnresolved;
+
+          if (stillHasForeignOfflineId) {
+            console.warn('[Offline] Unresolved foreign ref, will retry next session:', item.id, item.entityType);
             return '__RETRY__'; // keep in queue, bump retry count
           }
 
