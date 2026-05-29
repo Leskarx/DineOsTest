@@ -47,30 +47,102 @@ function DenominationCount({ label, counts, onChange }: { label: string; counts:
 export default function ShiftsPage() {
   const qc = useQueryClient();
   const { branchId, tenantId } = useAuthStore();
-  const [openingCounts, setOpeningCounts] = useState<Record<string, number>>({});
+  const [openingCash, setOpeningCash] = useState<number>(0);
   const [closingCounts, setClosingCounts] = useState<Record<string, number>>({});
   const [notes, setNotes] = useState('');
   const [showOpen, setShowOpen] = useState(false);
   const [showClose, setShowClose] = useState(false);
   const [selectedShift, setSelectedShift] = useState<any>(null);
 
-  const { data: activeShift } = useQuery({ queryKey: ['activeShift', branchId], queryFn: () => apiFetch('/api/v1/shifts/active').then((r) => r.data) });
-  const { data: shifts } = useQuery({ queryKey: ['shifts', branchId], queryFn: () => apiFetch('/api/v1/shifts').then((r) => r.data) });
-  const { data: shiftSummary } = useQuery({ queryKey: ['shiftSummary', selectedShift?.id], queryFn: () => apiFetch(`/api/v1/shifts/${selectedShift?.id}/summary`).then((r) => r.data), enabled: !!selectedShift });
-
-  const openingTotal = DENOMS.reduce((s, d) => s + (openingCounts[d.key] || 0) * d.value, 0);
-  const closingTotal = DENOMS.reduce((s, d) => s + (closingCounts[d.key] || 0) * d.value, 0);
-
-  const openMutation = useMutation({
-    mutationFn: () => apiPost('/api/v1/shifts/open', { openingCash: openingTotal, denominations: openingCounts }),
-    onSuccess: () => { toast.success('Shift opened!'); qc.invalidateQueries({ queryKey: ['activeShift'] }); qc.invalidateQueries({ queryKey: ['shifts'] }); setShowOpen(false); setOpeningCounts({}); },
-    onError: (e: any) => toast.error(e.response?.data?.message || 'Failed to open shift'),
+  // Get active shift - FIXED: extract the nested data
+  const { data: activeShiftResponse } = useQuery({
+    queryKey: ['activeShift', branchId],
+    queryFn: async () => {
+      const response = await apiFetch('/api/v1/shifts/active');
+      console.log('ACTIVE API RESPONSE = ', response);
+      return response.data; // This returns { success: true, data: {...} }
+    },
+    enabled: !!branchId,
   });
 
+  // Extract the actual shift data from the response
+  const activeShift = activeShiftResponse?.data || null;
+
+  // Get shifts list - FIXED: handle nested data structure
+  const { data: shiftsListResponse } = useQuery({
+    queryKey: ['shifts', branchId],
+    queryFn: async () => {
+      const response = await apiFetch('/api/v1/shifts');
+      return response.data; // This might be { success: true, data: [...] } or just an array
+    },
+    enabled: !!branchId,
+  });
+
+  // Extract shifts array from response
+  const shifts = shiftsListResponse?.data || (Array.isArray(shiftsListResponse) ? shiftsListResponse : []);
+
+  console.log('shiftsList =', shiftsListResponse);
+  console.log('activeShift =', activeShift);
+
+  // Get shift summary when selected
+  const { data: shiftSummary } = useQuery({
+    queryKey: ['shiftSummary', selectedShift?.id],
+    queryFn: async () => {
+      const response = await apiFetch(`/api/v1/shifts/${selectedShift.id}/summary`);
+      return response.data?.data || response.data;
+    },
+    enabled: !!selectedShift?.id,
+  });
+
+  const closingTotal = DENOMS.reduce((s, d) => s + (closingCounts[d.key] || 0) * d.value, 0);
+
+  // Open shift mutation
+  const openMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiPost('/api/v1/shifts/open', { openingCash });
+      return response.data;
+    },
+    onSuccess: () => {
+      toast.success('Shift opened successfully!');
+      qc.invalidateQueries({ queryKey: ['activeShift', branchId] });
+      qc.invalidateQueries({ queryKey: ['shifts', branchId] });
+      setShowOpen(false);
+      setOpeningCash(0);
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to open shift');
+    },
+  });
+
+  // Close shift mutation - FIXED: use correct path to id
   const closeMutation = useMutation({
-    mutationFn: () => apiPost(`/api/v1/shifts/${activeShift.id}/close`, { closingCash: closingTotal, denominations: closingCounts, notes }),
-    onSuccess: (data) => { toast.success('Shift closed!'); qc.invalidateQueries({ queryKey: ['activeShift'] }); qc.invalidateQueries({ queryKey: ['shifts'] }); setShowClose(false); setSelectedShift(data.data); setClosingCounts({}); },
-    onError: (e: any) => toast.error(e.response?.data?.message || 'Failed to close shift'),
+    mutationFn: async () => {
+      console.log('activeShift before close = ', activeShift);
+      console.log('shiftId = ', activeShift?.id); // Now this should work
+      const shiftId = activeShift?.id;
+      if (!shiftId) throw new Error('No active shift found');
+
+      const response = await apiPost(`/api/v1/shifts/${shiftId}/close`, {
+        closingCash: closingTotal,
+        denominations: closingCounts,
+        notes: notes || undefined,
+      });
+      return response.data;
+    },
+    onSuccess: (data) => {
+      toast.success('Shift closed successfully!');
+      qc.invalidateQueries({ queryKey: ['activeShift', branchId] });
+      qc.invalidateQueries({ queryKey: ['shifts', branchId] });
+      setShowClose(false);
+      if (data) {
+        setSelectedShift(data?.data || data);
+      }
+      setClosingCounts({});
+      setNotes('');
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to close shift');
+    },
   });
 
   return (
@@ -78,9 +150,13 @@ export default function ShiftsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-slate-900 dark:text-white">Shift Management</h1>
         {!activeShift ? (
-          <button onClick={() => setShowOpen(true)} className="btn-primary"><Unlock size={14} /> Open Shift</button>
+          <button onClick={() => setShowOpen(true)} className="btn-primary">
+            <Unlock size={14} /> Open Shift
+          </button>
         ) : (
-          <button onClick={() => setShowClose(true)} className="btn-danger"><Lock size={14} /> Close Shift</button>
+          <button onClick={() => setShowClose(true)} className="btn-danger">
+            <Lock size={14} /> Close Shift
+          </button>
         )}
       </div>
 
@@ -89,8 +165,12 @@ export default function ShiftsPage() {
         <div className="card border-emerald-800/50 bg-emerald-900/10">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse" />
-            <h2 className="font-bold text-emerald-600 dark:text-emerald-400">Active Shift — {activeShift.shiftNumber}</h2>
-            <span className="text-xs text-slate-900 dark:text-slate-400">Since {dayjs(activeShift.openedAt).format('h:mm A')}</span>
+            <h2 className="font-bold text-emerald-600 dark:text-emerald-400">
+              Active Shift — {activeShift.shiftNumber}
+            </h2>
+            <span className="text-xs text-slate-900 dark:text-slate-400">
+              Since {dayjs(activeShift.openedAt).format('h:mm A')}
+            </span>
           </div>
           <div className="grid grid-cols-4 gap-4">
             {[
@@ -107,6 +187,7 @@ export default function ShiftsPage() {
           </div>
         </div>
       )}
+
       {!activeShift && (
         <div className="card text-center py-8 text-slate-900 dark:text-slate-500">
           <Lock size={32} className="mx-auto mb-2 opacity-30" />
@@ -114,27 +195,71 @@ export default function ShiftsPage() {
         </div>
       )}
 
-      {/* Shift History */}
+      {/* Shift History Table */}
       <div className="card p-0 overflow-hidden">
-        <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 font-semibold text-slate-900 dark:text-white">Shift History</div>
-        <table className="w-full">
-          <thead className="bg-slate-100/50 dark:bg-slate-800/50"><tr><th className="th">Shift</th><th className="th">Opened</th><th className="th">Closed</th><th className="th text-right">Sales</th><th className="th text-right">Cash</th><th className="th">Diff</th><th className="th">Status</th></tr></thead>
-          <tbody>
-            {shifts?.map((s: any) => (
-              <tr key={s.id} className="table-row cursor-pointer" onClick={() => setSelectedShift(s)}>
-                <td className="td font-medium">{s.shiftNumber}</td>
-                <td className="td text-xs text-slate-900 dark:text-slate-400">{dayjs(s.openedAt).format('D MMM, h:mm A')}</td>
-                <td className="td text-xs text-slate-900 dark:text-slate-400">{s.closedAt ? dayjs(s.closedAt).format('D MMM, h:mm A') : '—'}</td>
-                <td className="td text-right text-amber-600 dark:text-amber-400 font-medium">₹{Number(s.totalSales || 0).toLocaleString('en-IN')}</td>
-                <td className="td text-right">₹{Number(s.cashSales || 0).toLocaleString('en-IN')}</td>
-                <td className={cn('td text-right font-mono', Number(s.cashDifference) < 0 ? 'text-red-600 dark:text-red-400' : Number(s.cashDifference) > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-slate-400')}>
-                  {s.cashDifference !== null ? `${Number(s.cashDifference) > 0 ? '+' : ''}₹${Number(s.cashDifference).toFixed(2)}` : '—'}
-                </td>
-                <td className="td"><span className={s.status === 'open' ? 'badge-green' : 'badge-slate'}>{s.status}</span></td>
+        <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 font-semibold text-slate-900 dark:text-white">
+          Shift History
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-slate-100/50 dark:bg-slate-800/50">
+              <tr>
+                <th className="th">Shift ID</th>
+                <th className="th">Opening Cash</th>
+                <th className="th">Cash Sales</th>
+                <th className="th">Online Sales</th>
+                <th className="th">Expected Cash</th>
+                <th className="th">Actual Cash</th>
+                <th className="th">Difference</th>
+                <th className="th">Status</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {shifts.map((s: any) => {
+                const openingCashVal = Number(s.openingCash || 0);
+                const cashSalesVal = Number(s.cashSales || 0);
+                const onlineSalesVal = Number(s.onlineSales || s.upiSales || 0);
+                const expectedCashVal = Number(s.expectedCash || 0);
+                const actualCashVal = Number(s.closingCash || 0);
+                const differenceVal = Number(s.cashDifference || 0);
+
+                return (
+                  <tr
+                    key={s.id}
+                    className="table-row cursor-pointer"
+                    onClick={() => setSelectedShift(s)}
+                  >
+                    <td className="td font-medium">{s.shiftNumber}</td>
+                    <td className="td text-right">₹{openingCashVal.toLocaleString('en-IN')}</td>
+                    <td className="td text-right">₹{cashSalesVal.toLocaleString('en-IN')}</td>
+                    <td className="td text-right">₹{onlineSalesVal.toLocaleString('en-IN')}</td>
+                    <td className="td text-right">₹{expectedCashVal.toLocaleString('en-IN')}</td>
+                    <td className="td text-right">₹{actualCashVal.toLocaleString('en-IN')}</td>
+                    <td className={cn('td text-right font-mono',
+                      differenceVal < 0 ? 'text-red-600 dark:text-red-400' :
+                        differenceVal > 0 ? 'text-emerald-600 dark:text-emerald-400' :
+                          'text-slate-900 dark:text-slate-400'
+                    )}>
+                      {differenceVal !== 0 ? `${differenceVal > 0 ? '+' : ''}₹${Math.abs(differenceVal).toLocaleString('en-IN')}` : '₹0'}
+                    </td>
+                    <td className="td">
+                      <span className={s.status === 'open' ? 'badge-green' : 'badge-slate'}>
+                        {s.status?.toUpperCase()}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+              {shifts.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="td text-center text-slate-500">
+                    No shifts found
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Open Shift Modal */}
@@ -142,12 +267,39 @@ export default function ShiftsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 overflow-y-auto">
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-300 dark:border-slate-700 w-full max-w-lg p-6 space-y-4 my-4">
             <h3 className="font-bold text-slate-900 dark:text-white text-lg">Open New Shift</h3>
-            <p className="text-sm text-slate-900 dark:text-slate-400">Count the opening cash in the drawer</p>
-            <DenominationCount label="Opening Cash" counts={openingCounts} onChange={(k, v) => setOpeningCounts((c) => ({ ...c, [k]: v }))} />
+            <p className="text-sm text-slate-900 dark:text-slate-400">
+              Enter the opening cash amount in the drawer
+            </p>
+
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                Opening Cash Amount (₹)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="100"
+                value={openingCash}
+                onChange={(e) => setOpeningCash(Number(e.target.value))}
+                className="input w-full text-lg font-semibold"
+                placeholder="Enter amount"
+                autoFocus
+              />
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Enter the total cash amount in the drawer at shift start
+              </p>
+            </div>
+
             <div className="flex gap-3">
-              <button onClick={() => setShowOpen(false)} className="btn-secondary flex-1">Cancel</button>
-              <button onClick={() => openMutation.mutate()} disabled={openMutation.isPending} className="btn-primary flex-1">
-                Open Shift — ₹{openingTotal.toLocaleString('en-IN')}
+              <button onClick={() => setShowOpen(false)} className="btn-secondary flex-1">
+                Cancel
+              </button>
+              <button
+                onClick={() => openMutation.mutate()}
+                disabled={openMutation.isPending || openingCash <= 0}
+                className="btn-primary flex-1"
+              >
+                {openMutation.isPending ? 'Opening...' : `Open Shift — ₹${openingCash.toLocaleString('en-IN')}`}
               </button>
             </div>
           </div>
@@ -158,25 +310,70 @@ export default function ShiftsPage() {
       {showClose && activeShift && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 overflow-y-auto">
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-300 dark:border-slate-700 w-full max-w-lg p-6 space-y-4 my-4">
-            <h3 className="font-bold text-slate-900 dark:text-white text-lg">Close Shift — {activeShift.shiftNumber}</h3>
+            <h3 className="font-bold text-slate-900 dark:text-white text-lg">
+              Close Shift — {activeShift.shiftNumber}
+            </h3>
+
             <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-4 grid grid-cols-2 gap-3 text-sm">
-              <div className="text-slate-900 dark:text-slate-400">Opening Cash</div><div className="text-slate-900 dark:text-white text-right font-medium">₹{Number(activeShift.openingCash).toLocaleString('en-IN')}</div>
-              <div className="text-slate-900 dark:text-slate-400">Cash Sales</div><div className="text-emerald-600 dark:text-emerald-400 text-right font-medium">+₹{Number(activeShift.cashSales).toLocaleString('en-IN')}</div>
-              <div className="text-slate-900 dark:text-slate-400">Expected Total</div><div className="text-slate-900 dark:text-white text-right font-bold">₹{(Number(activeShift.openingCash) + Number(activeShift.cashSales)).toLocaleString('en-IN')}</div>
-              <div className="text-slate-900 dark:text-slate-400">You're counting</div><div className="text-amber-600 dark:text-amber-400 text-right font-bold">₹{closingTotal.toLocaleString('en-IN')}</div>
+              <div className="text-slate-900 dark:text-slate-400">Opening Cash</div>
+              <div className="text-slate-900 dark:text-white text-right font-medium">
+                ₹{Number(activeShift.openingCash || 0).toLocaleString('en-IN')}
+              </div>
+
+              <div className="text-slate-900 dark:text-slate-400">Cash Sales</div>
+              <div className="text-emerald-600 dark:text-emerald-400 text-right font-medium">
+                +₹{Number(activeShift.cashSales || 0).toLocaleString('en-IN')}
+              </div>
+
+              <div className="text-slate-900 dark:text-slate-400">Expected Cash</div>
+              <div className="text-slate-900 dark:text-white text-right font-bold">
+                ₹{(Number(activeShift.openingCash || 0) + Number(activeShift.cashSales || 0)).toLocaleString('en-IN')}
+              </div>
+
+              <div className="text-slate-900 dark:text-slate-400">Counted Cash</div>
+              <div className="text-amber-600 dark:text-amber-400 text-right font-bold">
+                ₹{closingTotal.toLocaleString('en-IN')}
+              </div>
+
               <div className="col-span-2 border-t border-slate-300 dark:border-slate-700 pt-2 flex justify-between font-bold">
                 <span>Difference</span>
-                <span className={cn(closingTotal - (Number(activeShift.openingCash) + Number(activeShift.cashSales)) < 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400')}>
-                  {closingTotal - (Number(activeShift.openingCash) + Number(activeShift.cashSales)) > 0 ? '+' : ''}
-                  ₹{(closingTotal - (Number(activeShift.openingCash) + Number(activeShift.cashSales))).toFixed(2)}
+                <span className={cn(
+                  closingTotal - (Number(activeShift.openingCash || 0) + Number(activeShift.cashSales || 0)) < 0
+                    ? 'text-red-600 dark:text-red-400'
+                    : 'text-emerald-600 dark:text-emerald-400'
+                )}>
+                  {closingTotal - (Number(activeShift.openingCash || 0) + Number(activeShift.cashSales || 0)) > 0 ? '+' : ''}
+                  ₹{(closingTotal - (Number(activeShift.openingCash || 0) + Number(activeShift.cashSales || 0))).toLocaleString('en-IN')}
                 </span>
               </div>
             </div>
-            <DenominationCount label="Closing Cash Count" counts={closingCounts} onChange={(k, v) => setClosingCounts((c) => ({ ...c, [k]: v }))} />
-            <div><label className="label">Notes</label><textarea className="input" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Any remarks for this shift..." /></div>
+
+            <DenominationCount
+              label="Closing Cash Count (Denominations)"
+              counts={closingCounts}
+              onChange={(k, v) => setClosingCounts((c) => ({ ...c, [k]: v }))}
+            />
+
+            <div>
+              <label className="label">Notes (Optional)</label>
+              <textarea
+                className="input"
+                rows={2}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Any remarks for this shift..."
+              />
+            </div>
+
             <div className="flex gap-3">
-              <button onClick={() => setShowClose(false)} className="btn-secondary flex-1">Cancel</button>
-              <button onClick={() => closeMutation.mutate()} disabled={closeMutation.isPending} className="btn-danger flex-1">
+              <button onClick={() => setShowClose(false)} className="btn-secondary flex-1">
+                Cancel
+              </button>
+              <button
+                onClick={() => closeMutation.mutate()}
+                disabled={closeMutation.isPending || closingTotal === 0}
+                className="btn-danger flex-1"
+              >
                 {closeMutation.isPending ? 'Closing...' : 'Close Shift'}
               </button>
             </div>
