@@ -1,6 +1,6 @@
 import {
   IsUUID, IsOptional, IsString, IsNumber, IsEnum,
-  IsArray, ValidateNested, Min, MaxLength, IsIn,
+  IsArray, ValidateNested, Min, MaxLength, IsIn, IsBoolean,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -26,6 +26,11 @@ export class CreateBillDto {
   @ApiPropertyOptional({ enum: GstType }) @IsEnum(GstType) @IsOptional() supplyType?: GstType;
   @ApiProperty({ type: [PaymentSplitDto] }) @IsArray() @ValidateNested({ each: true }) @Type(() => PaymentSplitDto) payments: PaymentSplitDto[];
   @ApiPropertyOptional() @IsString() @IsOptional() @MaxLength(500) notes?: string;
+  // Offline sync flag — tells backend to auto-adjust payment to server grandTotal
+  @ApiPropertyOptional() @IsBoolean() @IsOptional() isOfflineSync?: boolean;
+  // Injected server-side (whitelisted so ValidationPipe doesn't reject them)
+  @ApiPropertyOptional() @IsString() @IsOptional() branchId?: string;
+  @ApiPropertyOptional() @IsString() @IsOptional() tenantId?: string;
 }
 
 export class VoidBillDto {

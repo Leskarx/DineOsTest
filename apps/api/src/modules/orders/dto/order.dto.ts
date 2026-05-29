@@ -10,19 +10,41 @@ export class CreateOrderItemDto {
   @ApiProperty() @IsUUID() menuItemId: string;
   @ApiProperty() @IsNumber() @Min(1) quantity: number;
   @ApiPropertyOptional() @IsString() @IsOptional() @MaxLength(500) notes?: string;
+  @ApiPropertyOptional() @IsUUID() @IsOptional() variationId?: string;
   @ApiPropertyOptional() @IsArray() @IsOptional() modifiers?: any[];
 }
 
 export class CreateOrderDto {
-  @ApiProperty({ enum: OrderType }) @IsEnum(OrderType) orderType: OrderType;
+  @ApiProperty({ enum: OrderType }) @IsEnum(OrderType) @IsOptional() orderType?: OrderType;
+  // Also accept 'type' as an alias (frontend sends 'type')
+  @ApiPropertyOptional({ enum: OrderType }) @IsEnum(OrderType) @IsOptional() type?: OrderType;
   @ApiPropertyOptional() @IsUUID() @IsOptional() tableId?: string;
   @ApiPropertyOptional() @IsString() @IsOptional() @MaxLength(100) customerName?: string;
   @ApiPropertyOptional() @IsString() @IsOptional() @MaxLength(20) customerPhone?: string;
   @ApiPropertyOptional() @IsString() @IsOptional() customerGstin?: string;
   @ApiPropertyOptional() @IsUUID() @IsOptional() shiftId?: string;
   @ApiPropertyOptional() @IsNumber() @IsOptional() @Min(0) coverCount?: number;
+  @ApiPropertyOptional() @IsNumber() @IsOptional() @Min(0) covers?: number;
   @ApiPropertyOptional() @IsString() @IsOptional() @MaxLength(1000) notes?: string;
   @ApiPropertyOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => CreateOrderItemDto) @IsOptional() items?: CreateOrderItemDto[];
+  @ApiPropertyOptional() @IsUUID() @IsOptional() waiterId?: string;
+  @ApiPropertyOptional() @IsBoolean() @IsOptional() isComplimentary?: boolean;
+  @ApiPropertyOptional() @IsBoolean() @IsOptional() isSalesReturn?: boolean;
+  @ApiPropertyOptional() @IsString() @IsOptional() scheduledAt?: string;
+  // Offline sync fields
+  @ApiPropertyOptional() @IsString() @IsOptional() offlineId?: string;
+  @ApiPropertyOptional() @IsBoolean() @IsOptional() isOfflineSync?: boolean;
+  // Injected server-side (not sent by client but merged in controller)
+  @ApiPropertyOptional() @IsString() @IsOptional() branchId?: string;
+  @ApiPropertyOptional() @IsString() @IsOptional() tenantId?: string;
+}
+
+export class AddItemsBodyDto {
+  @ApiProperty({ type: [AddOrderItemDto] })
+  @IsArray() @ValidateNested({ each: true }) @Type(() => AddOrderItemDto)
+  items: AddOrderItemDto[];
+
+  @ApiPropertyOptional() @IsBoolean() @IsOptional() isOfflineSync?: boolean;
 }
 
 export class AddOrderItemDto {

@@ -5,7 +5,8 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { SubscriptionGuard } from '../auth/guards/subscription.guard';
 import { Roles, RequireFeature } from '../common/decorators/roles.decorator';
 import { CurrentUser, TenantId, BranchId } from '../common/decorators/tenant.decorator';
-import { OrdersService, CreateOrderDto, AddItemDto, ApplyDiscountDto } from './orders.service';
+import { OrdersService, AddItemDto, ApplyDiscountDto } from './orders.service';
+import { CreateOrderDto as CreateOrderDtoClass, AddItemsBodyDto } from './dto/order.dto';
 import { OrderStatus } from './entities/order.entity';
 
 @ApiTags('orders')
@@ -18,8 +19,13 @@ export class OrdersController {
 
   @Post()
   @ApiOperation({ summary: 'Create new order' })
-  create(@Body() dto: CreateOrderDto, @TenantId() tenantId: string, @BranchId() branchId: string) {
-    return this.svc.createOrder({ ...dto, tenantId, branchId: branchId || dto.branchId });
+  create(@Body() dto: CreateOrderDtoClass, @TenantId() tenantId: string, @BranchId() branchId: string) {
+    return this.svc.createOrder({
+      ...dto,
+      type: dto.type ?? (dto as any).orderType,
+      tenantId,
+      branchId: branchId || dto.branchId || '',
+    } as any);
   }
 
   @Get()
@@ -42,10 +48,10 @@ export class OrdersController {
   @ApiOperation({ summary: 'Add items to order (KOT)' })
   addItems(
     @Param('id') id: string,
-    @Body() body: { items: AddItemDto[]; isOfflineSync?: boolean },
+    @Body() body: AddItemsBodyDto,
     @TenantId() tenantId: string,
   ) {
-    return this.svc.addItems(id, body.items, tenantId, body.isOfflineSync);
+    return this.svc.addItems(id, body.items as any, tenantId, body.isOfflineSync);
   }
 
   @Patch(':id/status')
