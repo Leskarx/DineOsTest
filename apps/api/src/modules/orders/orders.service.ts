@@ -59,6 +59,19 @@ export class OrdersService {
   ) {}
 
   async createOrder(dto: CreateOrderDto): Promise<Order> {
+    // Idempotency: if an offline order with the same offlineId already exists,
+    // return it instead of creating a duplicate (handles network retry after partial success)
+    if (dto.offlineId) {
+      const existing = await this.orderRepo.findOne({
+        where: { offlineId: dto.offlineId, tenantId: dto.tenantId },
+        relations: ['items'],
+      });
+      if (existing) {
+        console.log(`[Offline] Idempotent: returning existing order for offlineId=${dto.offlineId}`);
+        return existing;
+      }
+    }
+
     let createdOrderId!: string;
 
     await this.dataSource.transaction(async (em) => {

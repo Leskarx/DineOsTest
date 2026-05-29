@@ -57,7 +57,7 @@ export class BillingService {
     }
 
     // Strip internal offline-sync flag — not stored in DB
-    const { isOfflineSync: _isOfflineSync, ...cleanDto } = dto as any;
+    const { isOfflineSync, ...cleanDto } = dto as any;
     dto = cleanDto;
 
     const order = await this.orderRepo.findOne({
@@ -67,6 +67,23 @@ export class BillingService {
     if (!order) throw new NotFoundException('Order not found');
     if (order.status === OrderStatus.BILLED)   throw new BadRequestException('Order already billed');
     if (order.status === OrderStatus.CANCELLED) throw new BadRequestException('Order is cancelled');
+
+    // For offline-synced bills, the offline payment amount may not match the server
+    // grand total (floating-point or rounding difference). Auto-adjust to server total.
+    if (isOfflineSync) {
+      const serverTotal = Number(order.grandTotal);
+      if (dto.payments?.length > 0) {
+        const currentTotal = dto.payments.reduce((s: number, p: any) => s + Number(p.amount), 0);
+        // If offline amount differs from server total, adjust the first payment
+        if (Math.abs(currentTotal - serverTotal) > 0.01) {
+          const diff = serverTotal - currentTotal;
+          dto.payments = [
+            { ...dto.payments[0], amount: Number(dto.payments[0].amount) + diff },
+            ...dto.payments.slice(1),
+          ];
+        }
+      }
+    }
 
     const totalPaid = dto.payments.reduce((s, p) => s + Number(p.amount), 0);
     if (totalPaid < Number(order.grandTotal) - 0.01) {
