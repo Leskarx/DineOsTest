@@ -1,8 +1,9 @@
 import {
   Controller, Get, Post, Patch, Delete, Body, Param,
-  Query, UseGuards, DefaultValuePipe, ParseIntPipe, HttpCode, HttpStatus, BadRequestException
+  Query, UseGuards, DefaultValuePipe, ParseIntPipe, HttpCode, HttpStatus, BadRequestException, Res
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -81,11 +82,7 @@ export class HotelController {
     @Body() body: any,
   ) {
     if (!branchId) throw new BadRequestException('Branch ID is required to create a room');
-    return this.svc.createRoom(
-      tid,
-      branchId,
-      body,
-    );
+    return this.svc.createRoom(tid, branchId, body);
   }
 
   @Patch('rooms/:id')
@@ -167,13 +164,10 @@ export class HotelController {
     @TenantId() tid: string,
     @BranchId() branchId: string,
     @Body() body: any,
+    @CurrentUser() user: any,
   ) {
     if (!branchId) throw new BadRequestException('Branch ID is required to create a reservation');
-    return this.svc.createReservation(
-      tid,
-      branchId,
-      body,
-    );
+    return this.svc.createReservation(tid, branchId, body, user?.id);
   }
 
   @Post('reservations/:id/check-in')
@@ -225,6 +219,129 @@ export class HotelController {
     return this.svc.generateBill(id, tid, paymentMethod, amountPaid);
   }
 
+  // ── Reports ─────────────────────────────────────────────────────────────────
+
+  @Get('reports/revenue')
+  @Roles('owner', 'manager', 'hotel_manager')
+  @ApiOperation({ summary: 'Revenue report by date range' })
+  async getRevenueReport(
+    @TenantId() tenantId: string,
+    @BranchId() branchId: string,
+    @Query('from') from: string,
+    @Query('to') to: string,
+  ) {
+    const fromDate = new Date(from);
+    const toDate = new Date(to);
+    toDate.setHours(23, 59, 59, 999);
+    return this.svc.getRevenueReport(tenantId, branchId, fromDate, toDate);
+  }
+
+  @Get('reports/bookings')
+  @Roles('owner', 'manager', 'hotel_manager', 'receptionist')
+  @ApiOperation({ summary: 'Bookings report by date range' })
+  async getBookingsReport(
+    @TenantId() tenantId: string,
+    @BranchId() branchId: string,
+    @Query('from') from: string,
+    @Query('to') to: string,
+  ) {
+    const fromDate = new Date(from);
+    const toDate = new Date(to);
+    toDate.setHours(23, 59, 59, 999);
+    return this.svc.getBookingsReport(tenantId, branchId, fromDate, toDate);
+  }
+
+  @Get('reports/rooms')
+  @Roles('owner', 'manager', 'hotel_manager', 'receptionist')
+  @ApiOperation({ summary: 'Room performance report' })
+  async getRoomsReport(
+    @TenantId() tenantId: string,
+    @BranchId() branchId: string,
+    @Query('from') from: string,
+    @Query('to') to: string,
+  ) {
+    const fromDate = new Date(from);
+    const toDate = new Date(to);
+    toDate.setHours(23, 59, 59, 999);
+    return this.svc.getRoomsPerformanceReport(tenantId, branchId, fromDate, toDate);
+  }
+
+  @Get('reports/occupancy-summary')
+  @Roles('owner', 'manager', 'hotel_manager', 'receptionist')
+  @ApiOperation({ summary: 'Current occupancy summary' })
+  async getOccupancySummary(
+    @TenantId() tenantId: string,
+    @BranchId() branchId: string,
+  ) {
+    return this.svc.getOccupancySummary(tenantId, branchId);
+  }
+
+  @Get('reports/payments')
+  @Roles('owner', 'manager', 'hotel_manager')
+  @ApiOperation({ summary: 'Payment methods report' })
+  async getPaymentsReport(
+    @TenantId() tenantId: string,
+    @BranchId() branchId: string,
+    @Query('from') from: string,
+    @Query('to') to: string,
+  ) {
+    const fromDate = new Date(from);
+    const toDate = new Date(to);
+    toDate.setHours(23, 59, 59, 999);
+    return this.svc.getPaymentsReport(tenantId, branchId, fromDate, toDate);
+  }
+
+  @Get('reports/gst')
+  @Roles('owner', 'manager', 'hotel_manager')
+  @ApiOperation({ summary: 'GST report by date range' })
+  async getGstReport(
+    @TenantId() tenantId: string,
+    @BranchId() branchId: string,
+    @Query('from') from: string,
+    @Query('to') to: string,
+  ) {
+    const fromDate = new Date(from);
+    const toDate = new Date(to);
+    toDate.setHours(23, 59, 59, 999);
+    return this.svc.getGstReport(tenantId, branchId, fromDate, toDate);
+  }
+
+  @Get('reports/gstr1-export')
+  @Roles('owner', 'manager', 'hotel_manager')
+  @ApiOperation({ summary: 'Export GSTR-1 JSON for GST portal' })
+  async exportGstr1(
+    @TenantId() tenantId: string,
+    @BranchId() branchId: string,
+    @Query('from') from: string,
+    @Query('to') to: string,
+    @Res() res: Response,
+  ) {
+    const fromDate = new Date(from);
+    const toDate = new Date(to);
+    toDate.setHours(23, 59, 59, 999);
+
+    const data = await this.svc.getGstr1Export(tenantId, branchId, fromDate, toDate);
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename=gstr1-${from}-${to}.json`);
+    res.send(data);
+  }
+
+  @Get('reports/frontdesk')
+  @Roles('owner', 'manager', 'hotel_manager')
+  @ApiOperation({ summary: 'Front desk staff performance report' })
+  async getFrontDeskReport(
+    @TenantId() tenantId: string,
+    @BranchId() branchId: string,
+    @Query('from') from: string,
+    @Query('to') to: string,
+  ) {
+    const fromDate = new Date(from);
+    const toDate = new Date(to);
+    toDate.setHours(23, 59, 59, 999);
+    return this.svc.getFrontDeskReport(tenantId, branchId, fromDate, toDate);
+  }
+
   // ── Housekeeping ───────────────────────────────────────────────────────────
 
   @Get('housekeeping')
@@ -247,11 +364,7 @@ export class HotelController {
     @Body() body: any,
   ) {
     if (!branchId) throw new BadRequestException('Branch ID is required to create a task');
-    return this.svc.createHousekeepingTask(
-      tid,
-      branchId,
-      body,
-    );
+    return this.svc.createHousekeepingTask(tid, branchId, body);
   }
 
   @Patch('housekeeping/:id')
