@@ -25,6 +25,7 @@ const navSections: NavSection[] = [
     section: 'Overview',
     items: [
       { href: '/executive', label: 'Executive Dashboard', icon: LayoutDashboard, exact: true, roles: ['owner', 'manager'] },
+      { href: '/owner/branch-performance', label: 'Branch Performance', icon: Building2, exact: true, roles: ['owner'] },
     ],
   },
   {

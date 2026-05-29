@@ -722,4 +722,108 @@ export class ReportsService {
       })),
     };
   }
+  // ── Branch Performance ──────────────────────────────────────────────────────
+
+  async getBranchPerformance(tenantId: string, from: string, to: string) {
+    this.assertDate(from, 'from');
+    this.assertDate(to, 'to');
+    const { start, end } = this.toDateRange(from, to);
+
+    const fromDate  = new Date(from);
+    const toDate    = new Date(to);
+    const diffDays  = Math.max(1, Math.round((toDate.getTime() - fromDate.getTime()) / 86_400_000));
+    const prevEnd   = new Date(fromDate.getTime() - 86_400_000).toISOString().slice(0, 10);
+    const prevStart = new Date(fromDate.getTime() - diffDays * 86_400_000).toISOString().slice(0, 10);
+    const { start: pStart, end: pEnd } = this.toDateRange(prevStart, prevEnd);
+
+    const [branches, current, previous] = await Promise.all([
+      this.db.query(
+        `SELECT id, name, code, type, city, is_hq
+         FROM branches
+         WHERE tenant_id = $1 AND is_active = true
+         ORDER BY is_hq DESC, name ASC`,
+        [tenantId],
+      ),
+      this.db.query(
+        `SELECT
+           b.id AS branch_id,
+           COALESCE(SUM(bi.grand_total),0)::numeric AS revenue,
+           COUNT(DISTINCT bi.id)::int                AS bills,
+           COALESCE(SUM(bi.grand_total) FILTER (WHERE bi.source='pos' OR bi.source IS NULL),0) AS pos_revenue,
+           COALESCE(SUM(bi.grand_total) FILTER (WHERE bi.source='hotel'),0)                    AS hotel_revenue,
+           COUNT(DISTINCT o.id)::int                 AS orders
+         FROM branches b
+         LEFT JOIN bills  bi ON bi.branch_id = b.id
+           AND bi.tenant_id = $1
+           AND bi.status NOT IN ('void','refunded')
+           AND bi.created_at BETWEEN $2 AND $3
+         LEFT JOIN orders o ON o.branch_id = b.id
+           AND o.tenant_id = $1
+           AND o.status = 'billed'
+           AND o.created_at BETWEEN $2 AND $3
+         WHERE b.tenant_id = $1 AND b.is_active = true
+         GROUP BY b.id`,
+        [tenantId, start, end],
+      ),
+      this.db.query(
+        `SELECT
+           b.id AS branch_id,
+           COALESCE(SUM(bi.grand_total),0)::numeric AS revenue
+         FROM branches b
+         LEFT JOIN bills bi ON bi.branch_id = b.id
+           AND bi.tenant_id = $1
+           AND bi.status NOT IN ('void','refunded')
+           AND bi.created_at BETWEEN $2 AND $3
+         WHERE b.tenant_id = $1 AND b.is_active = true
+         GROUP BY b.id`,
+        [tenantId, pStart, pEnd],
+      ),
+    ]);
+
+    const currMap: Record<string, any> = {};
+    for (const r of current) currMap[r.branch_id] = r;
+
+    const prevMap: Record<string, any> = {};
+    for (const r of previous) prevMap[r.branch_id] = r;
+
+    const branchList = branches.map((b: any) => {
+      const c = currMap[b.id] || {};
+      const p = prevMap[b.id] || {};
+      const rev     = Number(c.revenue || 0);
+      const prevRev = Number(p.revenue || 0);
+      const growthPct = prevRev > 0 ? Math.round(((rev - prevRev) / prevRev) * 100) : null;
+      return {
+        branchId:     b.id,
+        branchName:   b.name,
+        branchCode:   b.code,
+        type:         b.type,
+        city:         b.city,
+        isHq:         b.is_hq,
+        revenue:      rev,
+        posRevenue:   Number(c.pos_revenue   || 0),
+        hotelRevenue: Number(c.hotel_revenue || 0),
+        bills:        Number(c.bills         || 0),
+        orders:       Number(c.orders        || 0),
+        growthPct,
+      };
+    });
+
+    branchList.sort((a: any, b: any) => b.revenue - a.revenue);
+
+    const totalRevenue = branchList.reduce((s: number, b: any) => s + b.revenue, 0);
+    const totalOrders  = branchList.reduce((s: number, b: any) => s + b.orders,  0);
+    const totalBills   = branchList.reduce((s: number, b: any) => s + b.bills,   0);
+    const avgRevenue   = branchList.length > 0 ? Math.round(totalRevenue / branchList.length) : 0;
+
+    return {
+      totalBranches: branchList.length,
+      totalRevenue,
+      totalOrders,
+      totalBills,
+      avgRevenue,
+      topBranch: branchList[0] || null,
+      branches:  branchList,
+      period:    { from, to, prevFrom: prevStart, prevTo: prevEnd },
+    };
+  }
 }

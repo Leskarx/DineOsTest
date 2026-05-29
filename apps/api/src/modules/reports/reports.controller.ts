@@ -142,4 +142,15 @@ export class ReportsController {
   ) {
     return this.svc.getWaiterReport(b, t, from, to);
   }
+
+  @Get('branch-performance')
+  @Roles('owner')
+  @ApiOperation({ summary: 'Cross-branch revenue & order performance (owner only)' })
+  branchPerformance(
+    @TenantId() t: string,
+    @Query('from') from: string,
+    @Query('to') to: string,
+  ) {
+    return this.svc.getBranchPerformance(t, from, to);
+  }
 }
