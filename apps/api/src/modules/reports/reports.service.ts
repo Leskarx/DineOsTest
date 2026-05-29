@@ -722,4 +722,337 @@ export class ReportsService {
       })),
     };
   }
+
+  // ── Branch Performance ──────────────────────────────────────────────────────
+
+  async getBranchPerformance(tenantId: string, from: string, to: string) {
+    this.assertDate(from, 'from');
+    this.assertDate(to, 'to');
+    const { start, end } = this.toDateRange(from, to);
+
+    const fromDate = new Date(from);
+    const toDate = new Date(to);
+    const diffDays = Math.max(1, Math.round((toDate.getTime() - fromDate.getTime()) / 86_400_000));
+    const prevEnd = new Date(fromDate.getTime() - 86_400_000).toISOString().slice(0, 10);
+    const prevStart = new Date(fromDate.getTime() - diffDays * 86_400_000).toISOString().slice(0, 10);
+    const { start: pStart, end: pEnd } = this.toDateRange(prevStart, prevEnd);
+
+    const [branches, current, previous] = await Promise.all([
+      this.db.query(
+        `SELECT id, name, code, type, city, is_hq
+         FROM branches
+         WHERE tenant_id = $1 AND is_active = true
+         ORDER BY is_hq DESC, name ASC`,
+        [tenantId],
+      ),
+      this.db.query(
+        `SELECT
+           b.id AS branch_id,
+           COALESCE(SUM(bi.grand_total),0)::numeric AS revenue,
+           COUNT(DISTINCT bi.id)::int                AS bills,
+           COALESCE(SUM(bi.grand_total) FILTER (WHERE bi.source='pos' OR bi.source IS NULL),0) AS pos_revenue,
+           COALESCE(SUM(bi.grand_total) FILTER (WHERE bi.source='hotel'),0)                    AS hotel_revenue,
+           COUNT(DISTINCT o.id)::int                 AS orders
+         FROM branches b
+         LEFT JOIN bills  bi ON bi.branch_id = b.id
+           AND bi.tenant_id = $1
+           AND bi.status NOT IN ('void','refunded')
+           AND bi.created_at BETWEEN $2 AND $3
+         LEFT JOIN orders o ON o.branch_id = b.id
+           AND o.tenant_id = $1
+           AND o.status = 'billed'
+           AND o.created_at BETWEEN $2 AND $3
+         WHERE b.tenant_id = $1 AND b.is_active = true
+         GROUP BY b.id`,
+        [tenantId, start, end],
+      ),
+      this.db.query(
+        `SELECT
+           b.id AS branch_id,
+           COALESCE(SUM(bi.grand_total),0)::numeric AS revenue
+         FROM branches b
+         LEFT JOIN bills bi ON bi.branch_id = b.id
+           AND bi.tenant_id = $1
+           AND bi.status NOT IN ('void','refunded')
+           AND bi.created_at BETWEEN $2 AND $3
+         WHERE b.tenant_id = $1 AND b.is_active = true
+         GROUP BY b.id`,
+        [tenantId, pStart, pEnd],
+      ),
+    ]);
+
+    const currMap: Record<string, any> = {};
+    for (const r of current) currMap[r.branch_id] = r;
+
+    const prevMap: Record<string, any> = {};
+    for (const r of previous) prevMap[r.branch_id] = r;
+
+    const branchList = branches.map((b: any) => {
+      const c = currMap[b.id] || {};
+      const p = prevMap[b.id] || {};
+      const rev = Number(c.revenue || 0);
+      const prevRev = Number(p.revenue || 0);
+      const growthPct = prevRev > 0 ? Math.round(((rev - prevRev) / prevRev) * 100) : null;
+      return {
+        branchId: b.id,
+        branchName: b.name,
+        branchCode: b.code,
+        type: b.type,
+        city: b.city,
+        isHq: b.is_hq,
+        revenue: rev,
+        posRevenue: Number(c.pos_revenue || 0),
+        hotelRevenue: Number(c.hotel_revenue || 0),
+        bills: Number(c.bills || 0),
+        orders: Number(c.orders || 0),
+        growthPct,
+      };
+    });
+
+    branchList.sort((a: any, b: any) => b.revenue - a.revenue);
+
+    const totalRevenue = branchList.reduce((s: number, b: any) => s + b.revenue, 0);
+    const totalOrders = branchList.reduce((s: number, b: any) => s + b.orders, 0);
+    const totalBills = branchList.reduce((s: number, b: any) => s + b.bills, 0);
+    const avgRevenue = branchList.length > 0 ? Math.round(totalRevenue / branchList.length) : 0;
+
+    return {
+      totalBranches: branchList.length,
+      totalRevenue,
+      totalOrders,
+      totalBills,
+      avgRevenue,
+      topBranch: branchList[0] || null,
+      branches: branchList,
+      period: { from, to, prevFrom: prevStart, prevTo: prevEnd },
+    };
+  }
+
+  // ── Branch Summary (Branch Manager Dashboard) ───────────────────────────────
+
+  async getBranchSummary(branchId: string, tenantId: string, from?: string, to?: string) {
+    const today = new Date().toISOString().slice(0, 10);
+    const rangeFrom = from || today;
+    const rangeTo = to || today;
+    const monthStart = `${today.slice(0, 7)}-01`;
+    const { start: rangeStart, end: rangeEnd } = this.toDateRange(rangeFrom, rangeTo);
+    const { start: monthS, end: monthE } = this.toDateRange(monthStart, today);
+    const weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString().slice(0, 10);
+    const { start: weekS, end: weekE } = this.toDateRange(weekAgo, today);
+    const { start: dayStart, end: dayEnd } = this.toDateRange(today, today);
+
+    const [
+      revenueToday, revenueMonth, revenueWeek,
+      restaurantToday, hotelToday,
+      ordersToday, billsToday,
+      openShifts,
+      lowStock,
+      hotel,
+      housekeepingPending,
+      staff,
+      paymentBreakdown,
+      weeklyChart,
+    ] = await Promise.all([
+
+      // Total revenue for selected range (POS + Hotel)
+      this.db.query(
+        `SELECT COALESCE(SUM(grand_total),0) AS revenue, COUNT(*)::int AS bills
+       FROM bills WHERE branch_id=$1 AND tenant_id=$2
+       AND status NOT IN ('void','refunded') AND created_at BETWEEN $3 AND $4`,
+        [branchId, tenantId, rangeStart, rangeEnd],
+      ),
+
+      // Monthly revenue
+      this.db.query(
+        `SELECT COALESCE(SUM(grand_total),0) AS revenue
+       FROM bills WHERE branch_id=$1 AND tenant_id=$2
+       AND status NOT IN ('void','refunded') AND created_at BETWEEN $3 AND $4`,
+        [branchId, tenantId, monthS, monthE],
+      ),
+
+      // 7-day revenue
+      this.db.query(
+        `SELECT COALESCE(SUM(grand_total),0) AS revenue
+       FROM bills WHERE branch_id=$1 AND tenant_id=$2
+       AND status NOT IN ('void','refunded') AND created_at BETWEEN $3 AND $4`,
+        [branchId, tenantId, weekS, weekE],
+      ),
+
+      // Restaurant revenue for selected range
+      this.db.query(
+        `SELECT COALESCE(SUM(grand_total),0) AS revenue, COUNT(*)::int AS bills
+       FROM bills WHERE branch_id=$1 AND tenant_id=$2
+       AND (source='pos' OR source IS NULL)
+       AND status NOT IN ('void','refunded') AND created_at BETWEEN $3 AND $4`,
+        [branchId, tenantId, rangeStart, rangeEnd],
+      ),
+
+      // Hotel revenue for selected range
+      this.db.query(
+        `SELECT COALESCE(SUM(grand_total),0) AS revenue, COUNT(*)::int AS bills
+       FROM bills WHERE branch_id=$1 AND tenant_id=$2
+       AND source='hotel'
+       AND status NOT IN ('void','refunded') AND created_at BETWEEN $3 AND $4`,
+        [branchId, tenantId, rangeStart, rangeEnd],
+      ),
+
+      // Restaurant: orders for selected range
+      this.db.query(
+        `SELECT
+         COUNT(*)::int                                       AS total_orders,
+         COUNT(*) FILTER (WHERE status='billed')::int       AS billed_orders,
+         COUNT(*) FILTER (WHERE status NOT IN ('billed','cancelled'))::int AS pending_orders,
+         COALESCE(AVG(grand_total) FILTER (WHERE status='billed'), 0) AS avg_order_value
+       FROM orders WHERE branch_id=$1 AND tenant_id=$2 AND created_at BETWEEN $3 AND $4`,
+        [branchId, tenantId, rangeStart, rangeEnd],
+      ),
+
+      // Bills for selected range
+      this.db.query(
+        `SELECT COUNT(*)::int AS bills
+       FROM bills WHERE branch_id=$1 AND tenant_id=$2
+       AND created_at BETWEEN $3 AND $4`,
+        [branchId, tenantId, rangeStart, rangeEnd],
+      ),
+
+      // Open shifts
+      this.db.query(
+        `SELECT COUNT(*)::int AS count FROM shifts
+       WHERE branch_id=$1 AND tenant_id=$2 AND status='open'`,
+        [branchId, tenantId],
+      ),
+
+      // Low stock alerts
+      this.db.query(
+        `SELECT COUNT(*)::int AS count FROM inventory_items
+       WHERE (branch_id=$1 OR branch_id IS NULL) AND tenant_id=$2
+       AND current_stock <= min_stock_level AND is_active=true`,
+        [branchId, tenantId],
+      ),
+
+      // Hotel: reservations today, check-ins, check-outs, occupancy
+      this.db.query(
+        `SELECT
+         COUNT(*) FILTER (WHERE check_in_date=$3 AND status NOT IN ('cancelled','no_show'))::int  AS reservations_today,
+         COUNT(*) FILTER (WHERE check_in_date=$3 AND status NOT IN ('cancelled','no_show'))::int  AS checkins_today,
+         COUNT(*) FILTER (WHERE check_out_date=$3 AND status NOT IN ('cancelled','no_show'))::int AS checkouts_today,
+         COUNT(*) FILTER (WHERE status='checked_in')::int                                          AS in_house,
+         (SELECT COUNT(*)::int FROM hotel_rooms WHERE branch_id=$1 AND tenant_id=$2 AND is_active=true)                     AS total_rooms,
+         (SELECT COUNT(*) FILTER (WHERE status='available')::int FROM hotel_rooms WHERE branch_id=$1 AND tenant_id=$2 AND is_active=true) AS available_rooms
+       FROM hotel_reservations WHERE branch_id=$1 AND tenant_id=$2`,
+        [branchId, tenantId, today],
+      ),
+
+      // ✅ CORRECTED: Housekeeping tasks pending
+      this.db.query(
+        `SELECT COUNT(*)::int AS pending
+       FROM hotel_housekeeping_tasks
+       WHERE branch_id=$1
+         AND tenant_id=$2
+         AND status = 'pending'
+         AND scheduled_for = $3`,
+        [branchId, tenantId, today],
+      ),
+
+      // Staff counts by role
+      this.db.query(
+        `SELECT role, COUNT(*)::int AS count
+       FROM users WHERE branch_id=$1 AND tenant_id=$2 AND is_active=true
+       GROUP BY role`,
+        [branchId, tenantId],
+      ),
+
+      // Payment breakdown for selected range
+      this.db.query(
+        `SELECT method, COALESCE(SUM(amount),0) AS total, COUNT(*)::int AS txns
+       FROM payments WHERE branch_id=$1 AND tenant_id=$2
+       AND status='success' AND created_at BETWEEN $3 AND $4
+       GROUP BY method ORDER BY total DESC`,
+        [branchId, tenantId, rangeStart, rangeEnd],
+      ),
+
+      // Revenue chart for selected range
+      this.db.query(
+        `SELECT
+         TO_CHAR(date_trunc('day', created_at AT TIME ZONE 'Asia/Kolkata'), 'Mon DD') AS date,
+         COALESCE(SUM(grand_total) FILTER (WHERE source='pos' OR source IS NULL), 0) AS pos,
+         COALESCE(SUM(grand_total) FILTER (WHERE source='hotel'), 0)                 AS hotel,
+         COALESCE(SUM(grand_total), 0)                                               AS total
+       FROM bills WHERE branch_id=$1 AND tenant_id=$2
+       AND status NOT IN ('void','refunded')
+       AND created_at BETWEEN $3 AND $4
+       GROUP BY date_trunc('day', created_at AT TIME ZONE 'Asia/Kolkata')
+       ORDER BY date_trunc('day', created_at AT TIME ZONE 'Asia/Kolkata') ASC`,
+        [branchId, tenantId, rangeStart, rangeEnd],
+      ),
+    ]);
+
+    // Staff map
+    const staffMap: Record<string, number> = {};
+    for (const r of staff) staffMap[r.role] = Number(r.count);
+    const totalStaff = staff.reduce((s: number, r: any) => s + Number(r.count), 0);
+
+    const hotelRow = hotel[0] || {};
+    const totalRooms = Number(hotelRow.total_rooms || 0);
+    const inHouse = Number(hotelRow.in_house || 0);
+    const occupancyPct = totalRooms > 0 ? Math.round((inHouse / totalRooms) * 100) : 0;
+
+    return {
+      branch: { id: branchId },
+      period: { from: rangeFrom, to: rangeTo },
+      revenue: {
+        total: Number(revenueToday[0]?.revenue || 0),
+        week: Number(revenueWeek[0]?.revenue || 0),
+        month: Number(revenueMonth[0]?.revenue || 0),
+        restaurant: Number(restaurantToday[0]?.revenue || 0),
+        hotel: Number(hotelToday[0]?.revenue || 0),
+        totalBills: Number(revenueToday[0]?.bills || 0),
+      },
+      restaurant: {
+        ordersToday: Number(ordersToday[0]?.total_orders || 0),
+        billedOrders: Number(ordersToday[0]?.billed_orders || 0),
+        pendingOrders: Number(ordersToday[0]?.pending_orders || 0),
+        billsToday: Number(billsToday[0]?.bills || 0),
+        avgOrderValue: Math.round(Number(ordersToday[0]?.avg_order_value || 0)),
+        openShifts: Number(openShifts[0]?.count || 0),
+        lowStockItems: Number(lowStock[0]?.count || 0),
+      },
+      hotel: {
+        reservationsToday: Number(hotelRow.reservations_today || 0),
+        checkinsToday: Number(hotelRow.checkins_today || 0),
+        checkoutsToday: Number(hotelRow.checkouts_today || 0),
+        inHouse,
+        totalRooms,
+        availableRooms: Number(hotelRow.available_rooms || 0),
+        occupancyPct,
+        housekeepingPending: Number(housekeepingPending[0]?.pending || 0),
+      },
+      staff: {
+        total: totalStaff,
+        managers: (staffMap['manager'] || 0) + (staffMap['restaurant_manager'] || 0) + (staffMap['hotel_manager'] || 0),
+        cashiers: staffMap['cashier'] || 0,
+        waiters: staffMap['waiter'] || 0,
+        kitchen: staffMap['kitchen'] || 0,
+        housekeeping: staffMap['housekeeping'] || 0,
+        receptionist: staffMap['receptionist'] || 0,
+        byRole: staffMap,
+      },
+      paymentBreakdown: paymentBreakdown.map((r: any) => ({
+        method: r.method,
+        total: Number(r.total),
+        txns: Number(r.txns),
+      })),
+      weeklyChart: weeklyChart.map((r: any) => ({
+        date: r.date,
+        pos: Number(r.pos || 0),
+        hotel: Number(r.hotel || 0),
+        total: Number(r.total || 0),
+      })),
+      alerts: {
+        lowStock: Number(lowStock[0]?.count || 0),
+        openShifts: Number(openShifts[0]?.count || 0),
+        housekeepingPending: Number(housekeepingPending[0]?.pending || 0),
+      },
+    };
+  }
 }
