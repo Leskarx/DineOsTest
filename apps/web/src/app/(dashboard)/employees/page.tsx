@@ -63,7 +63,7 @@ export default function EmployeesPage() {
   const [department, setDepartment] = useState<Department>('restaurant');
   const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phone: '', role: 'cashier', password: '', pin: '', employeeCode: '', branchId: '' });
 
-  const { data: users } = useQuery({ queryKey: ['users'], queryFn: () => apiFetch('/api/v1/users').then((r) => r.data) });
+  const { data: users, isLoading } = useQuery({ queryKey: ['users'], queryFn: () => apiFetch('/api/v1/users').then((r) => r.data) });
   const { data: branches } = useQuery({ queryKey: ['branches'], queryFn: () => apiFetch('/api/v1/branches').then((r) => r.data), enabled: user?.role === 'owner' });
 
   const filteredUsers = useMemo(() => {
@@ -162,7 +162,26 @@ export default function EmployeesPage() {
             </tr>
           </thead>
           <tbody>
-            {filteredUsers.map((u: any) => (
+            {isLoading ? (
+              [...Array(5)].map((_, i) => (
+                <tr key={i} className="table-row">
+                  <td className="td">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 animate-pulse"></div>
+                      <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-24 animate-pulse"></div>
+                    </div>
+                  </td>
+                  <td className="td space-y-1">
+                    <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-32 animate-pulse"></div>
+                    <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-24 animate-pulse"></div>
+                  </td>
+                  <td className="td"><div className="h-6 bg-slate-200 dark:bg-slate-700 rounded-full w-24 animate-pulse"></div></td>
+                  <td className="td"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-20 animate-pulse"></div></td>
+                  <td className="td"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-16 animate-pulse"></div></td>
+                  <td className="td"><div className="h-8 bg-slate-200 dark:bg-slate-700 rounded w-16 animate-pulse"></div></td>
+                </tr>
+              ))
+            ) : filteredUsers.map((u: any) => (
               <tr key={u.id} className="table-row">
                 <td className="td">
                   <div className="flex items-center gap-3">
@@ -203,7 +222,7 @@ export default function EmployeesPage() {
                 </td>
               </tr>
             ))}
-            {filteredUsers.length === 0 && <tr><td colSpan={6} className="text-center py-12 text-slate-900 dark:text-slate-500">No employees added yet</td></tr>}
+            {!isLoading && filteredUsers.length === 0 && <tr><td colSpan={6} className="text-center py-12 text-slate-900 dark:text-slate-500">No employees added yet</td></tr>}
           </tbody>
         </table>
       </div>

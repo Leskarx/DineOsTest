@@ -15,7 +15,7 @@ export function BranchSwitcher() {
   const { data: branches } = useQuery({
     queryKey: ['branches'],
     queryFn: () => apiFetch('/api/v1/branches').then((r) => r.data),
-    enabled: user?.role === 'owner',
+    enabled: true,
   });
 
   // Close dropdown when clicking outside
@@ -29,10 +29,21 @@ export function BranchSwitcher() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  if (user?.role !== 'owner') return null;
-
   const currentBranch = branches?.find((b: any) => b.id === branchId);
   const displayLabel = currentBranch ? currentBranch.name : 'All Branches (Global)';
+
+  if (user?.role !== 'owner') {
+    return (
+      <div className="px-4 pb-3 border-b border-slate-200 dark:border-slate-800">
+        <div className="w-full flex items-center gap-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 text-left opacity-90">
+          <Store size={14} className="text-amber-500 flex-shrink-0" />
+          <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">
+            {currentBranch ? currentBranch.name : 'Branch Staff'}
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative px-4 pb-3 border-b border-slate-200 dark:border-slate-800" ref={ref}>

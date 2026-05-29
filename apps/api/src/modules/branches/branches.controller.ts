@@ -15,12 +15,10 @@ export class BranchesController {
   constructor(private readonly svc: BranchesService) {}
 
   @Get()
-  @Roles('manager', 'owner')
   @ApiOperation({ summary: 'List all branches for this tenant' })
   findAll(@TenantId() t: string) { return this.svc.findAll(t); }
 
   @Get(':id')
-  @Roles('manager', 'owner')
   findOne(@Param('id') id: string, @TenantId() t: string) { return this.svc.findOne(id, t); }
 
   @Post()
