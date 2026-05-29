@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { apiPost, apiPatch, apiFetch } from '@/lib/api';
+import { enqueueSync } from '@/lib/offline';
 import { useAuthStore } from '@/store/auth.store';
 import { usePosStore } from '@/store/pos.store';
 import { printHtml } from '@/lib/printer';
@@ -84,12 +85,14 @@ export function BillingModal({
   const change = round2(cashAmount - finalTotal);
 
   const billMutation = useMutation({
+    networkMode: 'always',
     mutationFn: async () => {
+      const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
       let oid = orderId;
 
       // 1. Create order if needed
       if (!oid) {
-        const orderRes = await apiPost('/api/v1/orders', {
+        const payload = {
           type: orderType,
           tableId,
           items: cart.map((i: any) => ({
@@ -98,21 +101,49 @@ export function BillingModal({
             notes: i.notes,
             variationId: i.variationId ?? undefined,
           })),
-        });
-        oid = orderRes.data.id;
+        };
+        
+        if (isOffline) {
+          oid = `OFFLINE-${Date.now()}`;
+          await enqueueSync({
+            entityType: 'orders',
+            entityId: oid,
+            operation: 'create',
+            payload,
+            branchId: branchId || '',
+            tenantId: tenantId || '',
+          });
+        } else {
+          const orderRes = await apiPost('/api/v1/orders', payload);
+          oid = orderRes.data.id;
+        }
       }
 
       // 2. Apply discount before billing
       if ((discountPercent > 0 || discountAmount > 0) && oid) {
-        await apiPatch(`/api/v1/orders/${oid}/discount`, {
-          discountPercent,
-          discountAmount,
-        });
+        const discountPayload = { discountPercent, discountAmount };
+        if (isOffline) {
+          await enqueueSync({
+            entityType: `orders/${oid}/discount`,
+            entityId: '',
+            operation: 'update',
+            payload: { ...discountPayload, _isDiscount: true },
+            branchId: branchId || '',
+            tenantId: tenantId || '',
+          });
+        } else {
+          await apiPatch(`/api/v1/orders/${oid}/discount`, discountPayload);
+        }
       }
 
       // 3. Fetch server-confirmed total
-      const orderRes = await apiFetch(`/api/v1/orders/${oid}`);
-      const serverGrandTotal = round2(Number(orderRes.data.grandTotal));
+      let serverGrandTotal = defaultPayable;
+      if (!isOffline) {
+        try {
+          const orderRes = await apiFetch(`/api/v1/orders/${oid}`);
+          serverGrandTotal = round2(Number(orderRes.data.grandTotal));
+        } catch { /* use defaultPayable fallback */ }
+      }
 
       // 4. Use cashier override if manually changed, else use server total
       const billAmount = manualOverride ? round2(finalTotal) : serverGrandTotal;
@@ -142,8 +173,7 @@ export function BillingModal({
         );
       }
 
-      // 6. Create bill
-      const res = await apiPost('/api/v1/billing/bills', {
+      const billPayload = {
         orderId: oid,
         branchId,
         tenantId,
@@ -152,7 +182,29 @@ export function BillingModal({
         customerPhone: customerPhone || undefined,
         customerGstin: customerGstin || undefined,
         payments,
-      });
+      };
+
+      // 6. Create bill
+      if (isOffline) {
+        const mockBillId = `BILL-OFF-${Date.now()}`;
+        await enqueueSync({
+          entityType: 'billing/bills',
+          entityId: mockBillId,
+          operation: 'create',
+          payload: billPayload,
+          branchId: branchId || '',
+          tenantId: tenantId || '',
+        });
+        
+        return {
+          id: mockBillId,
+          billNumber: `OFF-${Math.floor(Math.random() * 10000)}`,
+          serverGrandTotal: billAmount,
+          gstSummary: [],
+        };
+      }
+
+      const res = await apiPost('/api/v1/billing/bills', billPayload);
 
       return { ...res.data, serverGrandTotal: billAmount };
     },

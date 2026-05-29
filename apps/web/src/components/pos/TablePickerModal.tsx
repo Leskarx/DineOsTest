@@ -1,6 +1,7 @@
 'use client';
 import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/api';
+import { cacheTables, getCachedTables } from '@/lib/offline';
 import { usePosStore } from '@/store/pos.store';
 import { X, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -17,7 +18,17 @@ export function TablePickerModal({ onClose }: { onClose: () => void }) {
 
   const { data: tables } = useQuery({
     queryKey: ['tables'],
-    queryFn: () => apiFetch('/api/v1/tables').then((r) => r.data),
+    networkMode: 'always',
+    queryFn: async () => {
+      try {
+        if (typeof navigator !== 'undefined' && !navigator.onLine) throw new Error('Offline');
+        const r = await apiFetch('/api/v1/tables');
+        await cacheTables(r.data);
+        return r.data;
+      } catch (err) {
+        return getCachedTables();
+      }
+    },
   });
 
   const handleSelect = (table: any) => {

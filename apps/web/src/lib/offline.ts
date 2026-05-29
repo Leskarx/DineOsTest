@@ -139,15 +139,19 @@ export async function incrementRetry(id: string) {
 // ─── Online sync runner ───────────────────────────────────────────────────────
 
 export async function flushSyncQueue(
-  apiFn: (item: SyncItem) => Promise<void>,
+  apiFn: (item: SyncItem, idMap: Record<string, string>) => Promise<string | void>,
   onProgress?: (done: number, total: number) => void,
 ) {
   const items = await getPendingSyncItems();
   let done = 0;
+  const idMap: Record<string, string> = {};
 
   for (const item of items) {
     try {
-      await apiFn(item);
+      const realId = await apiFn(item, idMap);
+      if (realId && typeof realId === 'string' && item.entityId.startsWith('OFFLINE-')) {
+        idMap[item.entityId] = realId;
+      }
       await removeSyncItem(item.id);
     } catch (err) {
       await incrementRetry(item.id);

@@ -31,6 +31,7 @@ export interface CreateOrderDto {
   isComplimentary?: boolean;
   isSalesReturn?: boolean;
   scheduledAt?: Date;
+  isOfflineSync?: boolean;
 }
 
 export interface ApplyDiscountDto {
@@ -88,15 +89,17 @@ export class OrdersService {
     });
 
     if (dto.items?.length) {
-      await this.addItems(createdOrderId, dto.items, dto.tenantId);
+      await this.addItems(createdOrderId, dto.items, dto.tenantId, dto.isOfflineSync);
     }
 
     const saved = await this.findOne(createdOrderId, dto.tenantId);
-    this.events.emit('order.created', saved);
+    if (!dto.isOfflineSync) {
+      this.events.emit('order.created', saved);
+    }
     return saved;
   }
 
-  async addItems(orderId: string, items: AddItemDto[], tenantId: string): Promise<Order> {
+  async addItems(orderId: string, items: AddItemDto[], tenantId: string, isOfflineSync = false): Promise<Order> {
     const order = await this.findOne(orderId, tenantId);
     if ([OrderStatus.BILLED, OrderStatus.CANCELLED].includes(order.status)) {
       throw new BadRequestException('Cannot modify a billed or cancelled order');
@@ -164,12 +167,15 @@ export class OrdersService {
 
     await this.orderItemRepo.save(orderItems);
     const updated = await this.recalculateTotals(orderId);
-    this.events.emit('order.itemsAdded', {
-      orderId,
-      branchId:    updated.branchId,
-      orderNumber: updated.orderNumber,
-      items:       orderItems,
-    });
+    
+    if (!isOfflineSync) {
+      this.events.emit('order.itemsAdded', {
+        orderId,
+        branchId:    updated.branchId,
+        orderNumber: updated.orderNumber,
+        items:       orderItems,
+      });
+    }
     return updated;
   }
 

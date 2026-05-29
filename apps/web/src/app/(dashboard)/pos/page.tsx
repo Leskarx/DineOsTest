@@ -3,6 +3,11 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { apiFetch, apiPost } from '@/lib/api';
+import {
+  cacheCategories, getCachedCategories,
+  cacheMenuItems, getCachedMenuItems,
+  saveOrderLocally, enqueueSync, getLocalOrders
+} from '@/lib/offline';
 import { usePosStore } from '@/store/pos.store';
 import { useAuthStore } from '@/store/auth.store';
 import { useSocket } from '@/hooks/useSocket';
@@ -200,6 +205,7 @@ export default function PosPage() {
   const [showBilling,      setShowBilling]      = useState(false);
   const [showTablePicker,  setShowTablePicker]  = useState(false);
   const [showOpenOrders,   setShowOpenOrders]   = useState(false);
+  const [showMobileCart,   setShowMobileCart]   = useState(false);
   const [pickerItem,       setPickerItem]       = useState<PickerItem | null>(null);
   const [showAdvanceOrder, setShowAdvanceOrder] = useState(false);
   const [isComplimentary,  setIsComplimentary]  = useState(false);
@@ -239,20 +245,54 @@ export default function PosPage() {
   // ── Queries ────────────────────────────────────────────────────────────────
   const { data: categories, isLoading: isLoadingCategories } = useQuery({
     queryKey: ['categories'],
-    queryFn:  () => apiFetch('/api/v1/menu/categories').then((r) => r.data),
+    networkMode: 'always',
+    queryFn: async () => {
+      try {
+        if (typeof navigator !== 'undefined' && !navigator.onLine) throw new Error('Offline');
+        const r = await apiFetch('/api/v1/menu/categories');
+        await cacheCategories(r.data);
+        return r.data;
+      } catch (err) {
+        return getCachedCategories();
+      }
+    },
   });
 
   const { data: items, isLoading: isLoadingItems } = useQuery({
     queryKey: ['menuItems', selectedCat],
-    queryFn:  () =>
-      apiFetch(`/api/v1/menu/items${selectedCat ? `?categoryId=${selectedCat}` : ''}`).then((r) => r.data),
+    networkMode: 'always',
+    queryFn: async () => {
+      try {
+        if (typeof navigator !== 'undefined' && !navigator.onLine) throw new Error('Offline');
+        const r = await apiFetch(`/api/v1/menu/items${selectedCat ? `?categoryId=${selectedCat}` : ''}`);
+        await cacheMenuItems(r.data);
+        return r.data;
+      } catch (err) {
+        const allItems = await getCachedMenuItems();
+        if (selectedCat) return allItems.filter(i => i.categoryId === selectedCat);
+        return allItems;
+      }
+    },
   });
 
   const { data: openOrders, isLoading: isLoadingOpenOrders, refetch: refetchOpenOrders } = useQuery({
-    queryKey: ['open-orders-pos'],
-    queryFn:  () =>
-      apiFetch('/api/v1/orders?status=draft,placed,confirmed,preparing,ready,served&limit=50')
-        .then((r) => r.data),
+    queryKey: ['open-orders-pos', branchId],
+    enabled: showOpenOrders,
+    networkMode: 'always',
+    queryFn: async () => {
+      try {
+        if (typeof navigator !== 'undefined' && !navigator.onLine) throw new Error('Offline');
+        const res = await apiFetch('/api/v1/orders?status=draft,placed,confirmed,preparing,ready,served&limit=50');
+        for (const order of res.data) {
+          await saveOrderLocally({ ...order, branchId });
+        }
+        return res.data;
+      } catch (err) {
+        if (!branchId) return [];
+        const local = await getLocalOrders(branchId);
+        return local.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+      }
+    },
     staleTime:       10_000,
     refetchInterval: 30_000,
   });
@@ -310,7 +350,8 @@ export default function PosPage() {
     return s + ((cgst + sgst) / 100) * lineDiscounted;
   }, 0);
 
-  const grandTotal        = subtotal - discountAmount + gstTotal;
+  const rawGrandTotal     = subtotal - discountAmount + gstTotal;
+  const grandTotal        = Math.round(rawGrandTotal);
   const billingGrandTotal = confirmedGrandTotal ?? grandTotal;
 
   // ── Server helpers ─────────────────────────────────────────────────────────
@@ -366,6 +407,7 @@ export default function PosPage() {
 
   // ── KOT mutation ───────────────────────────────────────────────────────────
   const placeKotMutation = useMutation({
+    networkMode: 'always',
     mutationFn: async (data: {
       currentOrder: string | null;
       orderType: any;
@@ -377,8 +419,10 @@ export default function PosPage() {
       userId: string | undefined;
       cart: any[];
     }) => {
+      const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+
       if (!data.currentOrder) {
-        const order = await apiPost('/api/v1/orders', {
+        const payload = {
           type:           data.orderType,
           tableId:        data.tableId        ?? undefined,
           covers:         data.covers,
@@ -392,7 +436,50 @@ export default function PosPage() {
             notes:       i.notes,
             variationId: i.variationId ?? undefined,
           })),
-        });
+        };
+
+        if (isOffline) {
+          const tempId = `OFFLINE-${Date.now()}`;
+          const tempOrder = {
+            id: tempId,
+            orderNumber: `OFF-${Math.floor(Math.random() * 10000)}`,
+            createdAt: new Date().toISOString(),
+            ...payload,
+            items: data.cart.map((i: any) => ({
+              id: i.cartKey || String(Math.random()),
+              menuItemId: i.id,
+              name: i.name,
+              quantity: i.qty,
+              unitPrice: i.price,
+              cgstRate: i.cgstRate,
+              sgstRate: i.sgstRate,
+              isVeg: i.isVeg,
+              variationName: i.variationName,
+              variationId: i.variationId,
+              notes: i.notes,
+              kdsStatus: 'pending'
+            })),
+            branchId: branchId || '',
+            status: 'pending',
+            grandTotal: Math.round(data.cart.reduce((s: number, i: any) => {
+              const lineTotal = (i.price || 0) * (i.qty || 1);
+              const gst = lineTotal * (((i.cgstRate || 0) + (i.sgstRate || 0)) / 100);
+              return s + lineTotal + gst;
+            }, 0)),
+          };
+          await saveOrderLocally(tempOrder);
+          await enqueueSync({
+            entityType: 'orders',
+            entityId: tempId,
+            operation: 'create',
+            payload: { ...payload, isOfflineSync: true },
+            branchId: branchId || '',
+            tenantId: useAuthStore.getState().tenantId || '',
+          });
+          return tempOrder;
+        }
+
+        const order = await apiPost('/api/v1/orders', payload);
         return order.data;
       } else {
         const newItems = data.cart.filter((i: any) => !i.alreadySent);
@@ -401,14 +488,63 @@ export default function PosPage() {
             'No new items to send. Items already in this order have been sent to the kitchen.',
           );
         }
-        return apiPost(`/api/v1/orders/${data.currentOrder}/items`, {
+        
+        const payload = {
           items: newItems.map((i: any) => ({
             menuItemId:  i.id,
             quantity:    i.qty,
             notes:       i.notes,
             variationId: i.variationId ?? undefined,
           })),
-        });
+        };
+
+        if (isOffline) {
+          // If offline, update the local order cache so UI reflects the new items
+          const db = await (await import('@/lib/offline')).getDb();
+          const existingOrder = await db.get('orders', data.currentOrder);
+          if (existingOrder) {
+            const newOrderItems = newItems.map((i: any) => ({
+              id: i.cartKey || String(Math.random()),
+              menuItemId: i.id,
+              name: i.name,
+              quantity: i.qty,
+              unitPrice: i.price,
+              cgstRate: i.cgstRate,
+              sgstRate: i.sgstRate,
+              isVeg: i.isVeg,
+              variationName: i.variationName,
+              variationId: i.variationId,
+              notes: i.notes,
+              kdsStatus: 'pending'
+            }));
+            
+            // Recalculate totals
+            const updatedItems = [...(existingOrder.items || []), ...newOrderItems];
+            const newGrandTotal = Math.round(updatedItems.reduce((s: number, i: any) => {
+              const lineTotal = (i.unitPrice || 0) * (i.quantity || 1);
+              const gst = lineTotal * (((i.cgstRate || 0) + (i.sgstRate || 0)) / 100);
+              return s + lineTotal + gst;
+            }, 0));
+            
+            await db.put('orders', {
+              ...existingOrder,
+              items: updatedItems,
+              grandTotal: newGrandTotal
+            });
+          }
+
+          await enqueueSync({
+            entityType: `orders/${data.currentOrder}/items`,
+            entityId: '',
+            operation: 'create',
+            payload: { ...payload, isOfflineSync: true },
+            branchId: branchId || '',
+            tenantId: useAuthStore.getState().tenantId || '',
+          });
+          return { id: data.currentOrder, _local: true };
+        }
+
+        return apiPost(`/api/v1/orders/${data.currentOrder}/items`, payload);
       }
     },
     onMutate: (variables) => {
@@ -430,10 +566,10 @@ export default function PosPage() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="flex h-full">
+    <div className="flex flex-col lg:flex-row h-full relative">
 
       {/* ── Left: Menu ───────────────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden relative">
 
         {/* Top bar */}
         <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center gap-3 flex-wrap">
@@ -494,20 +630,32 @@ export default function PosPage() {
                         resetPosState();
                         setLoadingOrderId(o.id);
                         try {
-                          const res   = await apiFetch(`/api/v1/orders/${o.id}`);
-                          const order = res.data;
+                          let order = o;
+                          const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+                          
+                          if (!isOffline && !o._local) {
+                            const res = await apiFetch(`/api/v1/orders/${o.id}`);
+                            order = res.data;
+                          }
+                          
                           setCurrentOrder(order.id);
                           setCurrentOrderNumber(order.orderNumber ?? null);
                           setTable(order.tableId ?? null, order.table?.name ?? null);
                           if (order.type) setOrderType(order.type);
-                          setConfirmedGrandTotal(Number(order.grandTotal));
+                          
+                          if (!order._local) {
+                            setConfirmedGrandTotal(Number(order.grandTotal));
+                          } else {
+                            setConfirmedGrandTotal(null); // Fallback to live frontend math
+                          }
+                          
                           setCart(
                             (order.items || [])
                               .filter((item: any) => !item.isVoided)
                               .map((item: any) => ({
-                                cartKey:       item.id,
+                                cartKey:       item.id || String(Math.random()),
                                 id:            item.menuItemId,
-                                name:          item.name,
+                                name:          item.name || item.menuItem?.name || 'Item',
                                 price:         Number(item.unitPrice || item.price || 0),
                                 qty:           Number(item.quantity  || item.qty   || 1),
                                 cgstRate:      Number(item.cgstRate  || 0),
@@ -523,7 +671,7 @@ export default function PosPage() {
                               })),
                           );
                           setShowOpenOrders(false);
-                          toast.success(`Loaded order ${o.orderNumber}`);
+                          toast.success(`Loaded order ${order.orderNumber}`);
                         } catch {
                           toast.error('Failed to load order');
                         } finally {
@@ -544,7 +692,7 @@ export default function PosPage() {
                         <span className="badge-slate capitalize text-xs">{o.status}</span>
                       </div>
                       <div className="text-xs text-slate-900 dark:text-slate-400 mt-0.5">
-                        {o.table?.name || o.type?.replace('_', ' ')} · ₹{Number(o.grandTotal || 0).toFixed(0)}
+                        {o.table?.name || o.type?.replace('_', ' ')} · ₹{Number(o.grandTotal || 0).toFixed(2)}
                       </div>
                     </button>
                   ))}
@@ -636,13 +784,43 @@ export default function PosPage() {
         </div>
       </div>
 
+      {/* ── Mobile FAB ────────────────────────────────────────────────────── */}
+      {!showMobileCart && cart.length > 0 && (
+        <div className="lg:hidden absolute bottom-4 left-4 right-4 z-40">
+          <button 
+            onClick={() => setShowMobileCart(true)}
+            className="w-full bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold py-3.5 px-4 rounded-xl shadow-lg flex items-center justify-between transition-transform active:scale-95"
+          >
+            <div className="flex items-center gap-2">
+              <ShoppingCartIcon />
+              <span>View Cart • {cart.length} item{cart.length > 1 ? 's' : ''}</span>
+            </div>
+            <span>₹{billingGrandTotal.toFixed(2)}</span>
+          </button>
+        </div>
+      )}
+
       {/* ── Right: Cart ───────────────────────────────────────────────────── */}
-      <div className="w-80 flex-shrink-0 flex flex-col border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+      <div className={cn(
+        "flex-shrink-0 flex flex-col bg-white dark:bg-slate-900",
+        "lg:w-80 lg:border-l lg:border-slate-200 dark:lg:border-slate-800 lg:static lg:flex",
+        showMobileCart ? "fixed inset-0 z-50 w-full h-full" : "hidden"
+      )}>
 
         {/* Cart header */}
         <div className="p-4 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-slate-900 dark:text-white">Current Order</h2>
+            <div className="flex items-center gap-2">
+              {showMobileCart && (
+                <button 
+                  onClick={() => setShowMobileCart(false)} 
+                  className="lg:hidden p-1 -ml-1 text-slate-900 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md"
+                >
+                  <X size={20} />
+                </button>
+              )}
+              <h2 className="font-semibold text-slate-900 dark:text-white">Current Order</h2>
+            </div>
             {cart.length > 0 && (
               <button onClick={resetPosState} className="text-xs text-red-600 dark:text-red-400 hover:text-red-300">
                 Clear
@@ -876,6 +1054,21 @@ export default function PosPage() {
                 <span>GST</span>
                 <span>₹{gstTotal.toFixed(2)}</span>
               </div>
+              
+              {(() => {
+                const rawTotal = subtotal - discountAmount + gstTotal;
+                const roundOff = Math.round(rawTotal) - rawTotal;
+                if (Math.abs(roundOff) > 0.001) {
+                  return (
+                    <div className="flex justify-between text-slate-900 dark:text-slate-500 text-xs">
+                      <span>Round-off</span>
+                      <span>{roundOff > 0 ? '+' : ''}{roundOff.toFixed(2)}</span>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+
               <div className="flex justify-between text-slate-900 dark:text-white font-bold text-base border-t border-slate-300 dark:border-slate-700 pt-2">
                 <span>Total</span>
                 <span className={cn(isComplimentary && 'line-through text-slate-900 dark:text-slate-500')}>
