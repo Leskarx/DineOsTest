@@ -119,7 +119,7 @@ export class HotelService {
     @InjectRepository(Payment)
     private readonly paymentRepo: Repository<Payment>,
     private readonly dataSource: DataSource,
-  ) {}
+  ) { }
 
   // ── Room Types ──────────────────────────────────────────────────────────────
 
@@ -229,7 +229,7 @@ export class HotelService {
   ): Promise<Room> {
     const room = await this.roomRepo.findOne({ where: { id, tenantId } });
     if (!room) throw new NotFoundException("Room not found");
-    
+
     const statusChanged = data.status && data.status !== room.status;
     const newStatus = data.status;
 
@@ -250,7 +250,7 @@ export class HotelService {
   ): Promise<Room> {
     const room = await this.roomRepo.findOne({ where: { id, tenantId } });
     if (!room) throw new NotFoundException("Room not found");
-    
+
     const statusChanged = status !== room.status;
     room.status = status;
     const savedRoom = await this.roomRepo.save(room);
@@ -281,7 +281,7 @@ export class HotelService {
     } else if (status === RoomStatus.CLEANING || status === RoomStatus.MAINTENANCE) {
       const today = new Date().toISOString().split("T")[0];
       const taskType = status === RoomStatus.CLEANING ? HkTaskType.STAYOVER : HkTaskType.MAINTENANCE;
-      
+
       const existingTask = await this.hkRepo.findOne({
         where: {
           roomId,
@@ -706,7 +706,7 @@ export class HotelService {
       description: dto.description,
       amount:
         dto.chargeType === ChargeType.ADVANCE ||
-        dto.chargeType === ChargeType.DISCOUNT
+          dto.chargeType === ChargeType.DISCOUNT
           ? -Math.abs(dto.amount) // credits are stored as negative
           : dto.amount,
       chargeType: dto.chargeType,
@@ -834,6 +834,235 @@ export class HotelService {
     });
   }
 
+  // ── Reports ─────────────────────────────────────────────────────────────────
+
+  async getRevenueReport(tenantId: string, branchId: string, from: Date, to: Date) {
+    return this.dataSource.query(
+      `
+    SELECT
+      DATE(r.check_in_date)           AS date,
+      COUNT(r.id)::int                AS bookings,
+      COALESCE(SUM(r.total_amount),0) AS revenue,
+      COALESCE(SUM(r.tax_amount),0)   AS tax,
+      COALESCE(SUM(r.total_amount - r.tax_amount),0) AS net_revenue
+    FROM hotel_reservations r
+    WHERE r.tenant_id  = $1
+      AND r.branch_id  = $2
+      AND r.status     NOT IN ('cancelled','no_show')
+      AND r.check_in_date BETWEEN $3 AND $4
+    GROUP BY DATE(r.check_in_date)
+    ORDER BY DATE(r.check_in_date)
+    `,
+      [tenantId, branchId, from.toISOString().slice(0, 10), to.toISOString().slice(0, 10)],
+    );
+  }
+
+  async getBookingsReport(tenantId: string, branchId: string, from: Date, to: Date) {
+    return this.dataSource.query(
+      `
+    SELECT
+      r.id                                        AS booking_id,
+      r.booking_ref                               AS booking_ref,
+      g.name                                      AS guest_name,
+      g.email                                     AS guest_email,
+      g.phone                                     AS guest_phone,
+      rm.room_number,
+      r.check_in_date                             AS check_in,
+      r.check_out_date                            AS check_out,
+      r.num_nights                                AS nights,
+      r.status,
+      r.total_amount                              AS amount,
+      r.balance_due,
+      COALESCE(b.status::text, 'unpaid')          AS payment_status
+    FROM hotel_reservations r
+    LEFT JOIN hotel_guests   g  ON g.id  = r.primary_guest_id
+    LEFT JOIN hotel_rooms    rm ON rm.id = r.room_id
+    LEFT JOIN bills          b  ON b.reservation_id = r.id
+    WHERE r.tenant_id  = $1
+      AND r.branch_id  = $2
+      AND r.check_in_date BETWEEN $3 AND $4
+    ORDER BY r.check_in_date DESC
+    `,
+      [tenantId, branchId, from.toISOString().slice(0, 10), to.toISOString().slice(0, 10)],
+    );
+  }
+
+  async getRoomsPerformanceReport(tenantId: string, branchId: string, from: Date, to: Date) {
+    return this.dataSource.query(
+      `
+    SELECT
+      rm.room_number,
+      rt.name                                              AS room_type,
+      COUNT(r.id)::int                                     AS bookings,
+      COALESCE(
+        ROUND(
+          COUNT(r.id)::numeric /
+          NULLIF(($4::date - $3::date + 1), 0) * 100
+        ,0),0)::int                                        AS occupancy,
+      COALESCE(SUM(r.total_amount),0)                      AS revenue,
+      COALESCE(ROUND(AVG(r.rate_per_night)::numeric,2),0)  AS avg_rate
+    FROM hotel_rooms rm
+    LEFT JOIN hotel_room_types rt ON rt.id = rm.room_type_id
+    LEFT JOIN hotel_reservations r
+      ON r.room_id   = rm.id
+     AND r.status   NOT IN ('cancelled','no_show')
+     AND r.check_in_date BETWEEN $3 AND $4
+    WHERE rm.tenant_id = $1
+      AND rm.branch_id = $2
+      AND rm.is_active = true
+    GROUP BY rm.id, rm.room_number, rt.name
+    ORDER BY revenue DESC
+    `,
+      [tenantId, branchId, from.toISOString().slice(0, 10), to.toISOString().slice(0, 10)],
+    );
+  }
+
+  async getOccupancySummary(tenantId: string, branchId: string) {
+    const rows = await this.dataSource.query(
+      `
+    SELECT
+      COUNT(*)::int                                                      AS total_rooms,
+      COUNT(*) FILTER (WHERE status = 'occupied')::int                  AS occupied_rooms,
+      COUNT(*) FILTER (WHERE status = 'available')::int                 AS available_rooms,
+      COUNT(*) FILTER (WHERE status IN ('maintenance','out_of_order'))::int AS maintenance_rooms,
+      COALESCE(ROUND(
+        COUNT(*) FILTER (WHERE status = 'occupied')::numeric /
+        NULLIF(COUNT(*),0) * 100
+      ,0),0)::int                                                        AS occupancy_today
+    FROM hotel_rooms
+    WHERE tenant_id = $1
+      AND branch_id = $2
+      AND is_active = true
+    `,
+      [tenantId, branchId],
+    );
+    return rows[0] ?? {
+      total_rooms: 0,
+      occupied_rooms: 0,
+      available_rooms: 0,
+      maintenance_rooms: 0,
+      occupancy_today: 0,
+    };
+  }
+
+  async getPaymentsReport(tenantId: string, branchId: string, from: Date, to: Date) {
+    return this.dataSource.query(
+      `
+    SELECT
+      p.method,
+      COUNT(p.id)::int                 AS transaction_count,
+      COALESCE(SUM(p.amount),0)        AS total_amount
+    FROM payments p
+    JOIN bills b ON b.id = p.bill_id
+    WHERE p.tenant_id  = $1
+      AND b.branch_id  = $2
+      AND p.created_at BETWEEN $3 AND $4
+    GROUP BY p.method
+    ORDER BY total_amount DESC
+    `,
+      [tenantId, branchId, from, to],
+    );
+  }
+
+  async getGstReport(tenantId: string, branchId: string, from: Date, to: Date) {
+    return this.dataSource.query(
+      `
+    SELECT
+      TO_CHAR(DATE_TRUNC('month', r.check_in_date::date), 'YYYY-MM-DD') AS month,
+      COUNT(r.id)::int                                                    AS total_invoices,
+      COALESCE(SUM(r.total_amount - r.tax_amount),0)                      AS taxable_value,
+      COALESCE(SUM(r.tax_amount / 2),0)                                   AS cgst,
+      COALESCE(SUM(r.tax_amount / 2),0)                                   AS sgst,
+      0                                                                    AS igst,
+      COALESCE(SUM(r.tax_amount),0)                                        AS total_tax,
+      COALESCE(SUM(r.total_amount),0)                                      AS gross_value
+    FROM hotel_reservations r
+    WHERE r.tenant_id  = $1
+      AND r.branch_id  = $2
+      AND r.status     NOT IN ('cancelled','no_show')
+      AND r.check_in_date BETWEEN $3 AND $4
+    GROUP BY DATE_TRUNC('month', r.check_in_date::date)
+    ORDER BY DATE_TRUNC('month', r.check_in_date::date)
+    `,
+      [tenantId, branchId, from.toISOString().slice(0, 10), to.toISOString().slice(0, 10)],
+    );
+  }
+
+  async getFrontDeskReport(tenantId: string, branchId: string, from: Date, to: Date) {
+    return this.dataSource.query(
+      `
+    SELECT
+      u.id                                           AS staff_id,
+      CONCAT(u.first_name, ' ', COALESCE(u.last_name, '')) AS staff_name,
+      COUNT(r.id) FILTER (WHERE r.actual_check_in  IS NOT NULL)::int AS check_ins,
+      COUNT(r.id) FILTER (WHERE r.actual_check_out IS NOT NULL)::int AS check_outs,
+      COUNT(r.id)::int                               AS bookings_handled,
+      COALESCE(SUM(r.total_amount),0)                AS revenue_managed,
+      COALESCE(ROUND(AVG(r.total_amount)::numeric,2),0) AS avg_booking_value
+    FROM hotel_reservations r
+    JOIN users u ON u.id = r.created_by_id
+    WHERE r.tenant_id  = $1
+      AND r.branch_id  = $2
+      AND r.status     NOT IN ('cancelled','no_show')
+      AND r.check_in_date BETWEEN $3 AND $4
+    GROUP BY u.id, u.first_name, u.last_name
+    ORDER BY revenue_managed DESC
+    `,
+      [tenantId, branchId, from.toISOString().slice(0, 10), to.toISOString().slice(0, 10)],
+    );
+  }
+
+  async getGstr1Export(tenantId: string, branchId: string, from: Date, to: Date) {
+    const gstData = await this.getGstReport(tenantId, branchId, from, to);
+
+    // Transform to GSTR-1 format
+    const gstr1Data = {
+      version: '1.0',
+      gstin: process.env.GSTIN || 'GSTIN_NUMBER',
+      fp: `${from.getFullYear()}${String(from.getMonth() + 1).padStart(2, '0')}`,
+      b2b: gstData.map((invoice: any) => ({
+        ctin: invoice.gstin || 'NA',
+        cfs: 'N',
+        inv: [{
+          inum: invoice.invoice_number || `INV-${invoice.month}`,
+          idt: invoice.month,
+          val: Math.round(invoice.gross_value * 100) / 100,
+          inv_typ: 'R',
+          pos: 'NA',
+          rchrg: 'N',
+          itms: [{
+            num: 1,
+            itm_det: {
+              txval: Math.round(invoice.taxable_value * 100) / 100,
+              irate: Math.round((invoice.total_tax / invoice.taxable_value) * 10000) / 100,
+              camt: Math.round(invoice.cgst * 100) / 100,
+              samt: Math.round(invoice.sgst * 100) / 100,
+              iamt: Math.round(invoice.igst * 100) / 100,
+              csamt: 0,
+            },
+            itc: {
+              elg: 'N',
+              txval: 0,
+              irate: 0,
+              camt: 0,
+              samt: 0,
+              iamt: 0,
+            }
+          }]
+        }]
+      })),
+      b2cl: [],
+      b2cs: [],
+      cdnr: [],
+      cdnur: [],
+      hsn: [],
+      nil: [],
+      exp: [],
+      txpd: []
+    };
+
+    return gstr1Data;
+  }
   // ── Housekeeping ────────────────────────────────────────────────────────────
 
   async listHousekeepingTasks(

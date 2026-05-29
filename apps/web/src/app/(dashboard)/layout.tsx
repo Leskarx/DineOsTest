@@ -56,8 +56,14 @@ const navSections: NavSection[] = [
         roles: ['owner', 'manager', 'hotel_manager']
       },
       { href: '/hotel/housekeeping', label: 'Housekeeping', icon: SprayCan, roles: ['owner', 'manager', 'hotel_manager', 'housekeeping', 'receptionist'] },
-    
+
       { href: '/hotel/billing', label: 'Billing', icon: Receipt, roles: ['owner', 'manager', 'hotel_manager', 'cashier'] },
+      {
+        href: '/hotel/report',
+        label: 'Report',
+        icon: BarChart3,
+        roles: ['owner', 'manager', 'hotel_manager'],
+      },
     ],
   },
   {
@@ -142,10 +148,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <div className="space-y-0.5">
                   {allowedItems.map(({ href, label, icon: Icon, exact }) => {
                     const isActive = exact ? pathname === href : pathname === href || pathname.startsWith(href + '/');
-                    const displayLabel = href === '/executive' 
+                    const displayLabel = href === '/executive'
                       ? (user?.role === 'owner' ? 'Owner Dashboard' : 'Branch Summary')
                       : label;
-                    
+
                     return (
                       <Link
                         key={href}

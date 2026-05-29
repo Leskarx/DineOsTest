@@ -17,7 +17,7 @@ export class ShiftsService {
     @InjectRepository(Shift) private readonly shiftRepo: Repository<Shift>,
     @InjectRepository(ShiftDenomination) private readonly denomRepo: Repository<ShiftDenomination>,
     @InjectDataSource() private readonly db: DataSource,
-  ) {}
+  ) { }
 
   async openShift(branchId: string, tenantId: string, userId: string, openingCash: number, denominations?: DenominationDto) {
     const existing = await this.shiftRepo.findOne({
@@ -123,11 +123,74 @@ export class ShiftsService {
     };
   }
 
-  async listShifts(branchId: string, tenantId: string, limit = 20) {
-    return this.shiftRepo.find({
-      where: { branchId, tenantId },
-      order: { createdAt: 'DESC' },
-      take: limit,
-    });
+  async listShifts(
+    branchId: string,
+    tenantId: string,
+    limit = 20,
+    offset = 0,
+    filters?: { status?: string; startDate?: string; endDate?: string; shiftNumber?: string }
+  ) {
+    const query = this.shiftRepo.createQueryBuilder('shift')
+      .where('shift.branchId = :branchId', { branchId })
+      .andWhere('shift.tenantId = :tenantId', { tenantId });
+
+    // Apply filters if provided
+    if (filters?.status) {
+      query.andWhere('shift.status = :status', { status: filters.status });
+    }
+
+    if (filters?.shiftNumber) {
+      query.andWhere('shift.shiftNumber ILIKE :shiftNumber', { shiftNumber: `%${filters.shiftNumber}%` });
+    }
+
+    if (filters?.startDate) {
+      query.andWhere('shift.openedAt >= :startDate', { startDate: new Date(filters.startDate) });
+    }
+
+    if (filters?.endDate) {
+      query.andWhere('shift.openedAt <= :endDate', { endDate: new Date(filters.endDate) });
+    }
+
+    const shifts = await query
+      .orderBy('shift.createdAt', 'DESC')
+      .skip(offset)
+      .take(limit)
+      .getMany();
+
+    return shifts;
+  }
+
+  // ADD THIS MISSING METHOD
+  async getShiftStats(
+    branchId: string,
+    tenantId: string,
+    startDate?: Date,
+    endDate?: Date
+  ) {
+    const query = this.shiftRepo.createQueryBuilder('shift')
+      .where('shift.branchId = :branchId', { branchId })
+      .andWhere('shift.tenantId = :tenantId', { tenantId })
+      .andWhere('shift.status = :status', { status: ShiftStatus.CLOSED });
+
+    if (startDate) {
+      query.andWhere('shift.closedAt >= :startDate', { startDate });
+    }
+
+    if (endDate) {
+      query.andWhere('shift.closedAt <= :endDate', { endDate });
+    }
+
+    const shifts = await query.getMany();
+
+    const totalSales = shifts.reduce((sum, s) => sum + Number(s.totalSales), 0);
+    const totalCashDifference = shifts.reduce((sum, s) => sum + Number(s.cashDifference), 0);
+    const averageShiftValue = shifts.length > 0 ? totalSales / shifts.length : 0;
+
+    return {
+      totalShifts: shifts.length,
+      totalSales,
+      totalCashDifference,
+      averageShiftValue,
+    };
   }
 }

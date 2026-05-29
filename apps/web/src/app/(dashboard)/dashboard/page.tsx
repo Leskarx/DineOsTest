@@ -118,12 +118,17 @@ export default function DashboardPage() {
     refetchInterval: 20_000,
   });
 
-  // Current shift
-  const { data: shift, refetch: refetchShift } = useQuery({
+  // FIXED: Current shift - properly extract the nested data property
+  const { data: shiftResponse, refetch: refetchShift } = useQuery({
     queryKey: ['current-shift', branchId],
-    queryFn: () => apiFetch('/api/v1/shifts/current').then((r) => r.data).catch(() => null),
+    queryFn: () => apiFetch('/api/v1/shifts/current').catch(() => ({ data: null })),
     refetchInterval: 60_000,
   });
+
+  // Extract the actual shift object (or null if no active shift)
+  const shift = shiftResponse?.data?.data || null;
+  console.log('shiftResponse = ', shiftResponse);
+  console.log('shift = ', shift);
 
   const stats = [
     { label: "Today's Sales", value: `₹${Number(summary?.todaySales || 0).toLocaleString('en-IN')}`, icon: IndianRupee, color: 'text-amber-600 dark:text-amber-400' },
@@ -140,7 +145,7 @@ export default function DashboardPage() {
           <p className="text-sm text-slate-900 dark:text-slate-400">{dayjs().format('dddd, D MMMM YYYY')}</p>
         </div>
 
-        {/* Shift Status Widget */}
+        {/* Shift Status Widget - Now correctly shows "No Active Shift" when shift is closed */}
         {shift ? (
           <div className="flex items-center gap-3 bg-emerald-100 dark:bg-emerald-900/20 border border-emerald-300 dark:border-emerald-700 rounded-xl px-4 py-2.5">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse flex-shrink-0" />
@@ -201,7 +206,7 @@ export default function DashboardPage() {
               />
               <Bar dataKey="revenue" radius={[4, 4, 0, 0]}>
                 {(hourly || []).map((_: any, i: number) => (
-                  <Cell key={i} fill={i === dayjs().hour()  ? '#f59e0b' : 'var(--chart-bar-bg)'} />
+                  <Cell key={i} fill={i === dayjs().hour() ? '#f59e0b' : 'var(--chart-bar-bg)'} />
                 ))}
               </Bar>
             </BarChart>
