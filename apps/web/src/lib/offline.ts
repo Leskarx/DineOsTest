@@ -6,7 +6,7 @@ import { openDB, IDBPDatabase } from 'idb';
 import { generateId } from './utils';
 
 const DB_NAME = 'dinestay-offline';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 interface SyncItem {
   id: string;
@@ -51,6 +51,10 @@ export async function getDb(): Promise<IDBPDatabase> {
       }
       if (!database.objectStoreNames.contains('meta')) {
         database.createObjectStore('meta', { keyPath: 'key' });
+      }
+      // Persistent mapping: OFFLINE-xxx → real-uuid survives page refreshes
+      if (!database.objectStoreNames.contains('resolvedIds')) {
+        database.createObjectStore('resolvedIds', { keyPath: 'offlineId' });
       }
     },
   });
@@ -106,6 +110,21 @@ export async function getLocalOrders(branchId: string): Promise<any[]> {
   return db.getAllFromIndex('orders', 'by-branch', branchId);
 }
 
+// ─── Resolved ID mappings ────────────────────────────────────────────────────
+// Persist OFFLINE-xxx → real-uuid so BillingModal & PosStore can resolve
+// the correct server ID even after a page refresh.
+
+export async function saveResolvedId(offlineId: string, realId: string) {
+  const db = await getDb();
+  await db.put('resolvedIds', { offlineId, realId, savedAt: Date.now() });
+}
+
+export async function getResolvedId(offlineId: string): Promise<string | null> {
+  const db = await getDb();
+  const row = await db.get('resolvedIds', offlineId);
+  return row?.realId ?? null;
+}
+
 // ─── Sync Queue ──────────────────────────────────────────────────────────────
 
 export async function enqueueSync(item: Omit<SyncItem, 'id' | 'createdAt' | 'retryCount'>) {
@@ -158,6 +177,42 @@ export async function flushSyncQueue(
     }
   }
 
+  // Heal orphaned bills: bills with OFFLINE- orderId but no matching order-create in queue.
+  // Try to resolve via persistent resolvedIds store; drop if still unresolvable.
+  const orderCreateIds = new Set(
+    items.filter((i) => i.entityType === 'orders' && i.operation === 'create').map((i) => i.entityId)
+  );
+  for (const item of items) {
+    if (item.entityType === 'billing/bills' && item.entityId.startsWith('OFFLINE-')) {
+      if (!orderCreateIds.has(item.entityId)) {
+        // No matching order-create — try persistent store
+        const realOrderId = await getResolvedId(item.entityId);
+        if (realOrderId) {
+          // Rewrite the bill payload in DB with the real order UUID
+          const db = await getDb();
+          let payloadStr = JSON.stringify(item.payload);
+          payloadStr = payloadStr.replaceAll(item.entityId, realOrderId);
+          item.payload = JSON.parse(payloadStr);
+          item.entityId = realOrderId;
+          await db.put('syncQueue', item);
+          console.log('[Offline] Healed orphaned bill using persisted ID:', realOrderId);
+        } else {
+          // Truly irrecoverable — no order on server, no mapping
+          console.warn('[Offline] Dropping orphaned bill with no resolvable order:', item.id);
+          await removeSyncItem(item.id);
+        }
+      }
+    }
+  }
+
+  // Re-fetch items after cleanup (some may have been healed or dropped)
+  const healedItems = (await getPendingSyncItems()).sort((a, b) => a.createdAt - b.createdAt);
+  items.length = 0;
+  for (const item of healedItems) {
+    if (item.retryCount < MAX_RETRIES) items.push(item);
+    else { console.warn('[Offline] Dropping item after max retries:', item.id); await removeSyncItem(item.id); }
+  }
+
   let done = 0;
   const idMap: Record<string, string> = {};
 
@@ -183,7 +238,9 @@ export async function flushSyncQueue(
 
       if (realId && typeof realId === 'string' && item.entityId.startsWith('OFFLINE-')) {
         idMap[item.entityId] = realId;
-        
+        // Persist so BillingModal and PosStore can look up the real UUID even after refresh
+        await saveResolvedId(item.entityId, realId);
+
         // Rewrite all pending items in DB to permanently save the new real ID
         const db = await getDb();
         const pending = await db.getAll('syncQueue');

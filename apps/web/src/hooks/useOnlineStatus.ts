@@ -1,7 +1,8 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { flushSyncQueue, getPendingSyncItems } from '@/lib/offline';
+import { flushSyncQueue, getPendingSyncItems, getResolvedId } from '@/lib/offline';
 import { apiPost, apiPatch, apiDelete } from '@/lib/api';
+import { usePosStore } from '@/store/pos.store';
 
 export function useOnlineStatus(): boolean {
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
@@ -53,6 +54,16 @@ export function useOnlineStatus(): boolean {
             await apiDelete(url);
           }
         });
+
+        // After sync: if PosStore still holds an OFFLINE-xxx order ID, patch it to real UUID
+        const currentOrder = usePosStore.getState().currentOrder;
+        if (currentOrder?.startsWith('OFFLINE-')) {
+          const resolved = await getResolvedId(currentOrder);
+          if (resolved) {
+            usePosStore.getState().setCurrentOrder(resolved);
+            console.log('[Offline] Updated PosStore currentOrder:', currentOrder, '→', resolved);
+          }
+        }
       }
     };
 

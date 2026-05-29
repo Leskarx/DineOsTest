@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { apiPost, apiPatch, apiFetch } from '@/lib/api';
-import { enqueueSync } from '@/lib/offline';
+import { enqueueSync, getResolvedId, getPendingSyncItems } from '@/lib/offline';
 import { useAuthStore } from '@/store/auth.store';
 import { usePosStore } from '@/store/pos.store';
 import { printHtml } from '@/lib/printer';
@@ -90,6 +90,15 @@ export function BillingModal({
       const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
       let oid = orderId;
 
+      // Resolve OFFLINE- IDs that were already synced in a previous session
+      // (PosStore may still hold the old OFFLINE-xxx even though the order is on the server)
+      if (oid?.startsWith('OFFLINE-')) {
+        const resolved = await getResolvedId(oid);
+        if (resolved) {
+          oid = resolved;
+        }
+      }
+
       // 1. Create order if needed (skip if already have an OFFLINE- or real order ID)
       if (!oid) {
         const payload = {
@@ -136,9 +145,9 @@ export function BillingModal({
         }
       }
 
-      // 3. Fetch server-confirmed total
+      // 3. Fetch server-confirmed total (only when oid is a real UUID, not offline)
       let serverGrandTotal = defaultPayable;
-      if (!isOffline) {
+      if (!isOffline && oid && !oid.startsWith('OFFLINE-')) {
         try {
           const orderRes = await apiFetch(`/api/v1/orders/${oid}`);
           serverGrandTotal = round2(Number(orderRes.data.grandTotal));
@@ -186,6 +195,21 @@ export function BillingModal({
 
       // 6. Create bill
       if (isOffline) {
+        // Safety check: if oid is still OFFLINE-xxx, verify the order-create is still
+        // in the sync queue. If it's already gone (order synced but ID not resolved),
+        // we cannot safely bill — the bill would be stuck forever.
+        if (oid!.startsWith('OFFLINE-')) {
+          const queue = await getPendingSyncItems();
+          const orderExists = queue.some(
+            (q) => q.entityId === oid && q.entityType === 'orders' && q.operation === 'create'
+          );
+          if (!orderExists) {
+            throw new Error(
+              'This order has already synced but the bill link is missing. Please refresh the page and re-open the order to bill it.'
+            );
+          }
+        }
+
         // entityId must be the same OFFLINE-xxx as the order so the DB rewrite
         // engine can update orderId inside this payload when the order syncs.
         await enqueueSync({
