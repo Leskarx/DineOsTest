@@ -562,9 +562,10 @@ export default function PosPage() {
         // New order created — set currentOrder so BillingModal links to it
         if (data?.id) {
           setCurrentOrder(data.id);
-          setCurrentOrderNumber(data.orderNumber ?? null);
-          // Mark all cart items as already sent
-          setCart((prev: any[]) => prev.map(i => ({ ...i, alreadySent: true })));
+          // NOTE: setCart only accepts an array, not a functional updater
+          // Read current cart from store directly before mapping
+          const latestCart = usePosStore.getState().cart;
+          setCart(latestCart.map((i: any) => ({ ...i, alreadySent: true })));
         } else {
           resetPosState();
         }
