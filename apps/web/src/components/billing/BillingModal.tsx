@@ -109,7 +109,7 @@ export function BillingModal({
             entityType: 'orders',
             entityId: oid,
             operation: 'create',
-            payload,
+            payload: { ...payload, isOfflineSync: true },
             branchId: branchId || '',
             tenantId: tenantId || '',
           });
@@ -186,12 +186,13 @@ export function BillingModal({
 
       // 6. Create bill
       if (isOffline) {
-        const mockBillId = `BILL-OFF-${Date.now()}`;
+        // IMPORTANT: use the same OFFLINE- id as entityId so the DB rewrite engine
+        // can replace orderId in this payload when the order syncs and gets a real UUID
         await enqueueSync({
           entityType: 'billing/bills',
-          entityId: mockBillId,
+          entityId: oid!,        // same OFFLINE-xxx as the order above
           operation: 'create',
-          payload: billPayload,
+          payload: { ...billPayload, isOfflineSync: true },
           branchId: branchId || '',
           tenantId: tenantId || '',
         });
