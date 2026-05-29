@@ -36,8 +36,18 @@ export function useOnlineStatus(): boolean {
           // payload legitimately contains "offlineId": "OFFLINE-xxx" which should NOT
           // trigger the guard. Only unrelated OFFLINE- refs should block processing.
           const ownId = item.entityId; // e.g. 'OFFLINE-1234'
-          const maskedPayload = ownId ? payloadStr.replaceAll(ownId, '__SELF__') : payloadStr;
-          const maskedEntityType = ownId ? entityType.replaceAll(ownId, '__SELF__') : entityType;
+          let maskedPayload = ownId ? payloadStr.replaceAll(ownId, '__SELF__') : payloadStr;
+          let maskedEntityType = ownId ? entityType.replaceAll(ownId, '__SELF__') : entityType;
+
+          // Also mask any OFFLINE- IDs that are already resolved in idMap
+          // (e.g. add-items with entityType 'orders/OFFLINE-xxx/items' where idMap already has OFFLINE-xxx)
+          for (const offlineId of Object.keys(idMap)) {
+            if (offlineId.startsWith('OFFLINE-')) {
+              maskedPayload = maskedPayload.replaceAll(offlineId, '__RESOLVED__');
+              maskedEntityType = maskedEntityType.replaceAll(offlineId, '__RESOLVED__');
+            }
+          }
+
           // entityId after idMap lookup: if still OFFLINE- and it's NOT the item's own id → foreign ref
           const entityIdIsUnresolved = entityId.startsWith('OFFLINE-') && entityId !== ownId;
 

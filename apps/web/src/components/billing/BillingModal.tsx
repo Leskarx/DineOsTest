@@ -195,6 +195,30 @@ export function BillingModal({
 
       // 6. Create bill
       if (isOffline) {
+        // ── Step 6a: Flush any unsent cart items as a KOT BEFORE the bill ──────────
+        // This handles: user adds item offline and bills directly without a separate KOT.
+        // Without this, the item never reaches the server and the bill misses it.
+        const unsentItems = cart.filter((i: any) => !i.alreadySent);
+        if (unsentItems.length > 0 && oid) {
+          await enqueueSync({
+            entityType: `orders/${oid}/items`,
+            entityId: '', // entityId='' for add-items; OFFLINE- in entityType gets rewritten by DB-rewrite engine
+            operation: 'create',
+            payload: {
+              items: unsentItems.map((i: any) => ({
+                menuItemId:  i.id,
+                quantity:    i.qty,
+                notes:       i.notes   || undefined,
+                variationId: i.variationId || undefined,
+              })),
+              isOfflineSync: true,
+            },
+            branchId: branchId || '',
+            tenantId: tenantId || '',
+          });
+          console.log(`[Offline] Queued ${unsentItems.length} unsent item(s) as add-items KOT before bill`);
+        }
+
         // Safety check: if oid is still OFFLINE-xxx, verify the order-create is still
         // in the sync queue. If it's already gone (order synced but ID not resolved),
         // we cannot safely bill — the bill would be stuck forever.
