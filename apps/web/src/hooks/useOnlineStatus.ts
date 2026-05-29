@@ -52,7 +52,9 @@ export function useOnlineStatus(): boolean {
           }
 
           if (item.operation === 'create') {
+            console.log(`[Offline Sync] → POST /api/v1/${entityType}`, payload);
             const res = await apiPost(`/api/v1/${entityType}`, payload);
+            console.log(`[Offline Sync] ✓ POST /api/v1/${entityType}`, res.data);
             return res.data?.id;
           }
           else if (item.operation === 'update') {
