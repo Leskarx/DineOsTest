@@ -140,7 +140,7 @@ function TicketCard({
   return (
     <div
       className={cn(
-        'bg-white dark:bg-slate-900 rounded-2xl border shadow-lg overflow-hidden flex flex-col min-h-[280px] transition-all',
+        'bg-white dark:bg-slate-900 rounded-2xl border shadow-lg overflow-hidden flex flex-col min-h-[160px] transition-all',
         allReady && 'border-emerald-500/70 ring-1 ring-emerald-500/30',
         !allReady && anyPending && 'border-orange-500/70',
         !allReady && !anyPending && anyPreparing && 'border-blue-500/50',
@@ -149,9 +149,9 @@ function TicketCard({
       )}
     >
       {/* Header */}
-      <div className="px-5 py-4 bg-slate-50 dark:bg-slate-800 border-b border-slate-300 dark:border-slate-700 flex items-start justify-between">
+      <div className="px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border-b border-slate-300 dark:border-slate-700 flex items-start justify-between">
         <div className="min-w-0 flex-1">
-          <h2 className="font-bold text-slate-900 dark:text-white text-lg truncate">
+          <h2 className="font-bold text-slate-900 dark:text-white text-base truncate">
             #{oldest?.order_order_number || orderNum}
           </h2>
           <div className="mt-1 flex items-center gap-2 text-sm text-slate-900 dark:text-slate-400 flex-wrap">
@@ -176,7 +176,7 @@ function TicketCard({
       </div>
 
       {/* Items */}
-      <div className="flex-1 p-4 space-y-3 overflow-y-auto max-h-[400px]">
+      <div className="flex-1 p-3 space-y-2 overflow-y-auto max-h-[300px]">
         {tickets.map((ticket) => (
           <div
             key={ticket.order_item_id}
@@ -188,12 +188,12 @@ function TicketCard({
               ticket.kds_status === 'acknowledged' && 'border-blue-500/30 bg-blue-500/5',
             )}
           >
-            <div className="min-w-[52px] h-12 rounded-lg bg-amber-500 text-slate-950 flex items-center justify-center font-black text-lg">
+            <div className="min-w-[36px] h-9 rounded-lg bg-amber-500 text-slate-950 flex items-center justify-center font-black text-base">
               {parseInt(String(ticket.quantity))}×
             </div>
 
             <div className="flex-1 min-w-0">
-              <p className="text-slate-900 dark:text-white font-semibold text-base leading-snug break-words">
+              <p className="text-slate-900 dark:text-white font-semibold text-sm leading-snug break-words">
                 {ticket.item_name}
               </p>
               {ticket.notes && (
@@ -219,14 +219,14 @@ function TicketCard({
       </div>
 
       {/* Footer */}
-      <div className="p-4 border-t border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/70">
+      <div className="p-3 border-t border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/70">
         {allReady ? (
-          <div className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-semibold py-2.5 px-3 text-sm">
+          <div className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-semibold py-2 px-3 text-sm">
             <CheckCircle size={15} />
             Ready for Service
           </div>
         ) : (
-          <div className={cn('grid gap-3', anyPending && anyPreparing ? 'grid-cols-2' : 'grid-cols-1')}>
+          <div className={cn('grid gap-2', anyPending && anyPreparing ? 'grid-cols-2' : 'grid-cols-1')}>
             {anyPending && (
               <button
                 onClick={() => {
@@ -236,7 +236,7 @@ function TicketCard({
                   onStartCooking(ids);
                 }}
                 disabled={isStartingCooking}
-                className="flex items-center justify-center gap-2 rounded-xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-600 transition-all text-slate-900 dark:text-white font-medium py-2.5 px-3 text-sm disabled:opacity-50"
+                className="flex items-center justify-center gap-2 rounded-xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-600 transition-all text-slate-900 dark:text-white font-medium py-2 px-3 text-sm disabled:opacity-50"
               >
                 {isStartingCooking
                   ? <Loader2 size={15} className="animate-spin" />
@@ -254,7 +254,7 @@ function TicketCard({
                   onMarkReady(ids);
                 }}
                 disabled={isMarkingReady}
-                className="flex items-center justify-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 transition-all text-slate-950 font-bold py-2.5 px-3 text-sm disabled:opacity-50"
+                className="flex items-center justify-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 transition-all text-slate-950 font-bold py-2 px-3 text-sm disabled:opacity-50"
               >
                 {isMarkingReady
                   ? <Loader2 size={15} className="animate-spin" />

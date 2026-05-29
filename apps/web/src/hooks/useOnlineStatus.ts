@@ -28,8 +28,7 @@ export function useOnlineStatus(): boolean {
           }
 
           if (item.operation === 'create') {
-            const url = entityId ? `/api/v1/${entityType}/${entityId}` : `/api/v1/${entityType}`;
-            const res = await apiPost(url, payload);
+            const res = await apiPost(`/api/v1/${entityType}`, payload);
             return res.data?.id;
           }
           else if (item.operation === 'update') {
