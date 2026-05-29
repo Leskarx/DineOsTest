@@ -20,11 +20,23 @@ export function useOnlineStatus(): boolean {
             payloadStr = payloadStr.replaceAll(offlineId, realId);
           }
           const payload = JSON.parse(payloadStr);
-          
+
           const entityId = item.entityId ? (idMap[item.entityId] || item.entityId) : '';
           let entityType = item.entityType;
           for (const [offlineId, realId] of Object.entries(idMap)) {
             entityType = entityType.replaceAll(offlineId, realId);
+          }
+
+          // Guard: if any OFFLINE- id is still unresolved, this item is stale/unrecoverable.
+          // Drop it from the queue to prevent backend crashes.
+          const stillHasOfflineId =
+            payloadStr.includes('"OFFLINE-') ||
+            entityType.includes('OFFLINE-') ||
+            entityId.startsWith('OFFLINE-');
+
+          if (stillHasOfflineId) {
+            console.warn('[Offline] Dropping stale unresolvable item from queue:', item.id, item.entityType);
+            return '__DROP__'; // signal to flush to remove this item
           }
 
           if (item.operation === 'create') {

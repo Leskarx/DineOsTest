@@ -48,6 +48,14 @@ export class BillingService {
   ) {}
 
   async createBill(dto: CreateBillDto): Promise<Bill> {
+    // Guard: reject unresolved offline IDs before they hit the DB
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!UUID_RE.test(dto.orderId)) {
+      throw new BadRequestException(
+        `Invalid orderId "${dto.orderId}". Offline orders must be synced before billing.`,
+      );
+    }
+
     const order = await this.orderRepo.findOne({
       where: { id: dto.orderId, tenantId: dto.tenantId },
       relations: ['items'],

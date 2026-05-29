@@ -149,6 +149,15 @@ export async function flushSyncQueue(
   for (const item of items) {
     try {
       const realId = await apiFn(item, idMap);
+
+      // '__DROP__' means the item is stale/unresolvable — purge it silently
+      if (realId === '__DROP__') {
+        await removeSyncItem(item.id);
+        done++;
+        onProgress?.(done, items.length);
+        continue;
+      }
+
       if (realId && typeof realId === 'string' && item.entityId.startsWith('OFFLINE-')) {
         idMap[item.entityId] = realId;
         
