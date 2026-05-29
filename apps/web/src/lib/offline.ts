@@ -163,7 +163,7 @@ export async function flushSyncQueue(
         
         // Rewrite all pending items in DB to permanently save the new real ID
         const db = await getDb();
-        const pending = await db.getAllFromIndex('syncQueue', 'by-time');
+        const pending = await db.getAll('syncQueue');
         for (const p of pending) {
           let changed = false;
           let payloadStr = p.payload ? JSON.stringify(p.payload) : '';
