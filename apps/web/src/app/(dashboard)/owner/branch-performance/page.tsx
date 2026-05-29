@@ -19,7 +19,7 @@ const fmt = (n: number) =>
 
 const fmtShort = (n: number) => {
   if (n >= 1_00_000) return `₹${(n / 1_00_000).toFixed(1)}L`;
-  if (n >= 1_000)   return `₹${(n / 1_000).toFixed(1)}K`;
+  if (n >= 1_000) return `₹${(n / 1_000).toFixed(1)}K`;
   return fmt(n);
 };
 
@@ -59,7 +59,7 @@ function GrowthBadge({ pct }: { pct: number | null }) {
   return (
     <span className={`inline-flex items-center gap-1 text-xs font-semibold px-1.5 py-0.5 rounded-full
       ${up ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
-           : 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400'}`}>
+        : 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400'}`}>
       {up ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
       {up ? '+' : ''}{pct}%
     </span>
@@ -70,7 +70,7 @@ function GrowthBadge({ pct }: { pct: number | null }) {
 
 export default function BranchPerformancePage() {
   const [from, setFrom] = useState(monthStart());
-  const [to, setTo]     = useState(today());
+  const [to, setTo] = useState(today());
 
   const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey: ['branch-performance', from, to],
@@ -92,8 +92,8 @@ export default function BranchPerformancePage() {
     ]);
     const csv = [headers, ...rows].map((r) => r.join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
     a.href = url; a.download = `branch-performance-${from}-${to}.csv`; a.click();
     URL.revokeObjectURL(url);
   };

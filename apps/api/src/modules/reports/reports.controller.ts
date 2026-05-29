@@ -12,7 +12,7 @@ import { ReportsService } from './reports.service';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller({ path: 'reports', version: '1' })
 export class ReportsController {
-  constructor(private readonly svc: ReportsService) {}
+  constructor(private readonly svc: ReportsService) { }
 
   @Get('dashboard')
   @Roles('cashier', 'manager', 'owner', 'restaurant_manager')
@@ -152,5 +152,17 @@ export class ReportsController {
     @Query('to') to: string,
   ) {
     return this.svc.getBranchPerformance(t, from, to);
+  }
+
+  @Get('branch-summary')
+  @Roles('owner', 'manager', 'restaurant_manager', 'hotel_manager')
+  @ApiOperation({ summary: 'Single-branch combined summary for branch managers' })
+  branchSummary(
+    @TenantId() t: string,
+    @BranchId() b: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.svc.getBranchSummary(b, t, from, to);
   }
 }
