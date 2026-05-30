@@ -190,8 +190,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <span>{isOnline ? 'Online' : 'Offline — syncing'}</span>
             </div>
             {isFetching > 0 && (
-              <div className="text-amber-500 animate-spin pr-2" title="Loading data...">
-                <Loader2 size={14} />
+              <div className="text-amber-500 pr-2" title="Loading data...">
+                <Loader2 size={14} className="animate-spin" />
               </div>
             )}
           </div>
