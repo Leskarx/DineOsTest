@@ -1,12 +1,12 @@
 import {
   Controller, Get, Post, Put, Delete,
-  Body, Param, UseGuards,
+  Body, Param, UseGuards, ForbiddenException,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
-import { TenantId, BranchId } from '../common/decorators/tenant.decorator';
+import { TenantId, BranchId, CurrentUser } from '../common/decorators/tenant.decorator';
 import { TablesService } from './tables.service';
 import { Table } from './entities/table.entity';
 import { TableSection } from './entities/table-section.entity';
@@ -28,31 +28,46 @@ export class TablesController {
   }
 
   @Post('sections')
-  @Roles('manager', 'owner')
-  @ApiOperation({ summary: 'Create table section (manager/owner)' })
+  @Roles('manager', 'owner', 'restaurant_manager', 'waiter')
+  @ApiOperation({ summary: 'Create table section (manager/owner or permitted waiter)' })
   createSection(
     @Body() body: Partial<TableSection>,
     @TenantId() t: string,
     @BranchId() b: string,
+    @CurrentUser() reqUser: any,
   ) {
+    if (reqUser.role === 'waiter' && !reqUser.permissions?.canManageTables) {
+      throw new ForbiddenException('You do not have permission to manage tables');
+    }
     return this.svc.createSection({ ...body, tenantId: t, branchId: b || body.branchId });
   }
 
   @Put('sections/:id')
-  @Roles('manager', 'owner')
-  @ApiOperation({ summary: 'Update table section (manager/owner)' })
+  @Roles('manager', 'owner', 'restaurant_manager', 'waiter')
+  @ApiOperation({ summary: 'Update table section (manager/owner or permitted waiter)' })
   updateSection(
     @Param('id') id: string,
     @Body() body: Partial<TableSection>,
     @TenantId() t: string,
+    @CurrentUser() reqUser: any,
   ) {
+    if (reqUser.role === 'waiter' && !reqUser.permissions?.canManageTables) {
+      throw new ForbiddenException('You do not have permission to manage tables');
+    }
     return this.svc.updateSection(id, t, body);
   }
 
   @Delete('sections/:id')
-  @Roles('manager', 'owner')
-  @ApiOperation({ summary: 'Delete table section — must be empty (manager/owner)' })
-  removeSection(@Param('id') id: string, @TenantId() t: string) {
+  @Roles('manager', 'owner', 'restaurant_manager', 'waiter')
+  @ApiOperation({ summary: 'Delete table section — must be empty (manager/owner or permitted waiter)' })
+  removeSection(
+    @Param('id') id: string,
+    @TenantId() t: string,
+    @CurrentUser() reqUser: any,
+  ) {
+    if (reqUser.role === 'waiter' && !reqUser.permissions?.canManageTables) {
+      throw new ForbiddenException('You do not have permission to manage tables');
+    }
     return this.svc.removeSection(id, t);
   }
 
@@ -72,13 +87,17 @@ export class TablesController {
   }
 
   @Post()
-  @Roles('manager', 'owner')
-  @ApiOperation({ summary: 'Create table (manager/owner)' })
+  @Roles('manager', 'owner', 'restaurant_manager', 'waiter')
+  @ApiOperation({ summary: 'Create table (manager/owner or permitted waiter)' })
   create(
     @Body() body: Partial<Table>,
     @TenantId() t: string,
     @BranchId() b: string,
+    @CurrentUser() reqUser: any,
   ) {
+    if (reqUser.role === 'waiter' && !reqUser.permissions?.canManageTables) {
+      throw new ForbiddenException('You do not have permission to manage tables');
+    }
     return this.svc.create({ ...body, tenantId: t, branchId: b || body.branchId });
   }
 
@@ -94,9 +113,15 @@ export class TablesController {
   }
 
   @Delete(':id')
-  @Roles('manager', 'owner')
-  @ApiOperation({ summary: 'Soft-delete table (manager/owner)' })
-  remove(@Param('id') id: string) {
+  @Roles('manager', 'owner', 'restaurant_manager', 'waiter')
+  @ApiOperation({ summary: 'Soft-delete table (manager/owner or permitted waiter)' })
+  remove(
+    @Param('id') id: string,
+    @CurrentUser() reqUser: any,
+  ) {
+    if (reqUser.role === 'waiter' && !reqUser.permissions?.canManageTables) {
+      throw new ForbiddenException('You do not have permission to manage tables');
+    }
     return this.svc.remove(id);
   }
 }

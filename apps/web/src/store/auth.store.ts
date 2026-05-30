@@ -9,6 +9,7 @@ interface AuthUser {
   role: string;
   tenantId: string;
   branchId: string;
+  permissions?: Record<string, any>;
 }
 
 interface AuthState {

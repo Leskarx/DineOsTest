@@ -16,6 +16,7 @@ export interface JwtPayload {
   tenantId: string;
   branchId?: string | null;
   role: string;
+  permissions?: Record<string, any>;
 }
 
 @Injectable()
@@ -96,9 +97,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       }
       // Propagate the validated branch override so downstream decorators
       // (@BranchId()) and service calls use the correct branch scope.
-      return { ...payload, id: payload.sub, branchId: headerBranchId };
+      return { ...payload, id: payload.sub, branchId: headerBranchId, permissions: user.permissions ?? {} };
     }
 
-    return { ...payload, id: payload.sub };
+    return { ...payload, id: payload.sub, permissions: user.permissions ?? {} };
   }
 }

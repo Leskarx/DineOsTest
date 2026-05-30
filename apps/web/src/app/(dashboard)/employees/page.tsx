@@ -1,10 +1,10 @@
 'use client';
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiFetch, apiPost, apiPut, apiDelete } from '@/lib/api';
+import { apiFetch, apiPost, apiPut, apiPatch, apiDelete } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/auth.store';
-import { Plus, Edit2, UserX, Shield } from 'lucide-react';
+import { Plus, Edit2, UserX, Shield, Layout, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // ─── Department + Role config ────────────────────────────────────────────────
@@ -136,6 +136,20 @@ export default function EmployeesPage() {
     onError: () => toast.error('Failed to delete employee'),
   });
 
+  // ── Permission toggle (canManageTables for waiters) ─────────────────────
+  const PERMISSION_GRANTERS = ['owner', 'manager', 'restaurant_manager'];
+  const canGrantPermissions = PERMISSION_GRANTERS.includes(user?.role ?? '');
+
+  const permissionMutation = useMutation({
+    mutationFn: ({ id, canManageTables }: { id: string; canManageTables: boolean }) =>
+      apiPatch(`/api/v1/users/${id}/permissions`, { permissions: { canManageTables } }),
+    onSuccess: (_data, { canManageTables }) => {
+      toast.success(canManageTables ? 'Table management access granted' : 'Table management access revoked');
+      qc.invalidateQueries({ queryKey: ['users'] });
+    },
+    onError: () => toast.error('Failed to update permission'),
+  });
+
   const handleDepartmentChange = (dept: Department) => {
     setDepartment(dept);
     const availableRoles = getAvailableRoles(dept, user?.role);
@@ -227,7 +241,7 @@ export default function EmployeesPage() {
                 <td className="td"><span className="text-xs text-slate-900 dark:text-slate-500">{ROLE_DEPARTMENT[u.role] || '—'}</span></td>
                 <td className="td text-slate-900 dark:text-slate-400 font-mono">{u.employeeCode || '—'}</td>
                 <td className="td">
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 items-center">
                     <button onClick={() => {
                       setEditUser(u);
                       const dept = detectDepartment(u.role);
@@ -235,6 +249,24 @@ export default function EmployeesPage() {
                       setForm({ firstName: u.firstName, lastName: u.lastName || '', email: u.email || '', phone: u.phone || '', role: u.role, password: '', pin: '', employeeCode: u.employeeCode || '', branchId: u.branchId || '' });
                       setShowForm(true);
                     }} className="btn-ghost p-1.5"><Edit2 size={13} /></button>
+
+                    {/* Table permission toggle — only for waiters, only shown to managers/owners */}
+                    {canGrantPermissions && u.role === 'waiter' && (
+                      <button
+                        title={u.permissions?.canManageTables ? 'Revoke table management' : 'Grant table management'}
+                        onClick={() => permissionMutation.mutate({ id: u.id, canManageTables: !u.permissions?.canManageTables })}
+                        disabled={permissionMutation.isPending}
+                        className={cn(
+                          'btn-ghost p-1.5 transition-colors',
+                          u.permissions?.canManageTables
+                            ? 'text-emerald-600 dark:text-emerald-400 hover:text-emerald-500'
+                            : 'text-slate-400 hover:text-amber-500'
+                        )}
+                      >
+                        {u.permissions?.canManageTables ? <Layout size={13} /> : <Lock size={13} />}
+                      </button>
+                    )}
+
                     {u.id !== user?.id && (
                       <button
                         onClick={() => setDeleteUser(u)}

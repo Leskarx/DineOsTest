@@ -5,9 +5,10 @@ import { apiFetch, apiPost, apiPut, apiDelete } from '@/lib/api';
 import toast from 'react-hot-toast';
 import {
   Plus, Edit2, Trash2, Users, CheckCircle,
-  Clock, Sparkles, LayoutGrid, Layers, X,
+  Clock, Sparkles, LayoutGrid, Layers, X, Lock,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuthStore } from '@/store/auth.store';
 
 // ─── Status visuals ──────────────────────────────────────────────────────────
 const STATUS_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
@@ -30,6 +31,24 @@ type PageTab = 'floor' | 'sections';
 
 export default function TablesPage() {
   const qc = useQueryClient();
+  const { user } = useAuthStore();
+
+  // Fetch fresh user data (including permissions) from the server on every page load.
+  // The auth store is populated at login time and goes stale when a manager grants/revokes
+  // permissions after the waiter has already logged in. /auth/me always returns live DB data.
+  const { data: freshUser } = useQuery({
+    queryKey: ['auth-me'],
+    queryFn: () => apiFetch('/api/v1/auth/me').then((r) => r.data),
+    staleTime: 0,           // always refetch on mount
+    gcTime: 0,
+  });
+
+  // Use fresh server data for permission check; fall back to store for non-waiters (fast path)
+  const MANAGE_ROLES = ['owner', 'manager', 'restaurant_manager'];
+  const canManage =
+    MANAGE_ROLES.includes(user?.role ?? '') ||
+    (user?.role === 'waiter' && Boolean(freshUser?.permissions?.canManageTables));
+
   const [pageTab, setPageTab] = useState<PageTab>('floor');
   const [filterSection, setFilterSection] = useState<string | null>(null);
 
@@ -179,15 +198,21 @@ export default function TablesPage() {
             </button>
           </div>
 
-          {pageTab === 'floor' && (
+          {pageTab === 'floor' && canManage && (
             <button onClick={openCreateTable} className="btn-primary">
               <Plus size={14} /> Add Table
             </button>
           )}
-          {pageTab === 'sections' && (
+          {pageTab === 'sections' && canManage && (
             <button onClick={openCreateSection} className="btn-primary">
               <Plus size={14} /> Add Section
             </button>
+          )}
+          {/* Waiter locked message */}
+          {user?.role === 'waiter' && !canManage && (
+            <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+              <Lock size={12} /> Table management restricted
+            </div>
           )}
         </div>
       </div>
@@ -261,44 +286,46 @@ export default function TablesPage() {
                     >
                       {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
                     </select>
-                    <div className="flex gap-1">
-                      <button
-                        onClick={() => openEditTable(table)}
-                        className="flex-1 text-xs py-1 rounded bg-black/20 hover:bg-black/30 text-slate-900 dark:text-slate-400"
-                      >
-                        <Edit2 size={10} className="inline" />
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (table.status === 'occupied') {
-                            toast.error(`Cannot delete "${table.name}" — table is currently occupied`);
-                            return;
-                          }
-                          toast((t) => (
-                            <div className="flex flex-col gap-2">
-                              <span className="font-medium">Delete table &quot;{table.name}&quot;?</span>
-                              <div className="flex gap-2">
-                                <button
-                                  onClick={() => { toast.dismiss(t.id); deleteTableMutation.mutate(table.id); }}
-                                  className="px-3 py-1 text-sm bg-red-500 text-slate-900 dark:text-white rounded-lg hover:bg-red-600"
-                                >
-                                  Delete
-                                </button>
-                                <button
-                                  onClick={() => toast.dismiss(t.id)}
-                                  className="px-3 py-1 text-sm bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300"
-                                >
-                                  Cancel
-                                </button>
+                    {canManage && (
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => openEditTable(table)}
+                          className="flex-1 text-xs py-1 rounded bg-black/20 hover:bg-black/30 text-slate-900 dark:text-slate-400"
+                        >
+                          <Edit2 size={10} className="inline" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (table.status === 'occupied') {
+                              toast.error(`Cannot delete "${table.name}" — table is currently occupied`);
+                              return;
+                            }
+                            toast((t) => (
+                              <div className="flex flex-col gap-2">
+                                <span className="font-medium">Delete table &quot;{table.name}&quot;?</span>
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => { toast.dismiss(t.id); deleteTableMutation.mutate(table.id); }}
+                                    className="px-3 py-1 text-sm bg-red-500 text-slate-900 dark:text-white rounded-lg hover:bg-red-600"
+                                  >
+                                    Delete
+                                  </button>
+                                  <button
+                                    onClick={() => toast.dismiss(t.id)}
+                                    className="px-3 py-1 text-sm bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
                               </div>
-                            </div>
-                          ), { duration: 10000 });
-                        }}
-                        className="flex-1 text-xs py-1 rounded bg-black/20 hover:bg-red-900/30 text-red-600 dark:text-red-400"
-                      >
-                        <Trash2 size={10} className="inline" />
-                      </button>
-                    </div>
+                            ), { duration: 10000 });
+                          }}
+                          className="flex-1 text-xs py-1 rounded bg-black/20 hover:bg-red-900/30 text-red-600 dark:text-red-400"
+                        >
+                          <Trash2 size={10} className="inline" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -306,7 +333,9 @@ export default function TablesPage() {
               {visibleTables.length === 0 && (
                 <div className="col-span-full text-center py-16 text-slate-900 dark:text-slate-500">
                   No tables{filterSection ? ' in this section' : ''}.{' '}
-                  <button onClick={openCreateTable} className="underline hover:text-slate-600 dark:text-slate-300">Add one</button>
+                  {canManage && (
+                    <button onClick={openCreateTable} className="underline hover:text-slate-600 dark:text-slate-300">Add one</button>
+                  )}
                 </div>
               )}
             </div>
@@ -321,9 +350,11 @@ export default function TablesPage() {
             <div className="text-center py-16 text-slate-900 dark:text-slate-500">
               <Layers size={40} className="mx-auto mb-3 opacity-30" />
               <p>No sections yet. Sections let you group tables by floor, area or room.</p>
-              <button onClick={openCreateSection} className="btn-primary mt-4">
-                <Plus size={14} /> Create First Section
-              </button>
+              {canManage && (
+                <button onClick={openCreateSection} className="btn-primary mt-4">
+                  <Plus size={14} /> Create First Section
+                </button>
+              )}
             </div>
           )}
 
@@ -353,39 +384,43 @@ export default function TablesPage() {
                 </div>
                 <div className="text-xs text-slate-600">Sort: {sec.sortOrder ?? '—'}</div>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => openEditSection(sec)} className="btn-ghost p-1.5">
-                    <Edit2 size={14} />
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (sectionTables.length > 0) {
-                        toast.error(`Cannot delete "${sec.name}" — move all ${sectionTables.length} table(s) to another section first`);
-                        return;
-                      }
-                      toast((t) => (
-                        <div className="flex flex-col gap-2">
-                          <span className="font-medium">Delete section &quot;{sec.name}&quot;?</span>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => { toast.dismiss(t.id); deleteSectionMutation.mutate(sec.id); }}
-                              className="px-3 py-1 text-sm bg-red-500 text-slate-900 dark:text-white rounded-lg hover:bg-red-600"
-                            >
-                              Delete
-                            </button>
-                            <button
-                              onClick={() => toast.dismiss(t.id)}
-                              className="px-3 py-1 text-sm bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300"
-                            >
-                              Cancel
-                            </button>
+                  {canManage && (
+                    <button onClick={() => openEditSection(sec)} className="btn-ghost p-1.5">
+                      <Edit2 size={14} />
+                    </button>
+                  )}
+                  {canManage && (
+                    <button
+                      onClick={() => {
+                        if (sectionTables.length > 0) {
+                          toast.error(`Cannot delete "${sec.name}" — move all ${sectionTables.length} table(s) to another section first`);
+                          return;
+                        }
+                        toast((t) => (
+                          <div className="flex flex-col gap-2">
+                            <span className="font-medium">Delete section &quot;{sec.name}&quot;?</span>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => { toast.dismiss(t.id); deleteSectionMutation.mutate(sec.id); }}
+                                className="px-3 py-1 text-sm bg-red-500 text-slate-900 dark:text-white rounded-lg hover:bg-red-600"
+                              >
+                                Delete
+                              </button>
+                              <button
+                                onClick={() => toast.dismiss(t.id)}
+                                className="px-3 py-1 text-sm bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300"
+                              >
+                                Cancel
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      ), { duration: 10000 });
-                    }}
-                    className="btn-ghost p-1.5 text-red-600 dark:text-red-400 hover:text-red-300"
-                  >
-                    <Trash2 size={14} />
-                  </button>
+                        ), { duration: 10000 });
+                      }}
+                      className="btn-ghost p-1.5 text-red-600 dark:text-red-400 hover:text-red-300"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
                 </div>
               </div>
             );
