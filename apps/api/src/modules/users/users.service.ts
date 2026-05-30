@@ -13,7 +13,7 @@ export class UsersService {
   findAll(tenantId: string, branchId?: string) {
     const select: (keyof import('./entities/user.entity').User)[] = [
       'id', 'firstName', 'lastName', 'email',
-      'phone', 'role', 'employeeCode', 'branchId', 'createdAt',
+      'phone', 'role', 'employeeCode', 'branchId', 'createdAt', 'permissions',
     ];
 
     // Owners and managers are tenant-wide — they must always appear
@@ -125,5 +125,12 @@ export class UsersService {
       success: true,
       message: 'User permanently deleted successfully',
     };
+  }
+
+  async updatePermissions(id: string, tenantId: string, permissions: Record<string, any>) {
+    const user = await this.findOne(id, tenantId);
+    const merged = { ...(user.permissions || {}), ...permissions };
+    await this.repo.update(id, { permissions: merged });
+    return this.findOne(id, tenantId);
   }
 }

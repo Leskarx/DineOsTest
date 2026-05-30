@@ -39,6 +39,7 @@ export class User {
   @Column({ name: 'last_login_at', nullable: true }) lastLoginAt: Date;
   @Column({ name: 'refresh_token', nullable: true, type: 'text' }) refreshToken: string;
   @Column({ type: 'jsonb', default: {} }) settings: Record<string, any>;
+  @Column({ name: 'permissions', type: 'jsonb', default: {} }) permissions: Record<string, any>;
   @CreateDateColumn({ name: 'created_at' }) createdAt: Date;
   @UpdateDateColumn({ name: 'updated_at' }) updatedAt: Date;
 

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, ForbiddenException } from '@nestjs/common';
+import { Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, UseGuards, ForbiddenException } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -53,6 +53,27 @@ export class UsersController {
   // deactivate(@Param('id') id: string, @TenantId() t: string) {
   //   return this.svc.deactivate(id, t);
   // }
+
+  // ── Permissions (grant/revoke per-user feature access) ───────────────────
+  @Patch(':id/permissions')
+  @Roles('owner', 'manager', 'restaurant_manager')
+  updatePermissions(
+    @Param('id') id: string,
+    @Body() body: { permissions: Record<string, any> },
+    @TenantId() t: string,
+    @CurrentUser() reqUser: any,
+  ) {
+    // Only allow granting canManageTables to waiters — not higher roles
+    const allowedKeys = ['canManageTables'];
+    const filtered: Record<string, any> = {};
+    for (const key of allowedKeys) {
+      if (key in body.permissions) filtered[key] = Boolean(body.permissions[key]);
+    }
+    if (Object.keys(filtered).length === 0) {
+      throw new ForbiddenException('No valid permission keys provided');
+    }
+    return this.svc.updatePermissions(id, t, filtered);
+  }
 
   private validateRoleHierarchy(actorRole: string, targetRole: string) {
     if (['owner', 'manager'].includes(targetRole) && actorRole !== 'owner') {

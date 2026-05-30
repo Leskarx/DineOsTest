@@ -90,6 +90,18 @@ export class AuthController {
   @SkipThrottle()
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
+  @Get('me')
+  @ApiOperation({ summary: 'Get current authenticated user with fresh permissions' })
+  getMe(@Req() req: Request) {
+    // req.user is populated by JwtStrategy.validate() which fetches fresh data
+    // from the DB on every request — so permissions are always up-to-date
+    const { passwordHash, refreshToken, pin, ...safe } = (req as any).user as any;
+    return safe;
+  }
+
+  @SkipThrottle()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Get('sessions')
   @ApiOperation({ summary: 'List all active sessions for the current user' })
   listSessions(@Req() req: Request) {
