@@ -31,7 +31,7 @@ export interface CreateOrderDto {
   isComplimentary?: boolean;
   isSalesReturn?: boolean;
   scheduledAt?: Date;
-  isOfflineSync?: boolean; // suppress KDS events when replaying an offline order
+  isOfflineSync?: boolean;
 }
 
 export interface ApplyDiscountDto {
@@ -60,7 +60,7 @@ export class OrdersService {
 
   async createOrder(dto: CreateOrderDto): Promise<Order> {
     // Idempotency: if an offline order with the same offlineId already exists,
-    // return it instead of creating a duplicate (handles network retry after partial success)
+    // return it instead of creating a duplicate
     if (dto.offlineId) {
       const existing = await this.orderRepo.findOne({
         where: { offlineId: dto.offlineId, tenantId: dto.tenantId },
@@ -102,95 +102,144 @@ export class OrdersService {
     });
 
     if (dto.items?.length) {
-      await this.addItems(createdOrderId, dto.items, dto.tenantId, dto.isOfflineSync);
+      // First KOT is always round 1
+      await this.addItems(createdOrderId, dto.items, dto.tenantId, dto.isOfflineSync, 1);
     }
 
     const saved = await this.findOne(createdOrderId, dto.tenantId);
-    // Don't ring the KDS for orders that were already served offline
     if (!dto.isOfflineSync) {
       this.events.emit('order.created', saved);
     }
     return saved;
   }
 
-  async addItems(orderId: string, items: AddItemDto[], tenantId: string, isOfflineSync = false): Promise<Order> {
-    const order = await this.findOne(orderId, tenantId);
-    if ([OrderStatus.BILLED, OrderStatus.CANCELLED].includes(order.status)) {
-      throw new BadRequestException('Cannot modify a billed or cancelled order');
-    }
-
-    const menuItems = await this.menuRepo.findBy({
-      id: In(items.map((i) => i.menuItemId)),
-    });
-    const menuMap = new Map(menuItems.map((m) => [m.id, m]));
-
-    const variationIds = items.map((i) => i.variationId).filter(Boolean) as string[];
-    const variations = variationIds.length
-      ? await this.variationRepo.findBy({ id: In(variationIds) })
-      : [];
-    const varMap = new Map(variations.map((v) => [v.id, v]));
-
-    const gstRateIds = [...new Set(menuItems.map((m) => m.gstRateId).filter(Boolean))];
-    const gstRates = gstRateIds.length
-      ? await this.gstRepo.findBy({ id: In(gstRateIds) })
-      : [];
-    const gstMap = new Map(gstRates.map((g) => [g.id, g]));
-
-    const orderItems: OrderItem[] = [];
-    for (const item of items) {
-      const menu = menuMap.get(item.menuItemId);
-      if (!menu) throw new NotFoundException(`Menu item ${item.menuItemId} not found`);
-
-      const gst = menu.gstRateId ? gstMap.get(menu.gstRateId) : null;
-      const variation = item.variationId ? varMap.get(item.variationId) : null;
-      const unitPrice = Number(variation?.price ?? menu.price);
-      const modifierTotal = (item.modifiers || []).reduce((s, m) => s + Number(m.price), 0);
-      const effectivePrice = unitPrice + modifierTotal;
-      const lineSubtotal = effectivePrice * item.quantity;
-
-      // ← Use intra-state by default (CGST + SGST only, no IGST)
-      const { cgstAmt, sgstAmt, igstAmt, cessAmt } = this.computeTax(lineSubtotal, gst ?? null, false);
-
-      orderItems.push(
-        this.orderItemRepo.create({
-          orderId,
-          tenantId,
-          menuItemId:    item.menuItemId,
-          variationId:   variation?.id ?? null,
-          variationName: variation?.name ?? null,
-          name:          menu.name,
-          sku:           menu.sku,
-          quantity:      item.quantity,
-          unitPrice:     effectivePrice,
-          costPrice:     Number(variation?.costPrice ?? menu.costPrice ?? 0),
-          isVeg:         menu.isVeg,
-          notes:         item.notes,
-          gstRate:       gst?.rate ?? 0,
-          cgstRate:      gst?.cgstRate ?? 0,
-          sgstRate:      gst?.sgstRate ?? 0,
-          igstRate:      gst?.igstRate ?? 0,
-          taxableAmount: lineSubtotal,
-          cgstAmount:    cgstAmt,
-          sgstAmount:    sgstAmt,
-          igstAmount:    igstAmt,
-          cessAmount:    cessAmt,
-          lineTotal:     lineSubtotal + cgstAmt + sgstAmt + igstAmt + cessAmt,
-        }),
-      );
-    }
-
-    await this.orderItemRepo.save(orderItems);
-    const updated = await this.recalculateTotals(orderId);
-    if (!isOfflineSync) {
-      this.events.emit('order.itemsAdded', {
-        orderId,
-        branchId:    updated.branchId,
-        orderNumber: updated.orderNumber,
-        items:       orderItems,
-      });
-    }
-    return updated;
+  /**
+   * Add items to an existing order.
+   * Automatically determines the next KOT round number.
+   * Round = max(existing kot_round) + 1, or 1 if no items yet.
+   */
+   async addItems(
+  orderId: string,
+  items: AddItemDto[],
+  tenantId: string,
+  isOfflineSync = false,
+  forceRound?: number,
+): Promise<Order> {
+  const order = await this.findOne(orderId, tenantId);
+  if ([OrderStatus.BILLED, OrderStatus.CANCELLED].includes(order.status)) {
+    throw new BadRequestException('Cannot modify a billed or cancelled order');
   }
+
+  // ── Reopen served/ready orders when new items are added ─────────────
+  // This happens when waiter already served KOT 1, but cashier adds KOT 2.
+  // Without this, order stays 'served' and KDS filters it out.
+  if ([OrderStatus.SERVED, OrderStatus.READY].includes(order.status)) {
+    order.status   = OrderStatus.PREPARING;
+    order.servedAt = null as any;
+    await this.orderRepo.save(order);
+    console.log(`[KOT] Reopened order ${orderId} from ${order.status} → preparing for KOT round`);
+  }
+
+  // ── Determine KOT round ──────────────────────────────────────────────
+  let kotRound: number;
+  if (forceRound !== undefined) {
+    kotRound = forceRound;
+  } else {
+    const result = await this.orderItemRepo
+      .createQueryBuilder('oi')
+      .select('MAX(oi.kotRound)', 'maxRound')
+      .where('oi.orderId = :orderId', { orderId })
+      .getRawOne();
+    const maxRound = result?.maxRound ? Number(result.maxRound) : 0;
+    kotRound = maxRound + 1;
+  }
+
+  const kotSentAt = new Date();
+
+  const menuItems = await this.menuRepo.findBy({
+    id: In(items.map((i) => i.menuItemId)),
+  });
+  const menuMap = new Map(menuItems.map((m) => [m.id, m]));
+
+  const variationIds = items.map((i) => i.variationId).filter(Boolean) as string[];
+  const variations   = variationIds.length
+    ? await this.variationRepo.findBy({ id: In(variationIds) })
+    : [];
+  const varMap = new Map(variations.map((v) => [v.id, v]));
+
+  const gstRateIds = [...new Set(menuItems.map((m) => m.gstRateId).filter(Boolean))];
+  const gstRates   = gstRateIds.length
+    ? await this.gstRepo.findBy({ id: In(gstRateIds) })
+    : [];
+  const gstMap = new Map(gstRates.map((g) => [g.id, g]));
+
+  const orderItems: OrderItem[] = [];
+  for (const item of items) {
+    const menu = menuMap.get(item.menuItemId);
+    if (!menu) throw new NotFoundException(`Menu item ${item.menuItemId} not found`);
+
+    const gst           = menu.gstRateId ? gstMap.get(menu.gstRateId) : null;
+    const variation     = item.variationId ? varMap.get(item.variationId) : null;
+    const unitPrice     = Number(variation?.price ?? menu.price);
+    const modifierTotal = (item.modifiers || []).reduce((s, m) => s + Number(m.price), 0);
+    const effectivePrice = unitPrice + modifierTotal;
+    const lineSubtotal  = effectivePrice * item.quantity;
+
+    const { cgstAmt, sgstAmt, igstAmt, cessAmt } = this.computeTax(lineSubtotal, gst ?? null, false);
+
+    orderItems.push(
+      this.orderItemRepo.create({
+        orderId,
+        tenantId,
+        menuItemId:    item.menuItemId,
+        variationId:   variation?.id ?? null,
+        variationName: variation?.name ?? null,
+        name:          menu.name,
+        sku:           menu.sku,
+        quantity:      item.quantity,
+        unitPrice:     effectivePrice,
+        costPrice:     Number(variation?.costPrice ?? menu.costPrice ?? 0),
+        isVeg:         menu.isVeg,
+        notes:         item.notes,
+        gstRate:       gst?.rate ?? 0,
+        cgstRate:      gst?.cgstRate ?? 0,
+        sgstRate:      gst?.sgstRate ?? 0,
+        igstRate:      gst?.igstRate ?? 0,
+        taxableAmount: lineSubtotal,
+        cgstAmount:    cgstAmt,
+        sgstAmount:    sgstAmt,
+        igstAmount:    igstAmt,
+        cessAmount:    cessAmt,
+        lineTotal:     lineSubtotal + cgstAmt + sgstAmt + igstAmt + cessAmt,
+        kotRound,
+        kotSentAt,
+      }),
+    );
+  }
+
+  await this.orderItemRepo.save(orderItems);
+  const updated = await this.recalculateTotals(orderId);
+
+  if (!isOfflineSync) {
+    this.events.emit('order.itemsAdded', {
+      orderId,
+      branchId:    updated.branchId,
+      orderNumber: updated.orderNumber,
+      kotRound,
+      items:       orderItems,
+    });
+
+    // Also emit statusChanged so POS and waiter dashboard update
+    this.events.emit('order.statusChanged', {
+      orderId,
+      status:      OrderStatus.PREPARING,
+      branchId:    updated.branchId,
+      orderNumber: updated.orderNumber,
+    });
+  }
+
+  return updated;
+}
 
   async updateStatus(orderId: string, status: OrderStatus, tenantId: string): Promise<Order> {
     const order = await this.findOne(orderId, tenantId);
@@ -234,14 +283,25 @@ export class OrdersService {
     });
   }
 
-  async findOne(id: string, tenantId: string): Promise<Order> {
-    const order = await this.orderRepo.findOne({
-      where: { id, tenantId },
-      relations: ['items', 'table'],
-    });
-    if (!order) throw new NotFoundException('Order not found');
-    return order;
+   async findOne(id: string, tenantId: string): Promise<Order> {
+  const order = await this.orderRepo.findOne({
+    where: { id, tenantId },
+    relations: ['items', 'table'],
+  });
+  if (!order) throw new NotFoundException('Order not found');
+
+  const isServed = order.status === OrderStatus.SERVED;
+
+  for (const item of order.items) {
+    if (item.voidReason === '__KDS_BUMPED__' && !item.isVoided) {
+      (item as any).isBumped    = true;
+      // If order is served, item is completed. If just bumped by kitchen, it's ready.
+      (item as any).orderServed = isServed;
+    }
   }
+
+  return order;
+}
 
   private async recalculateTotals(orderId: string): Promise<Order> {
     const order = await this.orderRepo.findOne({
@@ -263,10 +323,10 @@ export class OrdersService {
     const discountRatio = subtotal > 0 ? discountAmt / subtotal : 0;
 
     const taxable = subtotal - discountAmt;
-    const cgst     = activeItems.reduce((s, i) => s + Number(i.cgstAmount), 0) * (1 - discountRatio);
-    const sgst     = activeItems.reduce((s, i) => s + Number(i.sgstAmount), 0) * (1 - discountRatio);
-    const igst     = activeItems.reduce((s, i) => s + Number(i.igstAmount), 0) * (1 - discountRatio);
-    const cess     = activeItems.reduce((s, i) => s + Number(i.cessAmount), 0) * (1 - discountRatio);
+    const cgst    = activeItems.reduce((s, i) => s + Number(i.cgstAmount), 0) * (1 - discountRatio);
+    const sgst    = activeItems.reduce((s, i) => s + Number(i.sgstAmount), 0) * (1 - discountRatio);
+    const igst    = activeItems.reduce((s, i) => s + Number(i.igstAmount), 0) * (1 - discountRatio);
+    const cess    = activeItems.reduce((s, i) => s + Number(i.cessAmount), 0) * (1 - discountRatio);
     const totalTax = cgst + sgst + igst + cess;
     const rawTotal = taxable + totalTax;
     const roundOff = Math.round(rawTotal) - rawTotal;
@@ -287,14 +347,8 @@ export class OrdersService {
 
   /**
    * Computes tax for a line item.
-   *
-   * CRITICAL: For intra-state (same state) sales → CGST + SGST only
-   *           For inter-state sales → IGST only
-   *           NEVER both at the same time
-   *
-   * @param amount     Taxable amount (price × qty)
-   * @param gst        GST rate entity
-   * @param isInterState  Whether customer is in a different state
+   * Intra-state → CGST + SGST only
+   * Inter-state → IGST only
    */
   private computeTax(
     amount: number,
@@ -308,10 +362,8 @@ export class OrdersService {
     let igstAmt = 0;
 
     if (isInterState) {
-      // Inter-state: IGST only (equals full GST rate)
       igstAmt = amount * (Number(gst.igstRate || 0) / 100);
     } else {
-      // Intra-state: CGST + SGST only (each is half of total rate)
       cgstAmt = amount * (Number(gst.cgstRate || 0) / 100);
       sgstAmt = amount * (Number(gst.sgstRate || 0) / 100);
     }
@@ -365,9 +417,10 @@ export class OrdersService {
       if (newStatus === OrderStatus.SERVED) order.servedAt = new Date();
       await this.orderRepo.save(order);
       this.events.emit('order.statusChanged', {
-        orderId: order.id,
-        status: newStatus,
-        branchId: order.branchId,
+        orderId:     order.id,
+        status:      newStatus,
+        branchId:    order.branchId,
+        orderNumber: order.orderNumber,
       });
     }
   }

@@ -6,7 +6,7 @@ import { useSocket } from '@/hooks/useSocket';
 import {
   CheckCircle, RefreshCw, Clock, ChefHat,
   AlertCircle, Volume2, VolumeX, FlameKindling, Loader2,
-  ArrowDown, Package,
+  ArrowDown, Package, Hash,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { KdsTicketSkeleton } from '@/components/ui/Skeleton';
@@ -57,7 +57,7 @@ const STATIONS = [
 
 type StationId    = (typeof STATIONS)[number]['id'];
 const STATION_KEY = 'dinestay:kds:station';
-const URGENT_SECS = 600; // 10 min
+const URGENT_SECS = 600;
 
 interface KDSItem {
   order_item_id:      string;
@@ -73,6 +73,8 @@ interface KDSItem {
   table_name?:        string;
   created_at:         string;
   kds_ready_at?:      string;
+  kot_round:          number;
+  kot_sent_at?:       string;
 }
 
 function matchesStation(item: KDSItem, stationId: StationId): boolean {
@@ -97,7 +99,6 @@ function useAgeSeconds(createdAt: string): number {
   return age;
 }
 
-/* Time since a specific point (for "ready since" counter) */
 function useTimeSince(isoDate: string | null): number {
   const [elapsed, setElapsed] = useState(0);
   useEffect(() => {
@@ -124,18 +125,18 @@ function formatAge(seconds: number): string {
 
 /* ─── Priority sorting ────────────────────────────────────────────────────── */
 function getOrderPriority(tickets: KDSItem[]): number {
-  const allReady    = tickets.every((t) => t.kds_status === 'ready');
+  const allReady = tickets.every((t) => t.kds_status === 'ready');
   if (allReady) return 3;
-  const anyPending  = tickets.some((t) => t.kds_status === 'pending');
+  const anyPending = tickets.some((t) => t.kds_status === 'pending');
   if (anyPending) {
-    const oldest   = tickets.reduce(
+    const oldest  = tickets.reduce(
       (min, t) => Math.min(min, new Date(t.created_at).getTime()),
       Infinity,
     );
-    const ageSecs  = Math.floor((Date.now() - oldest) / 1000);
+    const ageSecs = Math.floor((Date.now() - oldest) / 1000);
     return ageSecs > URGENT_SECS ? 0 : 1;
   }
-  return 2; // preparing
+  return 2;
 }
 
 function getOldestTimestamp(tickets: KDSItem[]): number {
@@ -145,32 +146,58 @@ function getOldestTimestamp(tickets: KDSItem[]): number {
   );
 }
 
+/* ─── Round Badge ─────────────────────────────────────────────────────────── */
+function RoundBadge({ round, isNew }: { round: number; isNew?: boolean }) {
+  if (round <= 1) return null;
+  return (
+    <span className={cn(
+      'inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold',
+      isNew
+        ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800'
+        : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700',
+    )}>
+      <Hash size={8} />
+      KOT {round}
+    </span>
+  );
+}
+
 /* ─── Ticket Card ─────────────────────────────────────────────────────────── */
 function TicketCard({
   orderNum, tickets,
   onStartCooking, onMarkReady, onBump,
   isBumping, isMarkingReady, isStartingCooking,
 }: {
-  orderNum:         string;
-  tickets:          KDSItem[];
-  onStartCooking:   (ids: string[]) => void;
-  onMarkReady:      (ids: string[]) => void;
-  onBump:           (ids: string[]) => void;
-  isBumping:        boolean;
-  isMarkingReady:   boolean;
+  orderNum:          string;
+  tickets:           KDSItem[];
+  onStartCooking:    (ids: string[]) => void;
+  onMarkReady:       (ids: string[]) => void;
+  onBump:            (ids: string[]) => void;
+  isBumping:         boolean;
+  isMarkingReady:    boolean;
   isStartingCooking: boolean;
 }) {
   const oldest = [...tickets].sort(
     (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
   )[0];
 
-  const allReady    = tickets.every((t) => t.kds_status === 'ready');
-  const anyPending  = tickets.some((t) => t.kds_status === 'pending');
+  const allReady     = tickets.every((t) => t.kds_status === 'ready');
+  const anyPending   = tickets.some((t) => t.kds_status === 'pending');
   const anyPreparing = tickets.some(
     (t) => t.kds_status === 'preparing' || t.kds_status === 'acknowledged',
   );
 
-  // Latest ready_at timestamp (for ready orders)
+  // Group items by KOT round for display
+  const roundGroups = tickets.reduce<Record<number, KDSItem[]>>((acc, item) => {
+    const r = item.kot_round || 1;
+    if (!acc[r]) acc[r] = [];
+    acc[r].push(item);
+    return acc;
+  }, {});
+  const rounds         = Object.keys(roundGroups).map(Number).sort((a, b) => a - b);
+  const hasMultiRounds = rounds.length > 1;
+  const maxRound       = Math.max(...rounds);
+
   const latestReadyAt = allReady
     ? tickets
         .filter((t) => t.kds_ready_at)
@@ -180,8 +207,7 @@ function TicketCard({
 
   const ageSeconds = useAgeSeconds(oldest?.created_at || new Date().toISOString());
   const readySince = useTimeSince(latestReadyAt);
-
-  const isUrgent = !allReady && ageSeconds > URGENT_SECS;
+  const isUrgent   = !allReady && ageSeconds > URGENT_SECS;
 
   const orderTypeDisplay = (() => {
     const type = oldest?.order_type || 'dine_in';
@@ -190,7 +216,6 @@ function TicketCard({
     return { icon: '🍽️', label: 'Dine In' };
   })();
 
-  /* ── Card container styles ── */
   const cardClass = cn(
     'rounded-2xl border-2 shadow-lg overflow-hidden flex flex-col transition-all duration-300',
     allReady
@@ -204,7 +229,6 @@ function TicketCard({
             : 'border-slate-200 dark:border-slate-700',
   );
 
-  /* ── Header bg ── */
   const headerClass = cn(
     'px-4 py-3 border-b flex items-start justify-between',
     allReady
@@ -214,7 +238,6 @@ function TicketCard({
         : 'bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700',
   );
 
-  /* ── Timer badge ── */
   const timerClass = cn(
     'flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold tabular-nums flex-shrink-0 ml-2',
     allReady
@@ -234,6 +257,14 @@ function TicketCard({
         <div className="bg-red-500 text-white text-center text-xs font-bold py-1.5 flex items-center justify-center gap-1.5 animate-pulse">
           <AlertCircle size={13} />
           URGENT — {formatAge(ageSeconds)} waiting
+        </div>
+      )}
+
+      {/* Add-on KOT banner — shown when this ticket has round > 1 items */}
+      {hasMultiRounds && (
+        <div className="bg-purple-500 text-white text-center text-xs font-bold py-1 flex items-center justify-center gap-1.5">
+          <Hash size={11} />
+          ADD-ON KOT #{maxRound} received
         </div>
       )}
 
@@ -274,74 +305,105 @@ function TicketCard({
           </div>
         </div>
 
-        {/* Timer */}
         <div className={timerClass}>
           <Clock size={12} />
           <span>{allReady ? formatAge(readySince) : formatAge(ageSeconds)}</span>
         </div>
       </div>
 
-      {/* Items list */}
-      <div className="flex-1 p-3 space-y-1.5 overflow-y-auto max-h-[300px] bg-white dark:bg-slate-900">
-        {tickets.map((ticket) => {
-          const isReady    = ticket.kds_status === 'ready';
-          const isPending  = ticket.kds_status === 'pending';
-          const isCooking  = ticket.kds_status === 'preparing' || ticket.kds_status === 'acknowledged';
+      {/* Items list — grouped by KOT round */}
+      <div className="flex-1 p-3 space-y-3 overflow-y-auto max-h-[360px] bg-white dark:bg-slate-900">
+        {rounds.map((round) => {
+          const roundItems  = roundGroups[round];
+          const isLatest    = round === maxRound && hasMultiRounds;
+          const isFirstRound = round === 1;
 
           return (
-            <div
-              key={ticket.order_item_id}
-              className={cn(
-                'rounded-xl border p-2.5 flex items-start gap-2.5 transition-all',
-                isReady   && 'border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/60 dark:bg-emerald-950/20',
-                isPending && 'border-amber-200  dark:border-amber-800/50  bg-amber-50/60  dark:bg-amber-950/10',
-                isCooking && 'border-blue-200   dark:border-blue-800/50   bg-blue-50/40   dark:bg-blue-950/10',
+            <div key={round}>
+              {/* Round separator — only show when multiple rounds exist */}
+              {hasMultiRounds && (
+                <div className="flex items-center gap-2 mb-2">
+                  <div className={cn(
+                    'flex-shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border',
+                    isLatest
+                      ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700',
+                  )}>
+                    <Hash size={8} />
+                    KOT {round}
+                    {isLatest && <span className="ml-0.5">· NEW</span>}
+                  </div>
+                  <div className={cn(
+                    'flex-1 h-px',
+                    isLatest ? 'bg-purple-200 dark:bg-purple-800/50' : 'bg-slate-200 dark:bg-slate-700',
+                  )} />
+                </div>
               )}
-            >
-              {/* Qty badge */}
-              <div className={cn(
-                'min-w-[34px] h-8 rounded-lg flex items-center justify-center font-black text-sm flex-shrink-0',
-                isReady   ? 'bg-emerald-500 text-white' :
-                isPending ? 'bg-amber-500 text-slate-900' :
-                'bg-blue-500 text-white',
-              )}>
-                {Math.round(ticket.quantity)}×
+
+              {/* Items in this round */}
+              <div className="space-y-1.5">
+                {roundItems.map((ticket) => {
+                  const isReady    = ticket.kds_status === 'ready';
+                  const isPending  = ticket.kds_status === 'pending';
+                  const isCooking  = ticket.kds_status === 'preparing' || ticket.kds_status === 'acknowledged';
+
+                  return (
+                    <div
+                      key={ticket.order_item_id}
+                      className={cn(
+                        'rounded-xl border p-2.5 flex items-start gap-2.5 transition-all',
+                        isReady   && 'border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/60 dark:bg-emerald-950/20',
+                        isPending && 'border-amber-200  dark:border-amber-800/50  bg-amber-50/60  dark:bg-amber-950/10',
+                        isCooking && 'border-blue-200   dark:border-blue-800/50   bg-blue-50/40   dark:bg-blue-950/10',
+                      )}
+                    >
+                      {/* Qty badge */}
+                      <div className={cn(
+                        'min-w-[34px] h-8 rounded-lg flex items-center justify-center font-black text-sm flex-shrink-0',
+                        isReady   ? 'bg-emerald-500 text-white' :
+                        isPending ? 'bg-amber-500 text-slate-900' :
+                        'bg-blue-500 text-white',
+                      )}>
+                        {Math.round(ticket.quantity)}×
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <p className="text-slate-900 dark:text-white font-semibold text-sm leading-snug break-words">
+                          {ticket.item_name}
+                        </p>
+
+                        {ticket.notes && (
+                          <div className="mt-1.5 inline-flex items-center gap-1 rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 px-2 py-0.5">
+                            <span className="text-red-600 dark:text-red-400 text-[11px] font-medium">
+                              📝 {ticket.notes}
+                            </span>
+                          </div>
+                        )}
+
+                        {isReady && (
+                          <div className="mt-1 flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+                            <CheckCircle size={11} /> Ready
+                          </div>
+                        )}
+                        {isCooking && (
+                          <div className="mt-1 flex items-center gap-1 text-[11px] text-blue-600 dark:text-blue-400">
+                            <ChefHat size={11} className="animate-pulse" /> Cooking...
+                          </div>
+                        )}
+                        {isPending && (
+                          <div className="mt-1 flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-500">
+                            <Clock size={11} /> Waiting...
+                          </div>
+                        )}
+                      </div>
+
+                      {isReady && (
+                        <CheckCircle size={16} className="text-emerald-500 flex-shrink-0 mt-0.5" />
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-
-              <div className="flex-1 min-w-0">
-                <p className="text-slate-900 dark:text-white font-semibold text-sm leading-snug break-words">
-                  {ticket.item_name}
-                </p>
-
-                {ticket.notes && (
-                  <div className="mt-1.5 inline-flex items-center gap-1 rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 px-2 py-0.5">
-                    <span className="text-red-600 dark:text-red-400 text-[11px] font-medium">
-                      📝 {ticket.notes}
-                    </span>
-                  </div>
-                )}
-
-                {/* Status label */}
-                {isReady && (
-                  <div className="mt-1 flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
-                    <CheckCircle size={11} /> Ready
-                  </div>
-                )}
-                {isCooking && (
-                  <div className="mt-1 flex items-center gap-1 text-[11px] text-blue-600 dark:text-blue-400">
-                    <ChefHat size={11} className="animate-pulse" /> Cooking...
-                  </div>
-                )}
-                {isPending && (
-                  <div className="mt-1 flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-500">
-                    <Clock size={11} /> Waiting...
-                  </div>
-                )}
-              </div>
-
-              {isReady && (
-                <CheckCircle size={16} className="text-emerald-500 flex-shrink-0 mt-0.5" />
-              )}
             </div>
           );
         })}
@@ -350,7 +412,6 @@ function TicketCard({
       {/* Footer actions */}
       <div className="p-3 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/80">
         {allReady ? (
-          /* ── READY: BUMP button ─── */
           <div className="space-y-2">
             <div className="flex items-center justify-center gap-2 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
               <div className="relative">
@@ -385,7 +446,6 @@ function TicketCard({
             </button>
           </div>
         ) : (
-          /* ── COOKING: Start / Mark Ready ─── */
           <div className={cn(
             'grid gap-2',
             anyPending && anyPreparing ? 'grid-cols-2' : 'grid-cols-1',
@@ -447,8 +507,8 @@ function TicketCard({
    MAIN KDS PAGE
    ═══════════════════════════════════════════════════════════════════════════ */
 export default function KdsPage() {
-  const qc             = useQueryClient();
-  const isMutatingRef  = useRef(false);
+  const qc            = useQueryClient();
+  const isMutatingRef = useRef(false);
 
   const [soundOn,          setSoundOn]          = useState(true);
   const [station,          setStation]          = useState<StationId>('all');
@@ -568,7 +628,6 @@ export default function KdsPage() {
     isMutatingRef.current = true;
     setBumping((s) => new Set([...s, ...ids]));
     await qc.cancelQueries({ queryKey: ['kds-pending'] });
-    // Optimistically remove from view
     qc.setQueryData(['kds-pending'], (old: KDSItem[] | undefined) =>
       old?.filter((item) => !ids.includes(item.order_item_id)),
     );
@@ -584,47 +643,42 @@ export default function KdsPage() {
   }, [qc, soundOn]);
 
   /* ── Filter + group + sort ──────────────────────────────────────────── */
-  /* ── Filter + group + sort ──────────────────────────────────────────── */
-const allItems = Array.isArray(items) ? items : [];
-const filtered = allItems.filter((i: KDSItem) => matchesStation(i, station));
+  const allItems = Array.isArray(items) ? items : [];
+  const filtered = allItems.filter((i: KDSItem) => matchesStation(i, station));
 
-const grouped = filtered.reduce<Record<string, KDSItem[]>>((acc, item: KDSItem) => {
-  const key = item.order_order_number || item.order_item_id;
-  if (!acc[key]) acc[key] = [];
-  acc[key].push(item);
-  return acc;
-}, {});
+  const grouped = filtered.reduce<Record<string, KDSItem[]>>((acc, item: KDSItem) => {
+    const key = item.order_order_number || item.order_item_id;
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(item);
+    return acc;
+  }, {});
 
-/* Split active vs ready */
-const activeOrders: [string, KDSItem[]][] = [];
-const readyOrders:  [string, KDSItem[]][] = [];
+  const activeOrders: [string, KDSItem[]][] = [];
+  const readyOrders:  [string, KDSItem[]][] = [];
 
-Object.entries(grouped).forEach(([orderNum, tickets]) => {
-  if (tickets.every((t: KDSItem) => t.kds_status === 'ready')) {
-    readyOrders.push([orderNum, tickets]);
-  } else {
-    activeOrders.push([orderNum, tickets]);
-  }
-});
+  Object.entries(grouped).forEach(([orderNum, tickets]) => {
+    if (tickets.every((t: KDSItem) => t.kds_status === 'ready')) {
+      readyOrders.push([orderNum, tickets]);
+    } else {
+      activeOrders.push([orderNum, tickets]);
+    }
+  });
 
-/* Sort active: urgent → pending → preparing → oldest first within group */
-activeOrders.sort((a: [string, KDSItem[]], b: [string, KDSItem[]]) => {
-  const priA = getOrderPriority(a[1]);
-  const priB = getOrderPriority(b[1]);
-  if (priA !== priB) return priA - priB;
-  return getOldestTimestamp(a[1]) - getOldestTimestamp(b[1]);
-});
+  activeOrders.sort((a, b) => {
+    const priA = getOrderPriority(a[1]);
+    const priB = getOrderPriority(b[1]);
+    if (priA !== priB) return priA - priB;
+    return getOldestTimestamp(a[1]) - getOldestTimestamp(b[1]);
+  });
 
-/* Sort ready: most recently ready first */
-readyOrders.sort((a: [string, KDSItem[]], b: [string, KDSItem[]]) =>
-  getOldestTimestamp(b[1]) - getOldestTimestamp(a[1]),
-);
+  readyOrders.sort((a, b) =>
+    getOldestTimestamp(b[1]) - getOldestTimestamp(a[1]),
+  );
 
-  /* Counts */
-  const pendingCount  = filtered.filter((i: KDSItem) => i.kds_status === 'pending').length;
+  const pendingCount   = filtered.filter((i: KDSItem) => i.kds_status === 'pending').length;
   const preparingCount = filtered.filter((i: KDSItem) => i.kds_status === 'preparing' || i.kds_status === 'acknowledged').length;
-  const readyCount    = filtered.filter((i: KDSItem) => i.kds_status === 'ready').length;
-  const totalGroups   = Object.keys(grouped).length;
+  const readyCount     = filtered.filter((i: KDSItem) => i.kds_status === 'ready').length;
+  const totalGroups    = Object.keys(grouped).length;
 
   /* ── Loading ─────────────────────────────────────────────────────────── */
   if (isLoading) {
@@ -748,7 +802,6 @@ readyOrders.sort((a: [string, KDSItem[]], b: [string, KDSItem[]]) =>
 
       {/* Main content */}
       {totalGroups === 0 ? (
-        /* All clear */
         <div className="flex-1 flex flex-col items-center justify-center gap-4 p-8">
           <div className="w-24 h-24 rounded-3xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
             <CheckCircle size={48} className="text-emerald-500 dark:text-emerald-400" />
@@ -763,7 +816,7 @@ readyOrders.sort((a: [string, KDSItem[]], b: [string, KDSItem[]]) =>
       ) : (
         <div className="flex-1 overflow-auto">
 
-          {/* Active orders: pending + preparing */}
+          {/* Active orders */}
           {activeOrders.length > 0 && (
             <div className="p-4 pb-2">
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
@@ -784,10 +837,9 @@ readyOrders.sort((a: [string, KDSItem[]], b: [string, KDSItem[]]) =>
             </div>
           )}
 
-          {/* Ready orders: waiting for waiter bump */}
+          {/* Ready orders */}
           {readyOrders.length > 0 && (
             <div className="px-4 pb-4 pt-2">
-              {/* Collapsible section header */}
               <button
                 onClick={() => setShowReadySection((v) => !v)}
                 className="w-full flex items-center gap-3 py-2 group"
@@ -825,7 +877,6 @@ readyOrders.sort((a: [string, KDSItem[]], b: [string, KDSItem[]]) =>
               )}
             </div>
           )}
-
         </div>
       )}
     </div>

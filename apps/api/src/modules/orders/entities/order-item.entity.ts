@@ -245,6 +245,30 @@ export class OrderItem {
   })
   sortOrder: number;
 
+  /**
+   * KOT round number.
+   * Round 1 = first KOT sent for this order.
+   * Round 2 = second KOT (add-on items), etc.
+   * Migration 1749999999999 already added this column with DEFAULT 1.
+   */
+  @Column({
+    name: 'kot_round',
+    type: 'smallint',
+    default: 1,
+  })
+  kotRound: number;
+
+  /**
+   * Timestamp when this item was sent to KDS (KOT fired).
+   * Migration 1749999999999 already added this column.
+   */
+  @Column({
+    name: 'kot_sent_at',
+    type: 'timestamp',
+    nullable: true,
+  })
+  kotSentAt: Date | null;
+
   @CreateDateColumn({
     name: 'created_at',
     type: 'timestamp',

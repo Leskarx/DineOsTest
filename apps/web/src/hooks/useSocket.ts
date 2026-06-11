@@ -4,19 +4,22 @@ import { io, Socket } from 'socket.io-client';
 import { useAuthStore } from '@/store/auth.store';
 
 let socket: Socket | null = null;
-// Track the token the current socket was created with.
-// When the axios interceptor silently refreshes the access token, the old
-// socket is still authenticated with the original (now-expired) token.
-// After the gateway adds JWT verification (§1.2 fix), the old socket would
-// be disconnected by the server on the next round-trip. We proactively
-// reconnect when the token changes so real-time events are never lost.
 let socketToken: string | null = null;
+let socketBranchId: string | null = null;
 
 function getSocket(): Socket {
   const { accessToken, branchId } = useAuthStore.getState();
 
   // If token changed (refresh happened) or socket doesn't exist, (re)connect
-  if (socket && socketToken === accessToken) return socket;
+  if (socket && socketToken === accessToken) {
+    // Socket exists with same token — but check if branchId changed
+    // and we need to join a new room
+    if (branchId && branchId !== socketBranchId) {
+      socketBranchId = branchId;
+      socket.emit('join:branch', { branchId });
+    }
+    return socket;
+  }
 
   if (socket) {
     socket.removeAllListeners();
@@ -24,7 +27,9 @@ function getSocket(): Socket {
     socket = null;
   }
 
-  socketToken = accessToken;
+  socketToken  = accessToken;
+  socketBranchId = branchId;
+
   socket = io(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/orders`, {
     auth: { token: accessToken },
     transports: ['websocket'],
@@ -32,11 +37,21 @@ function getSocket(): Socket {
   });
 
   socket.on('connect', () => {
-    if (branchId) socket?.emit('join:branch', { branchId });
+    console.log('[WS] Connected, joining branch:', branchId);
+    // Always re-read branchId from store on connect/reconnect
+    const currentBranchId = useAuthStore.getState().branchId;
+    if (currentBranchId) {
+      socketBranchId = currentBranchId;
+      socket?.emit('join:branch', { branchId: currentBranchId });
+    }
   });
 
   socket.on('disconnect', () => {
     console.log('[WS] Disconnected');
+  });
+
+  socket.on('connect_error', (err) => {
+    console.warn('[WS] Connection error:', err.message);
   });
 
   return socket;
@@ -58,7 +73,14 @@ export function useSocket(event: string, handler: (data: any) => void) {
   useEffect(() => {
     return useAuthStore.subscribe((state, prev) => {
       if (state.accessToken !== prev.accessToken) {
-        socketToken = null; // triggers reconnect on next getSocket() call
+        socketToken = null;
+      }
+      // If branchId changes, rejoin the new branch room
+      if (state.branchId !== prev.branchId && socket?.connected) {
+        socketBranchId = state.branchId;
+        if (state.branchId) {
+          socket?.emit('join:branch', { branchId: state.branchId });
+        }
       }
     });
   }, []);
@@ -72,5 +94,6 @@ export function disconnectSocket() {
   socket?.removeAllListeners();
   socket?.disconnect();
   socket = null;
-  socketToken = null;
+  socketToken  = null;
+  socketBranchId = null;
 }

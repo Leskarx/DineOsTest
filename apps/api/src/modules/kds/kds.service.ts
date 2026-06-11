@@ -16,9 +16,9 @@ export class KdsService {
   ) {}
 
   /**
-   * Show all KDS-visible items:
+   * Show all KDS-visible items grouped with KOT round info.
    * - pending / acknowledged / preparing / ready
-   * - NOT bumped (void_reason marker)
+   * - NOT bumped
    * - NOT from served/cancelled/billed/void orders
    */
   async getPendingItems(branchId: string, tenantId: string) {
@@ -33,6 +33,8 @@ export class KdsService {
         oi.created_at,
         oi.kds_ready_at,
         oi.menu_item_id,
+        oi.kot_round,
+        oi.kot_sent_at,
         o.id                     AS order_id,
         o.order_number           AS order_order_number,
         o.order_type,
@@ -52,6 +54,7 @@ export class KdsService {
         AND COALESCE(oi.void_reason, '') <> $3
         AND o.status NOT IN ('cancelled', 'billed', 'void', 'served')
       ORDER BY
+        oi.kot_round ASC,
         CASE oi.kds_status
           WHEN 'pending'      THEN 0
           WHEN 'acknowledged' THEN 1
@@ -66,9 +69,7 @@ export class KdsService {
 
   /**
    * Normal status transitions:
-   * - pending -> preparing
-   * - preparing -> ready
-   * - recall -> preparing
+   * pending -> preparing -> ready
    */
   async updateItemStatus(itemId: string, status: KdsStatus, tenantId: string) {
     const item = await this.itemRepo.findOne({
@@ -77,7 +78,7 @@ export class KdsService {
     });
     if (!item) throw new NotFoundException('Order item not found');
 
-    item.kdsStatus = status;
+    item.kdsStatus  = status;
     item.voidReason = null; // clear bump marker
 
     if (status === KdsStatus.ACKNOWLEDGED || status === KdsStatus.PREPARING) {
@@ -105,16 +106,16 @@ export class KdsService {
 
       if (allReady) {
         this.events.emit('kds.orderReady', {
-          orderId: item.orderId,
+          orderId:     item.orderId,
           orderNumber: (item as any).order?.orderNumber,
-          branchId: (item as any).order?.branchId,
+          branchId:    (item as any).order?.branchId,
         });
       }
     }
 
     this.events.emit('kds.itemStatus', {
       itemId,
-      orderId: item.orderId,
+      orderId:  item.orderId,
       status,
       branchId: (item as any).order?.branchId,
     });
@@ -133,13 +134,12 @@ export class KdsService {
     });
     if (!item) throw new NotFoundException('Order item not found');
 
-    item.kdsStatus = KdsStatus.READY;
+    item.kdsStatus  = KdsStatus.READY;
     item.kdsReadyAt = item.kdsReadyAt || new Date();
     item.voidReason = KDS_BUMPED_MARKER;
 
     await this.itemRepo.save(item);
 
-    // Check if ALL items in this order are now bumped
     const orderItems = await this.itemRepo.find({
       where: { orderId: item.orderId, tenantId },
     });
@@ -153,9 +153,9 @@ export class KdsService {
 
     this.events.emit('kds.itemStatus', {
       itemId,
-      orderId: item.orderId,
-      status: 'bumped',
-      branchId: (item as any).order?.branchId,
+      orderId:   item.orderId,
+      status:    'bumped',
+      branchId:  (item as any).order?.branchId,
       allBumped,
     });
 
@@ -164,7 +164,7 @@ export class KdsService {
 
   /**
    * Bump ALL items in an order at once.
-   * Called when waiter marks "Picked Up & Served" from dashboard.
+   * Called when waiter marks "Picked Up & Served".
    */
   async bumpOrderItems(orderId: string, tenantId: string) {
     const items = await this.itemRepo.find({
@@ -175,8 +175,8 @@ export class KdsService {
     let bumpedCount = 0;
 
     for (const item of items) {
-      if (item.voidReason === KDS_BUMPED_MARKER) continue; // already bumped
-      item.kdsStatus = KdsStatus.READY;
+      if (item.voidReason === KDS_BUMPED_MARKER) continue;
+      item.kdsStatus  = KdsStatus.READY;
       item.kdsReadyAt = item.kdsReadyAt || new Date();
       item.voidReason = KDS_BUMPED_MARKER;
       bumpedCount++;
@@ -208,15 +208,15 @@ export class KdsService {
     });
     if (!item) throw new NotFoundException('Order item not found');
 
-    item.kdsStatus = KdsStatus.PREPARING;
+    item.kdsStatus  = KdsStatus.PREPARING;
     item.voidReason = null;
 
     await this.itemRepo.save(item);
 
     this.events.emit('kds.itemStatus', {
       itemId,
-      orderId: item.orderId,
-      status: KdsStatus.PREPARING,
+      orderId:  item.orderId,
+      status:   KdsStatus.PREPARING,
       branchId: (item as any).order?.branchId,
     });
 

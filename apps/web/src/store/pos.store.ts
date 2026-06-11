@@ -20,6 +20,12 @@ export interface CartItem {
   alreadySent?: boolean;
   /** Kitchen status of this item — synced from KDS */
   kdsStatus?: 'pending' | 'preparing' | 'ready' | 'completed' | null;
+  /**
+   * KOT round number.
+   * Round 1 = first KOT, Round 2 = add-on KOT, etc.
+   * null for new (unsent) items — round is assigned by server on save.
+   */
+  kotRound?: number | null;
 }
 
 type AddItemInput = Omit<CartItem, 'cartKey' | 'qty' | 'igstRate' | 'cessRate' | 'alreadySent'> & {
@@ -28,6 +34,7 @@ type AddItemInput = Omit<CartItem, 'cartKey' | 'qty' | 'igstRate' | 'cessRate' |
   /** Directly set quantity (e.g. from picker). Defaults to 1. */
   qty?: number;
   alreadySent?: boolean;
+  kotRound?: number | null;
 };
 
 interface PosState {
@@ -103,6 +110,7 @@ export const usePosStore = create<PosState>((set) => ({
               variationId: item.variationId ?? null,
               variationName: item.variationName ?? null,
               alreadySent: false, // this is a NEW addition
+              kotRound: null,     // will be assigned by server
             },
           ],
         };
@@ -120,6 +128,7 @@ export const usePosStore = create<PosState>((set) => ({
             variationId: item.variationId ?? null,
             variationName: item.variationName ?? null,
             alreadySent: item.alreadySent ?? false,
+            kotRound: item.kotRound ?? null,
           },
         ],
       };
