@@ -7,12 +7,12 @@
  * • Today's arrivals and departures panels
  */
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import {
   Hotel, BedDouble, Users, ArrowRight, ArrowLeft,
-  RefreshCw, Plus,
+  RefreshCw, Plus, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
@@ -120,6 +120,11 @@ function RoomDetail({ room, onClose }: { room: RoomSummary; onClose: () => void 
 export default function HotelPage() {
   const [selectedRoom, setSelectedRoom] = useState<RoomSummary | null>(null);
 
+  // Pagination states for arrivals and departures
+  const [arrivalsPage, setArrivalsPage] = useState(1);
+  const [departuresPage, setDeparturesPage] = useState(1);
+  const LIMIT = 5;
+
   const { data: dash, isLoading: dashLoading, refetch } = useQuery<DashboardData>({
     queryKey: ['hotel-dashboard'],
     queryFn: () => api.get('/api/v1/hotel/dashboard').then((r) => {
@@ -142,10 +147,10 @@ export default function HotelPage() {
     staleTime: 30_000,
   });
 
-  const { data: arrivals = [] } = useQuery<Reservation[]>({
+  const { data: allArrivals = [] } = useQuery<Reservation[]>({
     queryKey: ['hotel-arrivals'],
     queryFn: async () => {
-      const res = await api.get(`/api/v1/hotel/reservations?status=confirmed&from=${new Date().toISOString().split('T')[0]}&to=${new Date().toISOString().split('T')[0]}&limit=10`);
+      const res = await api.get(`/api/v1/hotel/reservations?status=confirmed&from=${new Date().toISOString().split('T')[0]}&to=${new Date().toISOString().split('T')[0]}&limit=50`);
       const d = res.data;
       if (Array.isArray(d)) return d;
       if (d?.data && Array.isArray(d.data)) return d.data;
@@ -155,10 +160,10 @@ export default function HotelPage() {
     staleTime: 60_000,
   });
 
-  const { data: departures = [] } = useQuery<Reservation[]>({
+  const { data: allDepartures = [] } = useQuery<Reservation[]>({
     queryKey: ['hotel-departures'],
     queryFn: async () => {
-      const res = await api.get(`/api/v1/hotel/reservations?status=checked_in&to=${new Date().toISOString().split('T')[0]}&limit=10`);
+      const res = await api.get(`/api/v1/hotel/reservations?status=checked_in&to=${new Date().toISOString().split('T')[0]}&limit=50`);
       const d = res.data;
       if (Array.isArray(d)) return d;
       if (d?.data && Array.isArray(d.data)) return d.data;
@@ -167,11 +172,26 @@ export default function HotelPage() {
     },
     staleTime: 60_000,
   });
+
+  // Paginated arrivals and departures
+  const arrivals = Array.isArray(allArrivals) ? allArrivals : [];
+  const departures = Array.isArray(allDepartures) ? allDepartures : [];
+
+  const paginatedArrivals = arrivals.length > LIMIT
+    ? arrivals.slice((arrivalsPage - 1) * LIMIT, arrivalsPage * LIMIT)
+    : arrivals;
+  const arrivalsTotalPages = Math.ceil(arrivals.length / LIMIT);
+
+  const paginatedDepartures = departures.length > LIMIT
+    ? departures.slice((departuresPage - 1) * LIMIT, departuresPage * LIMIT)
+    : departures;
+  const departuresTotalPages = Math.ceil(departures.length / LIMIT);
 
   // Group rooms by floor — ensure rooms is always an array
   const rooms: RoomSummary[] = Array.isArray(roomsData) ? roomsData : [];
   const floors = Array.from(new Set(rooms.map((r) => r.floor))).sort((a, b) => a - b);
   const byFloor = (floor: number) => rooms.filter((r) => r.floor === floor);
+
   if (dashLoading) {
     return (
       <div className="p-6 space-y-4 animate-pulse">
@@ -296,8 +316,11 @@ export default function HotelPage() {
         <div className="grid md:grid-cols-2 gap-4">
 
           {/* Arrivals */}
-          <div className="card space-y-3">
-            <div className="flex items-center justify-between">
+          <div className={cn(
+            "card p-0 overflow-hidden flex flex-col",
+            arrivals.length > LIMIT && "h-[400px]"
+          )}>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-white">
                 <ArrowRight size={14} className="text-amber-600 dark:text-amber-400" />
                 Today's Arrivals ({arrivals.length})
@@ -306,12 +329,15 @@ export default function HotelPage() {
                 View all
               </Link>
             </div>
-            {arrivals.length === 0 ? (
-              <p className="text-xs text-slate-600 py-4 text-center">No arrivals today</p>
-            ) : (
-              <div className="divide-y divide-slate-200 dark:divide-slate-800/60">
-                {arrivals.map((r) => (
-                  <div key={r.id} className="py-2 flex items-center justify-between gap-3">
+            <div className={cn(
+              "divide-y divide-slate-200 dark:divide-slate-800/60",
+              arrivals.length > LIMIT && "flex-1 overflow-y-auto"
+            )}>
+              {paginatedArrivals.length === 0 ? (
+                <p className="text-xs text-slate-600 py-4 text-center">No arrivals today</p>
+              ) : (
+                paginatedArrivals.map((r) => (
+                  <div key={r.id} className="py-2 px-4 flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <div className="text-sm text-slate-900 dark:text-white font-medium truncate">{r.primaryGuest?.name}</div>
                       <div className="text-xs text-slate-900 dark:text-slate-500">
@@ -322,14 +348,41 @@ export default function HotelPage() {
                       {r.room?.roomNumber}
                     </span>
                   </div>
-                ))}
+                ))
+              )}
+            </div>
+            {arrivals.length > LIMIT && (
+              <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 dark:border-slate-700 flex-shrink-0">
+                <span className="text-xs text-slate-500">
+                  Showing {(arrivalsPage - 1) * LIMIT + 1} - {Math.min(arrivalsPage * LIMIT, arrivals.length)} of {arrivals.length}
+                </span>
+                <div className="flex gap-2 items-center">
+                  <button
+                    disabled={arrivalsPage === 1}
+                    onClick={() => setArrivalsPage(p => p - 1)}
+                    className="btn-secondary px-3 py-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <span className="text-sm">{arrivalsPage} / {arrivalsTotalPages}</span>
+                  <button
+                    disabled={arrivalsPage === arrivalsTotalPages}
+                    onClick={() => setArrivalsPage(p => p + 1)}
+                    className="btn-secondary px-3 py-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
               </div>
             )}
           </div>
 
           {/* Departures */}
-          <div className="card space-y-3">
-            <div className="flex items-center justify-between">
+          <div className={cn(
+            "card p-0 overflow-hidden flex flex-col",
+            departures.length > LIMIT && "h-[400px]"
+          )}>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-white">
                 <ArrowLeft size={14} className="text-violet-400" />
                 Today's Departures ({departures.length})
@@ -338,12 +391,15 @@ export default function HotelPage() {
                 View all
               </Link>
             </div>
-            {departures.length === 0 ? (
-              <p className="text-xs text-slate-600 py-4 text-center">No departures today</p>
-            ) : (
-              <div className="divide-y divide-slate-200 dark:divide-slate-800/60">
-                {departures.map((r) => (
-                  <div key={r.id} className="py-2 flex items-center justify-between gap-3">
+            <div className={cn(
+              "divide-y divide-slate-200 dark:divide-slate-800/60",
+              departures.length > LIMIT && "flex-1 overflow-y-auto"
+            )}>
+              {paginatedDepartures.length === 0 ? (
+                <p className="text-xs text-slate-600 py-4 text-center">No departures today</p>
+              ) : (
+                paginatedDepartures.map((r) => (
+                  <div key={r.id} className="py-2 px-4 flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <div className="text-sm text-slate-900 dark:text-white font-medium truncate">{r.primaryGuest?.name}</div>
                       <div className="text-xs text-slate-900 dark:text-slate-500">{r.room?.roomNumber} · Check-out today</div>
@@ -355,7 +411,31 @@ export default function HotelPage() {
                       Check out
                     </Link>
                   </div>
-                ))}
+                ))
+              )}
+            </div>
+            {departures.length > LIMIT && (
+              <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 dark:border-slate-700 flex-shrink-0">
+                <span className="text-xs text-slate-500">
+                  Showing {(departuresPage - 1) * LIMIT + 1} - {Math.min(departuresPage * LIMIT, departures.length)} of {departures.length}
+                </span>
+                <div className="flex gap-2 items-center">
+                  <button
+                    disabled={departuresPage === 1}
+                    onClick={() => setDeparturesPage(p => p - 1)}
+                    className="btn-secondary px-3 py-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <span className="text-sm">{departuresPage} / {departuresTotalPages}</span>
+                  <button
+                    disabled={departuresPage === departuresTotalPages}
+                    onClick={() => setDeparturesPage(p => p + 1)}
+                    className="btn-secondary px-3 py-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
               </div>
             )}
           </div>

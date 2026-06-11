@@ -1,12 +1,12 @@
 'use client';
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch, apiPost } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
 import toast from 'react-hot-toast';
 import {
   Clock, Lock, Unlock, IndianRupee,
-  TrendingUp, User, ChevronDown, ChevronUp,
+  TrendingUp, User, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import dayjs from 'dayjs';
@@ -16,15 +16,15 @@ dayjs.extend(relativeTime);
 
 const DENOMS = [
   { key: 'note2000', label: '₹2000', value: 2000 },
-  { key: 'note500',  label: '₹500',  value: 500  },
-  { key: 'note200',  label: '₹200',  value: 200  },
-  { key: 'note100',  label: '₹100',  value: 100  },
-  { key: 'note50',   label: '₹50',   value: 50   },
-  { key: 'note20',   label: '₹20',   value: 20   },
-  { key: 'note10',   label: '₹10',   value: 10   },
-  { key: 'coin5',    label: '₹5',    value: 5    },
-  { key: 'coin2',    label: '₹2',    value: 2    },
-  { key: 'coin1',    label: '₹1',    value: 1    },
+  { key: 'note500', label: '₹500', value: 500 },
+  { key: 'note200', label: '₹200', value: 200 },
+  { key: 'note100', label: '₹100', value: 100 },
+  { key: 'note50', label: '₹50', value: 50 },
+  { key: 'note20', label: '₹20', value: 20 },
+  { key: 'note10', label: '₹10', value: 10 },
+  { key: 'coin5', label: '₹5', value: 5 },
+  { key: 'coin2', label: '₹2', value: 2 },
+  { key: 'coin1', label: '₹1', value: 1 },
 ];
 
 function denomTotal(counts: Record<string, number>) {
@@ -38,16 +38,16 @@ function fmt(n: number | string) {
 function RoleBadge({ role }: { role?: string }) {
   if (!role) return null;
   const colors: Record<string, string> = {
-    owner:              'bg-amber-500/20 text-amber-400',
-    manager:            'bg-blue-500/20 text-blue-400',
-    hotel_manager:      'bg-blue-500/20 text-blue-400',
+    owner: 'bg-amber-500/20 text-amber-400',
+    manager: 'bg-blue-500/20 text-blue-400',
+    hotel_manager: 'bg-blue-500/20 text-blue-400',
     restaurant_manager: 'bg-blue-500/20 text-blue-400',
-    receptionist:       'bg-teal-500/20 text-teal-400',
-    cashier:            'bg-emerald-500/20 text-emerald-400',
-    housekeeping:       'bg-purple-500/20 text-purple-400',
-    waiter:             'bg-purple-500/20 text-purple-400',
-    kitchen:            'bg-orange-500/20 text-orange-400',
-    inventory:          'bg-slate-500/20 text-slate-400',
+    receptionist: 'bg-teal-500/20 text-teal-400',
+    cashier: 'bg-emerald-500/20 text-emerald-400',
+    housekeeping: 'bg-purple-500/20 text-purple-400',
+    waiter: 'bg-purple-500/20 text-purple-400',
+    kitchen: 'bg-orange-500/20 text-orange-400',
+    inventory: 'bg-slate-500/20 text-slate-400',
   };
   return (
     <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full font-medium capitalize',
@@ -77,33 +77,44 @@ export default function HotelShiftsPage() {
   const qc = useQueryClient();
   const { branchId } = useAuthStore();
 
-  const [openingCash,       setOpeningCash]       = useState<string>('');
-  const [closingCashInput,  setClosingCashInput]  = useState<string>('');
-  const [closingCounts,     setClosingCounts]     = useState<Record<string, number>>({});
+  const [openingCash, setOpeningCash] = useState<string>('');
+  const [closingCashInput, setClosingCashInput] = useState<string>('');
+  const [closingCounts, setClosingCounts] = useState<Record<string, number>>({});
   const [showDenominations, setShowDenominations] = useState(false);
-  const [notes,             setNotes]             = useState('');
-  const [showOpen,          setShowOpen]          = useState(false);
-  const [showClose,         setShowClose]         = useState(false);
-  const [expandedShift,     setExpandedShift]     = useState<string | null>(null);
+  const [notes, setNotes] = useState('');
+  const [showOpen, setShowOpen] = useState(false);
+  const [showClose, setShowClose] = useState(false);
+  const [expandedShift, setExpandedShift] = useState<string | null>(null);
+
+  // Pagination state
+  const [shiftsPage, setShiftsPage] = useState(1);
+  const LIMIT = 10;
 
   const { data: activeShift } = useQuery({
     queryKey: ['hotel-activeShift', branchId],
-    queryFn:  () => apiFetch('/api/v1/hotel-shifts/active').then((r) => r.data).catch(() => null),
+    queryFn: () => apiFetch('/api/v1/hotel-shifts/active').then((r) => r.data).catch(() => null),
     refetchInterval: 30_000,
     enabled: !!branchId,
   });
 
-  const { data: shifts = [] } = useQuery({
+  const { data: allShifts = [] } = useQuery({
     queryKey: ['hotel-shifts', branchId],
-    queryFn:  () => apiFetch('/api/v1/hotel-shifts').then((r) => r.data),
-    enabled:  !!branchId,
+    queryFn: () => apiFetch('/api/v1/hotel-shifts').then((r) => r.data),
+    enabled: !!branchId,
   });
 
+  // Paginated shifts (only when data exceeds LIMIT)
+  const shifts = Array.isArray(allShifts) ? allShifts : [];
+  const paginatedShifts = shifts.length > LIMIT
+    ? shifts.slice((shiftsPage - 1) * LIMIT, shiftsPage * LIMIT)
+    : shifts;
+  const shiftsTotalPages = Math.ceil(shifts.length / LIMIT);
+
   const openingCashNum = parseFloat(openingCash) || 0;
-  const denomsTotal    = denomTotal(closingCounts);
-  const hasDenoms      = denomsTotal > 0;
-  const closingTotal   = hasDenoms ? denomsTotal : (parseFloat(closingCashInput) || 0);
-  const expectedCash   = activeShift
+  const denomsTotal = denomTotal(closingCounts);
+  const hasDenoms = denomsTotal > 0;
+  const closingTotal = hasDenoms ? denomsTotal : (parseFloat(closingCashInput) || 0);
+  const expectedCash = activeShift
     ? Number(activeShift.openingCash || 0) + Number(activeShift.cashSales || 0)
     : 0;
   const difference = closingTotal - expectedCash;
@@ -124,8 +135,8 @@ export default function HotelShiftsPage() {
     mutationFn: () => {
       if (!activeShift?.id) throw new Error('No active hotel shift');
       return apiPost(`/api/v1/hotel-shifts/${activeShift.id}/close`, {
-        closingCash:   closingTotal,
-        notes:         notes || undefined,
+        closingCash: closingTotal,
+        notes: notes || undefined,
       });
     },
     onSuccess: () => {
@@ -180,10 +191,10 @@ export default function HotelShiftsPage() {
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { label: 'Total Sales',  value: fmt(activeShift.totalSales),  icon: TrendingUp,  color: 'text-amber-400'   },
-              { label: 'Orders',       value: activeShift.totalOrders || 0, icon: Clock,       color: 'text-blue-400'    },
-              { label: 'Cash Sales',   value: fmt(activeShift.cashSales),   icon: IndianRupee, color: 'text-emerald-400' },
-              { label: 'Opening Cash', value: fmt(activeShift.openingCash), icon: IndianRupee, color: 'text-slate-300'   },
+              { label: 'Total Sales', value: fmt(activeShift.totalSales), icon: TrendingUp, color: 'text-amber-400' },
+              { label: 'Orders', value: activeShift.totalOrders || 0, icon: Clock, color: 'text-blue-400' },
+              { label: 'Cash Sales', value: fmt(activeShift.cashSales), icon: IndianRupee, color: 'text-emerald-400' },
+              { label: 'Opening Cash', value: fmt(activeShift.openingCash), icon: IndianRupee, color: 'text-slate-300' },
             ].map(({ label, value, icon: Icon, color }) => (
               <div key={label} className="bg-slate-800/50 rounded-lg p-3">
                 <div className="flex items-center gap-1 text-xs text-slate-400 mb-1">
@@ -202,11 +213,20 @@ export default function HotelShiftsPage() {
       )}
 
       {/* Shift History */}
-      <div className="card p-0 overflow-hidden">
-        <div className="px-4 py-3 border-b border-slate-800 font-semibold text-white">Hotel Shift History</div>
-        <div className="overflow-x-auto">
+      <div className={cn(
+        "card p-0 overflow-hidden flex flex-col",
+        shifts.length > LIMIT && "h-[500px]"
+      )}>
+        <div className="px-4 py-3 border-b border-slate-800 font-semibold text-white flex-shrink-0">Hotel Shift History</div>
+        <div className={cn(
+          "overflow-x-auto",
+          shifts.length > LIMIT && "flex-1"
+        )}>
           <table className="w-full text-sm">
-            <thead className="bg-slate-800/50">
+            <thead className={cn(
+              "bg-slate-800/50",
+              shifts.length > LIMIT && "sticky top-0 z-10"
+            )}>
               <tr>
                 <th className="th">Shift</th>
                 <th className="th">Opened By</th>
@@ -222,12 +242,12 @@ export default function HotelShiftsPage() {
               </tr>
             </thead>
             <tbody>
-              {(Array.isArray(shifts) ? shifts : []).map((s: any) => {
+              {paginatedShifts.map((s: any) => {
                 const diff = Number(s.cashDifference || 0);
                 const isExpand = expandedShift === s.id;
                 return (
-                  <>
-                    <tr key={s.id} className="table-row cursor-pointer"
+                  <React.Fragment key={s.id}>
+                    <tr className="table-row cursor-pointer"
                       onClick={() => setExpandedShift(isExpand ? null : s.id)}>
                       <td className="td font-medium text-amber-400">{s.shiftNumber}</td>
                       <td className="td"><UserCell user={s.openedByUser} fallbackId={s.openedBy} /></td>
@@ -251,18 +271,18 @@ export default function HotelShiftsPage() {
                       </td>
                     </tr>
                     {isExpand && (
-                      <tr key={`${s.id}-exp`} className="bg-slate-800/30">
+                      <tr className="bg-slate-800/30">
                         <td colSpan={11} className="px-6 py-4">
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
                             {[
-                              { label: 'UPI Sales',      value: fmt(s.upiSales),    color: 'text-white' },
-                              { label: 'Card Sales',     value: fmt(s.cardSales),   color: 'text-white' },
-                              { label: 'Wallet Sales',   value: fmt(s.walletSales), color: 'text-white' },
-                              { label: 'Complimentary',  value: fmt(s.complimentary), color: 'text-emerald-400' },
-                              { label: 'CGST Collected', value: fmt(s.totalCgst),   color: 'text-blue-400' },
-                              { label: 'SGST Collected', value: fmt(s.totalSgst),   color: 'text-purple-400' },
-                              { label: 'Total Orders',   value: s.totalOrders,      color: 'text-white' },
-                              { label: 'Duration',       value: s.closedAt ? `${dayjs(s.closedAt).diff(dayjs(s.openedAt), 'hour')}h ${dayjs(s.closedAt).diff(dayjs(s.openedAt), 'minute') % 60}m` : 'Ongoing', color: 'text-white' },
+                              { label: 'UPI Sales', value: fmt(s.upiSales), color: 'text-white' },
+                              { label: 'Card Sales', value: fmt(s.cardSales), color: 'text-white' },
+                              { label: 'Wallet Sales', value: fmt(s.walletSales), color: 'text-white' },
+                              { label: 'Complimentary', value: fmt(s.complimentary), color: 'text-emerald-400' },
+                              { label: 'CGST Collected', value: fmt(s.totalCgst), color: 'text-blue-400' },
+                              { label: 'SGST Collected', value: fmt(s.totalSgst), color: 'text-purple-400' },
+                              { label: 'Total Orders', value: s.totalOrders, color: 'text-white' },
+                              { label: 'Duration', value: s.closedAt ? `${dayjs(s.closedAt).diff(dayjs(s.openedAt), 'hour')}h ${dayjs(s.closedAt).diff(dayjs(s.openedAt), 'minute') % 60}m` : 'Ongoing', color: 'text-white' },
                             ].map(({ label, value, color }) => (
                               <div key={label}>
                                 <div className="text-slate-500 mb-1">{label}</div>
@@ -279,15 +299,39 @@ export default function HotelShiftsPage() {
                         </td>
                       </tr>
                     )}
-                  </>
+                  </React.Fragment>
                 );
               })}
-              {(!shifts || shifts.length === 0) && (
+              {shifts.length === 0 && (
                 <tr><td colSpan={11} className="td text-center text-slate-500 py-8">No hotel shifts found</td></tr>
               )}
             </tbody>
           </table>
         </div>
+        {shifts.length > LIMIT && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-slate-700 flex-shrink-0">
+            <span className="text-xs text-slate-500">
+              Showing {(shiftsPage - 1) * LIMIT + 1} - {Math.min(shiftsPage * LIMIT, shifts.length)} of {shifts.length}
+            </span>
+            <div className="flex gap-2 items-center">
+              <button
+                disabled={shiftsPage === 1}
+                onClick={() => setShiftsPage(p => p - 1)}
+                className="btn-secondary px-3 py-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <span className="text-sm">{shiftsPage} / {shiftsTotalPages}</span>
+              <button
+                disabled={shiftsPage === shiftsTotalPages}
+                onClick={() => setShiftsPage(p => p + 1)}
+                className="btn-secondary px-3 py-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── Open Shift Modal ─────────────────────────────────────────────────── */}

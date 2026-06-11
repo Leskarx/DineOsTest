@@ -1,5 +1,5 @@
 'use client';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch, apiPost, apiPut, apiPatch, apiDelete } from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -61,10 +61,12 @@ export default function EmployeesPage() {
   const [editUser, setEditUser] = useState<any>(null);
   const [deleteUser, setDeleteUser] = useState<any>(null);
   const [department, setDepartment] = useState<Department>('restaurant');
+  const [page, setPage] = useState(1);
+  const LIMIT = 10;
   const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phone: '', role: 'cashier', password: '', pin: '', employeeCode: '', branchId: '' });
 
-  const { data: users, isFetching: isLoading } = useQuery({ 
-    queryKey: ['users'], 
+  const { data: users, isFetching: isLoading } = useQuery({
+    queryKey: ['users'],
     queryFn: () => apiFetch('/api/v1/users').then((r) => r.data),
     staleTime: 0,
     gcTime: 0,
@@ -73,15 +75,15 @@ export default function EmployeesPage() {
 
   const filteredUsers = useMemo(() => {
     if (!users) return [];
-    
+
     // Owner sees everyone
     if (user?.role === 'owner') return users;
-    
+
     // Branch manager sees everyone EXCEPT owners and other branch managers
     if (user?.role === 'manager') {
       return users.filter((u: any) => !['owner', 'manager'].includes(u.role));
     }
-    
+
     // Dept managers see only their department, EXCEPT higher-ups
     if (user?.role === 'restaurant_manager') {
       return users.filter((u: any) => detectDepartment(u.role) === 'restaurant' && !['owner', 'manager', 'restaurant_manager'].includes(u.role));
@@ -89,9 +91,24 @@ export default function EmployeesPage() {
     if (user?.role === 'hotel_manager') {
       return users.filter((u: any) => detectDepartment(u.role) === 'hotel' && !['owner', 'manager', 'hotel_manager'].includes(u.role));
     }
-    
+
     return [];
   }, [users, user?.role]);
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredUsers.length / LIMIT)
+  );
+
+  const paginatedUsers = filteredUsers.slice(
+    (page - 1) * LIMIT,
+    page * LIMIT
+  );
+
+  // Reset page when employee list changes
+  useEffect(() => {
+    setPage(1);
+  }, [filteredUsers.length]);
 
   const saveMutation = useMutation({
     mutationFn: () => {
@@ -177,111 +194,144 @@ export default function EmployeesPage() {
         <button onClick={() => { setEditUser(null); setDepartment('restaurant'); setForm({ firstName: '', lastName: '', email: '', phone: '', role: 'cashier', password: '', pin: '', employeeCode: '', branchId: branchId || '' }); setShowForm(true); }} className="btn-primary"><Plus size={14} /> Add Employee</button>
       </div>
 
-      <div className="card p-0 overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-slate-100/50 dark:bg-slate-800/50">
-            <tr>
-              <th className="th">Name</th>
-              <th className="th">Contact</th>
-              <th className="th">Role</th>
-              {user?.role === 'owner' && <th className="th">Branch</th>}
-              <th className="th">Dept</th>
-              <th className="th">Employee Code</th>
-              <th className="th">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading ? (
-              [...Array(5)].map((_, i) => (
-                <tr key={i} className="table-row">
+      <div className="card p-0 overflow-hidden flex flex-col h-[650px]">
+        <div className="flex-1 overflow-auto">
+          <table className="w-full">
+            <thead className="sticky top-0 z-10 bg-slate-100/50 dark:bg-slate-800/50">
+              <tr>
+                <th className="th">Name</th>
+                <th className="th">Contact</th>
+                <th className="th">Role</th>
+                {user?.role === 'owner' && <th className="th">Branch</th>}
+                <th className="th">Dept</th>
+                <th className="th">Employee Code</th>
+                <th className="th">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                [...Array(LIMIT)].map((_, i) => (
+                  <tr key={i} className="table-row">
+                    <td className="td">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 animate-pulse"></div>
+                        <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-24 animate-pulse"></div>
+                      </div>
+                    </td>
+                    <td className="td space-y-1">
+                      <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-32 animate-pulse"></div>
+                      <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-24 animate-pulse"></div>
+                    </td>
+                    <td className="td"><div className="h-6 bg-slate-200 dark:bg-slate-700 rounded-full w-24 animate-pulse"></div></td>
+                    {user?.role === 'owner' && (
+                      <td className="td"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-20 animate-pulse"></div></td>
+                    )}
+                    <td className="td"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-20 animate-pulse"></div></td>
+                    <td className="td"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-16 animate-pulse"></div></td>
+                    <td className="td"><div className="h-8 bg-slate-200 dark:bg-slate-700 rounded w-16 animate-pulse"></div></td>
+                  </tr>
+                ))
+              ) : paginatedUsers.map((u: any) => (
+                <tr key={u.id} className="table-row">
                   <td className="td">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 animate-pulse"></div>
-                      <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-24 animate-pulse"></div>
+                      <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-900 dark:text-white">{u.firstName?.[0]}{u.lastName?.[0]}</div>
+                      <div><div className="font-medium">{u.firstName} {u.lastName} {u.id === user?.id && <span className="text-amber-500 ml-1 text-xs font-bold">(You)</span>}</div></div>
                     </div>
                   </td>
-                  <td className="td space-y-1">
-                    <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-32 animate-pulse"></div>
-                    <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-24 animate-pulse"></div>
-                  </td>
-                  <td className="td"><div className="h-6 bg-slate-200 dark:bg-slate-700 rounded-full w-24 animate-pulse"></div></td>
-                  {user?.role === 'owner' && (
-                    <td className="td"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-20 animate-pulse"></div></td>
-                  )}
-                  <td className="td"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-20 animate-pulse"></div></td>
-                  <td className="td"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-16 animate-pulse"></div></td>
-                  <td className="td"><div className="h-8 bg-slate-200 dark:bg-slate-700 rounded w-16 animate-pulse"></div></td>
-                </tr>
-              ))
-            ) : filteredUsers.map((u: any) => (
-              <tr key={u.id} className="table-row">
-                <td className="td">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-900 dark:text-white">{u.firstName?.[0]}{u.lastName?.[0]}</div>
-                    <div><div className="font-medium">{u.firstName} {u.lastName} {u.id === user?.id && <span className="text-amber-500 ml-1 text-xs font-bold">(You)</span>}</div></div>
-                  </div>
-                </td>
-                <td className="td text-slate-900 dark:text-slate-400 text-xs">
-                  <div>{u.email}</div>
-                  <div>{u.phone}</div>
-                </td>
-                <td className="td">
-                  <span className={ROLE_COLORS[u.role] || 'badge-slate'}>
-                    {u.role === 'manager' ? 'Branch Manager' :
-                      u.role === 'restaurant_manager' ? 'Restaurant Manager' :
-                        u.role === 'hotel_manager' ? 'Hotel Manager' :
-                          u.role.charAt(0).toUpperCase() + u.role.slice(1).replace('_', ' ')}
-                  </span>
-                </td>
-                {user?.role === 'owner' && (
                   <td className="td text-slate-900 dark:text-slate-400 text-xs">
-                    {u.branchId ? (branches?.find((b: any) => b.id === u.branchId)?.name || 'Unknown Branch') : 'Global'}
+                    <div>{u.email}</div>
+                    <div>{u.phone}</div>
                   </td>
-                )}
-                <td className="td"><span className="text-xs text-slate-900 dark:text-slate-500">{ROLE_DEPARTMENT[u.role] || '—'}</span></td>
-                <td className="td text-slate-900 dark:text-slate-400 font-mono">{u.employeeCode || '—'}</td>
-                <td className="td">
-                  <div className="flex gap-2 items-center">
-                    <button onClick={() => {
-                      setEditUser(u);
-                      const dept = detectDepartment(u.role);
-                      setDepartment(dept);
-                      setForm({ firstName: u.firstName, lastName: u.lastName || '', email: u.email || '', phone: u.phone || '', role: u.role, password: '', pin: '', employeeCode: u.employeeCode || '', branchId: u.branchId || branchId || '' });
-                      setShowForm(true);
-                    }} className="btn-ghost p-1.5"><Edit2 size={13} /></button>
+                  <td className="td">
+                    <span className={ROLE_COLORS[u.role] || 'badge-slate'}>
+                      {u.role === 'manager' ? 'Branch Manager' :
+                        u.role === 'restaurant_manager' ? 'Restaurant Manager' :
+                          u.role === 'hotel_manager' ? 'Hotel Manager' :
+                            u.role.charAt(0).toUpperCase() + u.role.slice(1).replace('_', ' ')}
+                    </span>
+                  </td>
+                  {user?.role === 'owner' && (
+                    <td className="td text-slate-900 dark:text-slate-400 text-xs">
+                      {u.branchId ? (branches?.find((b: any) => b.id === u.branchId)?.name || 'Unknown Branch') : 'Global'}
+                    </td>
+                  )}
+                  <td className="td"><span className="text-xs text-slate-900 dark:text-slate-500">{ROLE_DEPARTMENT[u.role] || '—'}</span></td>
+                  <td className="td text-slate-900 dark:text-slate-400 font-mono">{u.employeeCode || '—'}</td>
+                  <td className="td">
+                    <div className="flex gap-2 items-center">
+                      <button onClick={() => {
+                        setEditUser(u);
+                        const dept = detectDepartment(u.role);
+                        setDepartment(dept);
+                        setForm({ firstName: u.firstName, lastName: u.lastName || '', email: u.email || '', phone: u.phone || '', role: u.role, password: '', pin: '', employeeCode: u.employeeCode || '', branchId: u.branchId || branchId || '' });
+                        setShowForm(true);
+                      }} className="btn-ghost p-1.5"><Edit2 size={13} /></button>
 
-                    {/* Table permission toggle — only for waiters, only shown to managers/owners */}
-                    {canGrantPermissions && u.role === 'waiter' && (
-                      <button
-                        title={u.permissions?.canManageTables ? 'Revoke table management' : 'Grant table management'}
-                        onClick={() => permissionMutation.mutate({ id: u.id, canManageTables: !u.permissions?.canManageTables })}
-                        disabled={permissionMutation.isPending}
-                        className={cn(
-                          'btn-ghost p-1.5 transition-colors',
-                          u.permissions?.canManageTables
-                            ? 'text-emerald-600 dark:text-emerald-400 hover:text-emerald-500'
-                            : 'text-slate-400 hover:text-amber-500'
-                        )}
-                      >
-                        {u.permissions?.canManageTables ? <Layout size={13} /> : <Lock size={13} />}
-                      </button>
-                    )}
+                      {/* Table permission toggle — only for waiters, only shown to managers/owners */}
+                      {canGrantPermissions && u.role === 'waiter' && (
+                        <button
+                          title={u.permissions?.canManageTables ? 'Revoke table management' : 'Grant table management'}
+                          onClick={() => permissionMutation.mutate({ id: u.id, canManageTables: !u.permissions?.canManageTables })}
+                          disabled={permissionMutation.isPending}
+                          className={cn(
+                            'btn-ghost p-1.5 transition-colors',
+                            u.permissions?.canManageTables
+                              ? 'text-emerald-600 dark:text-emerald-400 hover:text-emerald-500'
+                              : 'text-slate-400 hover:text-amber-500'
+                          )}
+                        >
+                          {u.permissions?.canManageTables ? <Layout size={13} /> : <Lock size={13} />}
+                        </button>
+                      )}
 
-                    {u.id !== user?.id && (
-                      <button
-                        onClick={() => setDeleteUser(u)}
-                        className="btn-ghost p-1.5 text-red-600 dark:text-red-400 hover:text-red-300"
-                      >
-                        <UserX size={13} />
-                      </button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {!isLoading && filteredUsers.length === 0 && <tr><td colSpan={user?.role === 'owner' ? 7 : 6} className="text-center py-12 text-slate-900 dark:text-slate-500">No employees added yet</td></tr>}
-          </tbody>
-        </table>
+                      {u.id !== user?.id && (
+                        <button
+                          onClick={() => setDeleteUser(u)}
+                          className="btn-ghost p-1.5 text-red-600 dark:text-red-400 hover:text-red-300"
+                        >
+                          <UserX size={13} />
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {!isLoading && filteredUsers.length === 0 && <tr><td colSpan={user?.role === 'owner' ? 7 : 6} className="text-center py-12 text-slate-900 dark:text-slate-500">No employees added yet</td></tr>}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination Footer */}
+        <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 dark:border-slate-700">
+          <span className="text-xs text-slate-500">
+            Showing {(page - 1) * LIMIT + 1} -
+            {Math.min(page * LIMIT, filteredUsers.length)}
+            of {filteredUsers.length}
+          </span>
+
+          <div className="flex items-center gap-2">
+            <button
+              disabled={page === 1}
+              onClick={() => setPage(page - 1)}
+              className="btn-secondary"
+            >
+              Prev
+            </button>
+
+            <span className="text-sm">
+              {page} / {totalPages}
+            </span>
+
+            <button
+              disabled={page === totalPages}
+              onClick={() => setPage(page + 1)}
+              className="btn-secondary"
+            >
+              Next
+            </button>
+          </div>
+        </div>
       </div>
 
       {showForm && (
@@ -358,7 +408,7 @@ export default function EmployeesPage() {
                 if (editUser && form.password) {
                   if (!window.confirm('Are you sure you want to change this employee\'s password?')) return;
                 }
-                
+
                 // Block non-owner roles from being Global
                 if (!form.branchId && form.role !== 'owner') {
                   toast.error(`A specific branch must be assigned for the ${form.role.replace('_', ' ')} role.`);
