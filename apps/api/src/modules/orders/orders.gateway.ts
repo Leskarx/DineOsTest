@@ -18,7 +18,6 @@ export class OrdersGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private readonly config: ConfigService,
   ) {}
 
-  /** Verify JWT on every new WebSocket connection. Reject unauthenticated clients. */
   handleConnection(client: Socket) {
     const token = client.handshake.auth?.token as string | undefined;
     if (!token) {
@@ -30,7 +29,6 @@ export class OrdersGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const payload = this.jwtService.verify(token, {
         secret: this.config.get('JWT_SECRET'),
       });
-      // Store verified identity on the socket for downstream guards
       (client as any).jwtPayload = payload;
       this.logger.log(`[WS] Connected: ${client.id} tenant=${payload.tenantId}`);
     } catch {
@@ -44,34 +42,38 @@ export class OrdersGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('join:branch')
-  handleJoinBranch(@MessageBody() data: { branchId: string }, @ConnectedSocket() client: Socket) {
+  handleJoinBranch(
+    @MessageBody() data: { branchId: string },
+    @ConnectedSocket() client: Socket,
+  ) {
     const user = (client as any).jwtPayload;
     if (!user) { client.disconnect(true); return; }
-
-    // Enforce tenant boundary: the branchId being joined must be owned by the
-    // authenticated user's tenant. We trust the JWT — not the client claim.
-    // (Deep DB validation is deferred to per-request guards on HTTP endpoints.)
     client.join(`branch:${data.branchId}`);
     this.logger.log(`[WS] ${client.id} (tenant=${user.tenantId}) joined branch:${data.branchId}`);
     return { event: 'joined', data: { room: `branch:${data.branchId}` } };
   }
 
   @SubscribeMessage('join:kds')
-  handleJoinKds(@MessageBody() data: { branchId: string; displayId: string }, @ConnectedSocket() client: Socket) {
+  handleJoinKds(
+    @MessageBody() data: { branchId: string; displayId: string },
+    @ConnectedSocket() client: Socket,
+  ) {
     const user = (client as any).jwtPayload;
     if (!user) { client.disconnect(true); return; }
     client.join(`kds:${data.branchId}:${data.displayId}`);
     return { event: 'joined:kds', data };
   }
 
+  /* ── Order events ──────────────────────────────────────────────────────── */
+
   @OnEvent('order.created')
   notifyOrderCreated(order: any) {
     this.server.to(`branch:${order.branchId}`).emit('order:created', order);
     this.server.to(`branch:${order.branchId}`).emit('kds:newItems', {
-      orderId: order.id,
+      orderId:     order.id,
       orderNumber: order.orderNumber,
-      items: order.items,
-      tableId: order.tableId,
+      items:       order.items,
+      tableId:     order.tableId,
     });
   }
 
@@ -82,13 +84,43 @@ export class OrdersGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @OnEvent('order.itemsAdded')
   notifyItemsAdded(payload: any) {
-    // Route by branchId (not orderId) — all POS and KDS clients in the branch receive this
     this.server.to(`branch:${payload.branchId}`).emit('order:itemsAdded', payload);
     this.server.to(`branch:${payload.branchId}`).emit('kds:newItems', payload);
   }
 
+  /* ── KDS events ────────────────────────────────────────────────────────── */
+
   @OnEvent('kds.itemStatus')
   notifyKdsStatus(payload: any) {
     this.server.to(`branch:${payload.branchId}`).emit('kds:itemStatusChanged', payload);
+  }
+
+  @OnEvent('kds.orderReady')
+  notifyOrderReady(payload: any) {
+    this.server.to(`branch:${payload.branchId}`).emit('order:statusChanged', {
+      orderId:     payload.orderId,
+      orderNumber: payload.orderNumber,
+      status:      'ready',
+      branchId:    payload.branchId,
+    });
+  }
+
+  /**
+   * Fired when waiter clicks "Picked Up & Served" — bumps ALL items in order.
+   * Tells POS cart to mark everything as completed (served).
+   */
+  @OnEvent('kds.orderBumped')
+  notifyOrderBumped(payload: any) {
+    this.server.to(`branch:${payload.branchId}`).emit('kds:orderBumped', {
+      orderId:     payload.orderId,
+      bumpedCount: payload.bumpedCount,
+      branchId:    payload.branchId,
+    });
+    // Also fire statusChanged so waiter dashboard and open orders list update
+    this.server.to(`branch:${payload.branchId}`).emit('order:statusChanged', {
+      orderId:  payload.orderId,
+      status:   'served',
+      branchId: payload.branchId,
+    });
   }
 }
