@@ -7,9 +7,10 @@ import { useAuthStore } from '@/store/auth.store';
 import {
   LayoutDashboard, ShoppingCart, Monitor, Layout, BookOpen, Package,
   Receipt, Clock, BarChart3, Users, Building2, Settings, LogOut,
-  Wifi, WifiOff, Shield, Hotel, CalendarDays, SprayCan, BedDouble, Sun, Moon, Loader2
+  Wifi, WifiOff, Shield, Hotel, CalendarDays, SprayCan, BedDouble, Sun, Moon, Loader2, Menu
 } from 'lucide-react';
-import { useIsFetching } from '@tanstack/react-query';
+import { useIsFetching, useQuery } from '@tanstack/react-query';
+import { apiFetch } from '@/lib/api';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { cn } from '@/lib/utils';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
@@ -88,6 +89,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const isOnline = useOnlineStatus();
   const { isBlocked, plan, daysLeft } = useSubscriptionWall();
   const isFetching = useIsFetching();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Fetch branches to get the current branch's type
+  const { data: branches } = useQuery({
+    queryKey: ['branches'],
+    queryFn: () => apiFetch('/api/v1/branches').then((r) => r.data),
+    // Only fetch if we have a branchId and an accessToken (already handled by Hydration)
+    enabled: !!branchId && !!accessToken,
+  });
+
+  const activeBranchType = branches?.find((b: any) => b.id === branchId)?.type || 'restaurant';
 
   useEffect(() => {
     setHydrated(true);
@@ -97,6 +109,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (!hydrated) return;
     if (!accessToken) router.replace('/login');
   }, [hydrated, accessToken, router]);
+
+  // Close mobile menu when route changes
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [pathname]);
 
   if (!hydrated || !accessToken) return null;
 
@@ -111,8 +128,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">
+      {/* Mobile Overlay */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30 md:hidden" 
+          onClick={() => setIsMobileMenuOpen(false)} 
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="w-56 flex-shrink-0 flex flex-col bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800">
+      <aside className={cn(
+        "absolute md:relative z-40 w-56 flex-shrink-0 flex flex-col bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transition-transform duration-300 h-full",
+        isMobileMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+      )}>
         <div className="p-4 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center flex-shrink-0">
@@ -134,6 +162,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             // Hide branch-specific sections when in Global Mode (branchId is null)
             if (!branchId && (section === 'Restaurant' || section === 'Hotel')) {
               return null;
+            }
+
+            // Filter out sections based on branch type
+            if (branchId) {
+              if (section === 'Restaurant' && activeBranchType === 'hotel') {
+                return null;
+              }
+              if (section === 'Hotel' && activeBranchType !== 'hotel' && activeBranchType !== 'hotel_and_restaurant') {
+                return null;
+              }
             }
 
             const allowedItems = items.filter(
@@ -220,13 +258,31 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       </aside>
 
-      {/* Main */}
-      <main className="flex-1 overflow-y-auto scrollbar-thin relative">
-        {isBlocked && <SubscriptionWall plan={plan} daysLeft={daysLeft} />}
-        <ErrorBoundary section="Page">
-          {children}
-        </ErrorBoundary>
-      </main>
+      {/* Main Container */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Mobile Header */}
+        <header className="md:hidden flex items-center justify-between bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 py-3 z-20">
+          <div className="flex items-center gap-3">
+            <button onClick={() => setIsMobileMenuOpen(true)} className="p-1 -ml-1 text-slate-600 dark:text-slate-300">
+              <Menu size={22} />
+            </button>
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-md bg-amber-500 flex items-center justify-center flex-shrink-0">
+                <span className="text-xs font-black text-slate-900">D</span>
+              </div>
+              <span className="font-bold text-sm text-slate-900 dark:text-white">Dine&Stay OS</span>
+            </div>
+          </div>
+        </header>
+
+        {/* Main Content */}
+        <main className="flex-1 overflow-y-auto scrollbar-thin relative">
+          {isBlocked && <SubscriptionWall plan={plan} daysLeft={daysLeft} />}
+          <ErrorBoundary section="Page">
+            {children}
+          </ErrorBoundary>
+        </main>
+      </div>
     </div>
   );
 }//layout.tsx
