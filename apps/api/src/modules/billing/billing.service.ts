@@ -1,8 +1,12 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Injectable, NotFoundException, BadRequestException, Logger,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { Repository, DataSource, Between, MoreThanOrEqual, LessThanOrEqual } from 'typeorm';
 import * as crypto from 'crypto';
-import { Bill, GstType, InvoiceStatus } from './entities/bill.entity';
+import {
+  Bill, GstType, InvoiceStatus, OrderType, DeliveryPaymentType,
+} from './entities/bill.entity';
 import { Payment, PaymentMethod } from './entities/payment.entity';
 import { Order, OrderStatus } from '../orders/entities/order.entity';
 import { OrderItem } from '../orders/entities/order-item.entity';
@@ -23,17 +27,19 @@ export interface PaymentSplitDto {
 }
 
 export interface CreateBillDto {
-  orderId: string;
-  tenantId: string;
-  branchId: string;
-  shiftId?: string;
-  customerName?: string;
-  customerPhone?: string;
-  customerGstin?: string;
-  customerAddress?: string;
-  supplyType?: GstType;
-  payments: PaymentSplitDto[];
-  notes?: string;
+  orderId:              string;
+  tenantId:             string;
+  branchId:             string;
+  shiftId?:             string;
+  customerName?:        string;
+  customerPhone?:       string;
+  customerGstin?:       string;
+  customerAddress?:     string;
+  deliveryAddress?:     string;
+  deliveryPaymentType?: 'cod' | 'prepaid';
+  supplyType?:          GstType;
+  payments:             PaymentSplitDto[];
+  notes?:               string;
 }
 
 @Injectable()
@@ -53,8 +59,8 @@ export class BillingService {
     private readonly pdf:        PdfService,
   ) {}
 
-  async createBill(dto: CreateBillDto): Promise<Bill> {
-    // Guard: reject unresolved offline IDs before they hit the DB
+  /* ── Create Bill ─────────────────────────────────────────────────────── */
+  async createBill(dto: CreateBillDto): Promise<any> {
     const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!UUID_RE.test(dto.orderId)) {
       throw new BadRequestException(
@@ -62,57 +68,42 @@ export class BillingService {
       );
     }
 
-    // Strip internal offline-sync flag — not stored in DB
     const { isOfflineSync, ...cleanDto } = dto as any;
     dto = cleanDto;
 
     const order = await this.orderRepo.findOne({
       where: { id: dto.orderId, tenantId: dto.tenantId },
-      relations: ['items'],
+      relations: ['items', 'table'],
     });
     if (!order) throw new NotFoundException('Order not found');
-    if (order.status === OrderStatus.BILLED)   throw new BadRequestException('Order already billed');
+    if (order.status === OrderStatus.BILLED)    throw new BadRequestException('Order already billed');
     if (order.status === OrderStatus.CANCELLED) throw new BadRequestException('Order is cancelled');
 
-    // For offline-synced bills: recalculate grandTotal directly from the order's
-    // current items (which are fresh after KOT sync) instead of trusting the stored
-    // order.grandTotal which may be stale (e.g. items were added offline after the order
-    // was created online, so the stored grandTotal only reflects the original items).
     let effectiveGrandTotal = Number(order.grandTotal);
     if (isOfflineSync) {
-      // Sum lineTotal from all non-voided items — these are fresh from DB after KOT sync
       const recalculated = order.items
         .filter((i) => !i.isVoided)
         .reduce((sum, i) => sum + Number(i.lineTotal), 0);
 
-      if (recalculated > 0) {
-        effectiveGrandTotal = Math.round(recalculated * 100) / 100;
-      }
+      if (recalculated > 0) effectiveGrandTotal = Math.round(recalculated * 100) / 100;
 
-      // Auto-adjust payment only for tiny rounding differences (< ₹2)
-      // Never reduce payment for large differences — that would mean swallowing item value
       if (dto.payments?.length > 0) {
         const currentTotal = dto.payments.reduce((s: number, p: any) => s + Number(p.amount), 0);
         const diff = effectiveGrandTotal - currentTotal;
         if (Math.abs(diff) > 0.01 && Math.abs(diff) < 2) {
-          // Small rounding gap: adjust first payment entry to match
           dto.payments = [
             { ...dto.payments[0], amount: Number(dto.payments[0].amount) + diff },
             ...dto.payments.slice(1),
           ];
         }
-        // If currentTotal > effectiveGrandTotal: customer paid more than calculated — fine (change given)
-        // If currentTotal < effectiveGrandTotal by >=₹2: trust frontend, don't reduce; check below
       }
     }
 
     const totalPaid = dto.payments.reduce((s, p) => s + Number(p.amount), 0);
 
-    // For offline-synced bills: the cashier already collected the payment at POS.
-    // If the server-recalculated total differs (due to offline items being added),
-    // accept what was collected — DO NOT reject the bill. The payment discrepancy
-    // is an inherent tradeoff of offline-first billing.
-    if (!isOfflineSync && totalPaid < effectiveGrandTotal - 0.01) {
+    // COD: payment collected on delivery — skip payment sufficiency check
+    const isCod = dto.deliveryPaymentType === 'cod';
+    if (!isOfflineSync && !isCod && totalPaid < effectiveGrandTotal - 0.01) {
       throw new BadRequestException(
         `Insufficient payment. Expected ₹${effectiveGrandTotal.toFixed(2)}, got ₹${totalPaid.toFixed(2)}`,
       );
@@ -134,6 +125,15 @@ export class BillingService {
         ? GstType.IGST
         : (dto.supplyType || GstType.CGST_SGST);
 
+      const deliveryAddress =
+        dto.deliveryAddress ||
+        (order as any).deliveryAddress ||
+        null;
+
+      const deliveryPaymentType = dto.deliveryPaymentType
+        ? (dto.deliveryPaymentType as DeliveryPaymentType)
+        : null;
+
       const bill = em.create(Bill, {
         tenantId:        dto.tenantId,
         branchId:        dto.branchId,
@@ -142,6 +142,12 @@ export class BillingService {
         billNumber,
         invoiceNumber:   billNumber,
         status:          InvoiceStatus.PAID,
+
+        // Store order type + delivery info directly on the bill
+        orderType:           (order.type as OrderType) ?? OrderType.DINE_IN,
+        deliveryAddress,
+        deliveryPaymentType,
+
         customerName:    dto.customerName    || order.customerName,
         customerPhone:   dto.customerPhone   || order.customerPhone,
         customerGstin:   dto.customerGstin   || order.customerGstin,
@@ -160,9 +166,12 @@ export class BillingService {
         roundOff:        order.roundOff,
         grandTotal:      isOfflineSync ? effectiveGrandTotal : order.grandTotal,
         paidAmount:      totalPaid,
-        changeAmount:    Math.max(0, totalPaid - (isOfflineSync ? effectiveGrandTotal : Number(order.grandTotal))),
+        changeAmount:    Math.max(
+          0,
+          totalPaid - (isOfflineSync ? effectiveGrandTotal : Number(order.grandTotal)),
+        ),
         gstSummary,
-        notes:           dto.notes,
+        notes: dto.notes,
       });
 
       await em.save(bill);
@@ -194,10 +203,11 @@ export class BillingService {
         await this.updateShiftTotals(dto.shiftId, bill, dto.payments, em);
       }
 
-      return bill;
+      return { ...bill, payments };
     });
   }
 
+  /* ── Get Bill detail ─────────────────────────────────────────────────── */
   async getBill(billId: string, tenantId: string) {
     const bill = await this.billRepo.findOne({
       where: { id: billId, tenantId },
@@ -206,12 +216,30 @@ export class BillingService {
     if (!bill) throw new NotFoundException('Bill not found');
 
     const order = bill.orderId
-      ? await this.orderRepo.findOne({ where: { id: bill.orderId }, relations: ['items'] })
+      ? await this.orderRepo.findOne({
+          where: { id: bill.orderId },
+          relations: ['items', 'table'],
+        })
       : null;
 
-    return { ...bill, orderItems: order?.items.filter((i) => !i.isVoided) };
+    const orderItems = order?.items.filter((i) => !i.isVoided) ?? [];
+
+    return {
+      ...bill,
+      orderType:           bill.orderType           ?? order?.type          ?? 'dine_in',
+      deliveryAddress:     bill.deliveryAddress      ?? (order as any)?.deliveryAddress ?? null,
+      deliveryPaymentType: bill.deliveryPaymentType  ?? null,
+      customerPhone:       bill.customerPhone        ?? order?.customerPhone ?? null,
+      customerName:        bill.customerName         ?? order?.customerName  ?? null,
+      tableName:           order?.table?.name        ?? null,
+      orderItems,
+    };
   }
 
+  /* ── List Bills ──────────────────────────────────────────────────────── */
+  /* Uses findAndCount instead of QueryBuilder to avoid a TypeORM bug where
+     ordering by a column that sits next to a newly-added enum column causes
+     "Cannot read properties of undefined (reading 'databaseName')".       */
   async listBills(
     branchId: string,
     tenantId: string,
@@ -221,24 +249,29 @@ export class BillingService {
     limit = 50,
     source?: string,
   ) {
-    const qb = this.billRepo
-      .createQueryBuilder('b')
-      .where('b.tenant_id = :tenantId', { tenantId })
-      .orderBy('b.created_at', 'DESC')
-      .take(limit)
-      .skip((page - 1) * limit);
+    // Build the where clause
+    const where: any = { tenantId };
+    if (branchId) where.branchId = branchId;
+    if (source)   where.source   = source;
 
-    // If branchId is provided filter by branch, otherwise show all (global mode)
-    if (branchId) qb.andWhere('b.branch_id = :branchId', { branchId });
+    // Date range
+    if (from && to)  where.createdAt = Between(from, to);
+    else if (from)   where.createdAt = MoreThanOrEqual(from);
+    else if (to)     where.createdAt = LessThanOrEqual(to);
 
-    if (from)   qb.andWhere('b.created_at >= :from',   { from });
-    if (to)     qb.andWhere('b.created_at <= :to',     { to });
-    if (source) qb.andWhere('b.source = :source',      { source });
+    const [data, total] = await this.billRepo.findAndCount({
+      where,
+      order: { createdAt: 'DESC' },
+      take:  limit,
+      skip:  (page - 1) * limit,
+      // Include payments in list so frontend can detect COD from referenceNo if needed
+      relations: ['payments'],
+    });
 
-    const [data, total] = await qb.getManyAndCount();
     return { data, total, page, limit };
   }
 
+  /* ── Void ────────────────────────────────────────────────────────────── */
   async voidBill(billId: string, tenantId: string, reason: string) {
     const bill = await this.billRepo.findOne({ where: { id: billId, tenantId } });
     if (!bill) throw new NotFoundException('Bill not found');
@@ -248,6 +281,7 @@ export class BillingService {
     return this.billRepo.save(bill);
   }
 
+  /* ── Email ───────────────────────────────────────────────────────────── */
   async emailBill(billId: string, tenantId: string, toEmail: string): Promise<{ sent: boolean }> {
     const bill = await this.billRepo.findOne({
       where: { id: billId, tenantId },
@@ -277,9 +311,9 @@ export class BillingService {
     const invoiceData = {
       billNumber:    bill.billNumber,
       issuedAt:      bill.issuedAt ?? new Date(),
-      customerName:  bill.customerName || 'Valued Customer',
+      customerName:  bill.customerName  || 'Valued Customer',
       customerPhone: bill.customerPhone ?? undefined,
-      branchName:    branch?.name ?? 'Our Restaurant',
+      branchName:    branch?.name       ?? 'Our Restaurant',
       branchAddress: branch?.addressLine1 ?? undefined,
       gstin:         (branch as any)?.gstin ?? undefined,
       items,
@@ -294,9 +328,7 @@ export class BillingService {
     let pdfBuffer: Buffer | undefined;
     try {
       pdfBuffer = await this.pdf.generateInvoicePdf(invoiceData);
-    } catch {
-      // PDF failure must never block the email
-    }
+    } catch { /* PDF failure must never block email */ }
 
     const sent = await this.mailer.sendBillEmail({
       to:           toEmail,
@@ -322,7 +354,8 @@ export class BillingService {
     return { sent };
   }
 
-  async reprintBill(billId: string, tenantId: string): Promise<Bill> {
+  /* ── Reprint ─────────────────────────────────────────────────────────── */
+  async reprintBill(billId: string, tenantId: string): Promise<any> {
     const bill = await this.billRepo.findOne({
       where: { id: billId, tenantId },
       relations: ['payments'],
@@ -333,13 +366,16 @@ export class BillingService {
     }
     bill.printedCount = (bill.printedCount || 0) + 1;
     bill.printedAt    = new Date();
-    return this.billRepo.save(bill);
+    await this.billRepo.save(bill);
+
+    // Return full detail so frontend can print with all correct fields
+    return this.getBill(billId, tenantId);
   }
 
-  // ── Private helpers ─────────────────────────────────────────────────────────
+  // ── Private helpers ──────────────────────────────────────────────────────
 
   private buildGstSummary(items: OrderItem[], discountRatio = 0) {
-    const scale = 1 - discountRatio;
+    const scale  = 1 - discountRatio;
     const groups = new Map<number, {
       rate: number; taxable: number; cgst: number; sgst: number; igst: number;
     }>();
@@ -394,16 +430,6 @@ export class BillingService {
     await em.save(shift);
   }
 
-  /**
-   * Generates a unique, GST-compliant daily sequential bill number.
-   *
-   * Format:  INV-YYYYMMDD-NNNNN
-   * Example: INV-20260527-00001
-   *
-   * Scoped to TENANT (not branch) because Indian GST requires one continuous
-   * invoice series per GSTIN. Uses a PostgreSQL advisory lock to prevent
-   * race conditions under concurrent billing load.
-   */
   private async generateBillNumber(
     tenantId: string,
     branchId: string,
@@ -419,17 +445,14 @@ export class BillingService {
     await em.query(`SELECT pg_advisory_xact_lock($1)`, [lock_key]);
 
     const [{ count }] = await em.query(
-      `SELECT COUNT(*)::int AS count
-       FROM bills
-       WHERE tenant_id   = $1
-         AND bill_number LIKE $2`,
+      `SELECT COUNT(*)::int AS count FROM bills WHERE tenant_id = $1 AND bill_number LIKE $2`,
       [tenantId, `${prefix}%`],
     );
 
     return `${prefix}${String(Number(count) + 1).padStart(5, '0')}`;
   }
 
-  // ─── Per-Tenant Razorpay Order (for POS / Hotel billing) ──────────────────
+  // ─── Razorpay ────────────────────────────────────────────────────────────
 
   async createRazorpayOrderForBilling(
     tenantId: string,
@@ -442,34 +465,25 @@ export class BillingService {
     const rzp = tenant.settings?.razorpay;
     if (!rzp?.keyId || !rzp?.keySecret) {
       throw new BadRequestException(
-        'Razorpay is not configured for this account. Please connect Razorpay in Settings.',
+        'Razorpay is not configured. Please connect Razorpay in Settings.',
       );
     }
 
-    const client = new Razorpay({ key_id: rzp.keyId, key_secret: rzp.keySecret });
-
-    // Razorpay expects amount in paise (1 INR = 100 paise)
+    const client      = new Razorpay({ key_id: rzp.keyId, key_secret: rzp.keySecret });
     const amountPaise = Math.round(amountInRupees * 100);
 
     try {
       const order = await client.orders.create({
-        amount: amountPaise,
+        amount:   amountPaise,
         currency: 'INR',
-        receipt: receipt || `bill-${Date.now()}`,
+        receipt:  receipt || `bill-${Date.now()}`,
       });
-
-      this.logger.log(`Razorpay billing order created: ${order.id} for tenant ${tenantId}`);
-
-      return {
-        orderId: order.id,
-        amount: amountPaise,
-        currency: 'INR',
-        keyId: rzp.keyId,
-      };
+      this.logger.log(`Razorpay order created: ${order.id} for tenant ${tenantId}`);
+      return { orderId: order.id, amount: amountPaise, currency: 'INR', keyId: rzp.keyId };
     } catch (e: any) {
       this.logger.error('Razorpay order creation failed', e?.error || e);
       throw new BadRequestException(
-        e?.error?.description || 'Failed to create Razorpay order. Check your Razorpay credentials.',
+        e?.error?.description || 'Failed to create Razorpay order.',
       );
     }
   }
@@ -484,18 +498,16 @@ export class BillingService {
     if (!tenant) throw new NotFoundException('Tenant not found');
 
     const keySecret = tenant.settings?.razorpay?.keySecret;
-    if (!keySecret) {
-      throw new BadRequestException('Razorpay is not configured for this account.');
-    }
+    if (!keySecret) throw new BadRequestException('Razorpay is not configured.');
 
-    const body = `${razorpayOrderId}|${razorpayPaymentId}`;
+    const body              = `${razorpayOrderId}|${razorpayPaymentId}`;
     const expectedSignature = crypto
       .createHmac('sha256', keySecret)
       .update(body)
       .digest('hex');
 
     if (expectedSignature !== razorpaySignature) {
-      throw new BadRequestException('Invalid Razorpay payment signature. Payment could not be verified.');
+      throw new BadRequestException('Invalid Razorpay signature. Payment could not be verified.');
     }
 
     return { valid: true, paymentId: razorpayPaymentId };
