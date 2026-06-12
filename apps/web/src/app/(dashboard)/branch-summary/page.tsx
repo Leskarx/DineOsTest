@@ -147,15 +147,7 @@ export default function BranchSummaryPage() {
     URL.revokeObjectURL(url);
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <div className="animate-pulse text-slate-500 flex items-center gap-2">
-          <Activity className="animate-spin" size={16} /> Loading branch summary…
-        </div>
-      </div>
-    );
-  }
+
 
   const totalRev     = Number(s?.revenue?.total      || 0);
   const restaurantRev = Number(s?.revenue?.restaurant || 0);
@@ -222,212 +214,231 @@ export default function BranchSummaryPage() {
         </div>
       </div>
 
-      {/* ── Revenue Hero ────────────────────────────────────────────────────── */}
-      <div className="bg-gradient-to-br from-amber-600/20 via-amber-500/10 to-slate-900 border border-amber-300 dark:border-amber-500/30 rounded-2xl p-5 shadow-md">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <div className="text-xs font-semibold text-amber-600 dark:text-amber-300 uppercase tracking-widest">
-              Period Revenue
+      {isLoading ? (
+        <div className="space-y-6 animate-pulse mt-4">
+          <div className="bg-slate-200 dark:bg-slate-800 rounded-2xl h-32" />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-5">
+              <div className="bg-slate-200 dark:bg-slate-800 rounded-2xl h-64" />
+              <div className="bg-slate-200 dark:bg-slate-800 rounded-2xl h-64" />
+              <div className="bg-slate-200 dark:bg-slate-800 rounded-2xl h-64" />
             </div>
-            <div className="text-4xl font-extrabold text-slate-900 dark:text-white mt-1">
-              {fmt(totalRev)}
-            </div>
-            <div className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-              {s?.revenue?.totalBills || 0} bills · Monthly: {fmtShort(s?.revenue?.month || 0)}
-            </div>
-          </div>
-          <div className="flex gap-3">
-            <div className="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-xl p-4 min-w-[140px]">
-              <div className="flex items-center gap-1.5 text-xs text-slate-500 mb-1"><ShoppingCart size={11} /> Restaurant</div>
-              <div className="text-xl font-bold text-blue-500">{fmt(restaurantRev)}</div>
-              <div className="text-xs text-slate-400 mt-0.5">{posShare}% of total</div>
-            </div>
-            <div className="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-xl p-4 min-w-[140px]">
-              <div className="flex items-center gap-1.5 text-xs text-slate-500 mb-1"><BedDouble size={11} /> Hotel</div>
-              <div className="text-xl font-bold text-emerald-500">{fmt(hotelRev)}</div>
-              <div className="text-xs text-slate-400 mt-0.5">{hotelShare}% of total</div>
+            <div className="space-y-5">
+              <div className="bg-slate-200 dark:bg-slate-800 rounded-2xl h-64" />
+              <div className="bg-slate-200 dark:bg-slate-800 rounded-2xl h-64" />
             </div>
           </div>
         </div>
-      </div>
-
-      {/* ── Alerts Banner ───────────────────────────────────────────────────── */}
-      {hasAlerts && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-xl px-4 py-3 flex flex-wrap gap-4 items-center">
-          <AlertTriangle size={15} className="text-red-500" />
-          {(s?.alerts?.lowStock || 0) > 0 && (
-            <span className="text-sm text-red-600 dark:text-red-400 font-medium">
-              ⚠ Low Inventory: {s.alerts.lowStock} items
-            </span>
-          )}
-          {(s?.alerts?.openShifts || 0) > 0 && (
-            <span className="text-sm text-red-600 dark:text-red-400 font-medium">
-              ⚠ Open Shifts: {s.alerts.openShifts}
-            </span>
-          )}
-          {(s?.alerts?.housekeepingPending || 0) > 0 && (
-            <span className="text-sm text-red-600 dark:text-red-400 font-medium">
-              ⚠ HK Pending: {s.alerts.housekeepingPending} tasks
-            </span>
-          )}
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* ── Left 2/3: Main KPIs + Chart ──────────────────────────────────── */}
-        <div className="lg:col-span-2 space-y-5">
-
-          {/* Restaurant */}
-          <SectionCard title="Restaurant" icon={ShoppingCart}>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              <KpiCard icon={ShoppingCart} label="Orders"       value={s?.restaurant?.ordersToday   || 0}  sub={`${s?.restaurant?.pendingOrders || 0} pending`} color="text-blue-400" />
-              <KpiCard icon={IndianRupee}  label="Bills"        value={s?.restaurant?.billsToday    || 0}  color="text-blue-400" />
-              <KpiCard icon={TrendingUp}   label="Avg Order"    value={fmtShort(s?.restaurant?.avgOrderValue || 0)} color="text-amber-500" />
-              <KpiCard icon={CheckCircle2} label="Billed"       value={s?.restaurant?.billedOrders  || 0}  sub="Completed" color="text-emerald-400" />
-              <KpiCard icon={Clock}        label="Open Shifts"  value={s?.restaurant?.openShifts    || 0}  warn={s?.restaurant?.openShifts > 0} />
-              <KpiCard icon={Package}      label="Low Stock"    value={s?.restaurant?.lowStockItems || 0}  warn={s?.restaurant?.lowStockItems > 0} sub="Items" />
-            </div>
-          </SectionCard>
-
-          {/* Hotel (always live) */}
-          <SectionCard title="Hotel — Live" icon={BedDouble}>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              <KpiCard icon={BedDouble}   label="Reservations"  value={s?.hotel?.reservationsToday   || 0}  sub="Today" color="text-purple-400" />
-              <KpiCard icon={Key}         label="Check-ins"     value={s?.hotel?.checkinsToday        || 0}  sub="Today" color="text-emerald-400" />
-              <KpiCard icon={LogOut}      label="Check-outs"    value={s?.hotel?.checkoutsToday       || 0}  sub="Today" color="text-blue-400" />
-              <KpiCard icon={Activity}    label="Occupancy"     value={`${s?.hotel?.occupancyPct || 0}%`}   sub={`${s?.hotel?.inHouse || 0} in-house`} color="text-amber-500" />
-              <KpiCard icon={BedDouble}   label="Available"     value={s?.hotel?.availableRooms       || 0}  sub={`of ${s?.hotel?.totalRooms || 0}`} color="text-slate-400" />
-              <KpiCard icon={SprayCan}    label="HK Pending"    value={s?.hotel?.housekeepingPending  || 0}  warn={s?.hotel?.housekeepingPending > 0} sub="Today" />
-            </div>
-          </SectionCard>
-
-          {/* Revenue Chart */}
-          <SectionCard title="Revenue by Day" icon={TrendingUp}>
-            {(!s?.weeklyChart?.length) ? (
-              <div className="h-[180px] flex items-center justify-center text-sm text-slate-400">
-                No data for selected period
+      ) : (
+        <>
+          {/* ── Revenue Hero ────────────────────────────────────────────────────── */}
+          <div className="bg-gradient-to-br from-amber-600/20 via-amber-500/10 to-slate-900 border border-amber-300 dark:border-amber-500/30 rounded-2xl p-5 shadow-md">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <div className="text-xs font-semibold text-amber-600 dark:text-amber-300 uppercase tracking-widest">
+                  Period Revenue
+                </div>
+                <div className="text-4xl font-extrabold text-slate-900 dark:text-white mt-1">
+                  {fmt(totalRev)}
+                </div>
+                <div className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                  {s?.revenue?.totalBills || 0} bills · Monthly: {fmtShort(s?.revenue?.month || 0)}
+                </div>
               </div>
-            ) : (
-              <div className="h-[220px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={s.weeklyChart} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" strokeOpacity={0.4} />
-                    <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#94a3b8' }} />
-                    <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} tickFormatter={fmtShort} />
-                    <Tooltip
-                      contentStyle={{ background: '#1e293b', border: 'none', borderRadius: 8, color: '#f1f5f9', fontSize: 12 }}
-                      formatter={(v: number, name: string) => [fmt(v), name === 'pos' ? 'Restaurant' : 'Hotel']}
-                    />
-                    <Legend formatter={(v) => v === 'pos' ? 'Restaurant' : 'Hotel'} wrapperStyle={{ fontSize: 12, color: '#94a3b8' }} />
-                    <Bar dataKey="pos"   stackId="r" fill="#3b82f6" />
-                    <Bar dataKey="hotel" stackId="r" fill="#10b981" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+              <div className="flex gap-3">
+                <div className="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-xl p-4 min-w-[140px]">
+                  <div className="flex items-center gap-1.5 text-xs text-slate-500 mb-1"><ShoppingCart size={11} /> Restaurant</div>
+                  <div className="text-xl font-bold text-blue-500">{fmt(restaurantRev)}</div>
+                  <div className="text-xs text-slate-400 mt-0.5">{posShare}% of total</div>
+                </div>
+                <div className="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-xl p-4 min-w-[140px]">
+                  <div className="flex items-center gap-1.5 text-xs text-slate-500 mb-1"><BedDouble size={11} /> Hotel</div>
+                  <div className="text-xl font-bold text-emerald-500">{fmt(hotelRev)}</div>
+                  <div className="text-xs text-slate-400 mt-0.5">{hotelShare}% of total</div>
+                </div>
               </div>
-            )}
-          </SectionCard>
-        </div>
+            </div>
+          </div>
 
-        {/* ── Right 1/3: Staff + Payments + Alerts ─────────────────────────── */}
-        <div className="space-y-5">
+          {/* ── Alerts Banner ───────────────────────────────────────────────────── */}
+          {hasAlerts && (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-xl px-4 py-3 flex flex-wrap gap-4 items-center">
+              <AlertTriangle size={15} className="text-red-500" />
+              {(s?.alerts?.lowStock || 0) > 0 && (
+                <span className="text-sm text-red-600 dark:text-red-400 font-medium">
+                  ⚠ Low Inventory: {s.alerts.lowStock} items
+                </span>
+              )}
+              {(s?.alerts?.openShifts || 0) > 0 && (
+                <span className="text-sm text-red-600 dark:text-red-400 font-medium">
+                  ⚠ Open Shifts: {s.alerts.openShifts}
+                </span>
+              )}
+              {(s?.alerts?.housekeepingPending || 0) > 0 && (
+                <span className="text-sm text-red-600 dark:text-red-400 font-medium">
+                  ⚠ HK Pending: {s.alerts.housekeepingPending} tasks
+                </span>
+              )}
+            </div>
+          )}
 
-          {/* Staff (always live) */}
-          <SectionCard title="Staff — Live" icon={Users}>
-            <div className="space-y-2.5">
-              {[
-                { label: 'Total Active',  value: s?.staff?.total        || 0, icon: Users,        bold: true  },
-                { label: 'Cashiers',      value: s?.staff?.cashiers     || 0, icon: IndianRupee,  bold: false },
-                { label: 'Waiters',       value: s?.staff?.waiters      || 0, icon: ChefHat,      bold: false },
-                { label: 'Kitchen',       value: s?.staff?.kitchen      || 0, icon: ChefHat,      bold: false },
-                { label: 'Receptionist',  value: s?.staff?.receptionist || 0, icon: Key,          bold: false },
-                { label: 'Housekeeping',  value: s?.staff?.housekeeping || 0, icon: SprayCan,     bold: false },
-              ].map(({ label, value, icon: Icon, bold }) => (
-                <div key={label} className={cn('flex items-center justify-between py-1', bold && 'border-b border-slate-100 dark:border-slate-800 pb-2 mb-1')}>
-                  <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
-                    <Icon size={13} className="text-slate-400" />
-                    <span className={bold ? 'font-semibold text-slate-900 dark:text-white' : ''}>{label}</span>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* ── Left 2/3: Main KPIs + Chart ──────────────────────────────────── */}
+            <div className="lg:col-span-2 space-y-5">
+
+              {/* Restaurant */}
+              <SectionCard title="Restaurant" icon={ShoppingCart}>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <KpiCard icon={ShoppingCart} label="Orders"       value={s?.restaurant?.ordersToday   || 0}  sub={`${s?.restaurant?.pendingOrders || 0} pending`} color="text-blue-400" />
+                  <KpiCard icon={IndianRupee}  label="Bills"        value={s?.restaurant?.billsToday    || 0}  color="text-blue-400" />
+                  <KpiCard icon={TrendingUp}   label="Avg Order"    value={fmtShort(s?.restaurant?.avgOrderValue || 0)} color="text-amber-500" />
+                  <KpiCard icon={CheckCircle2} label="Billed"       value={s?.restaurant?.billedOrders  || 0}  sub="Completed" color="text-emerald-400" />
+                  <KpiCard icon={Clock}        label="Open Shifts"  value={s?.restaurant?.openShifts    || 0}  warn={s?.restaurant?.openShifts > 0} />
+                  <KpiCard icon={Package}      label="Low Stock"    value={s?.restaurant?.lowStockItems || 0}  warn={s?.restaurant?.lowStockItems > 0} sub="Items" />
+                </div>
+              </SectionCard>
+
+              {/* Hotel (always live) */}
+              <SectionCard title="Hotel — Live" icon={BedDouble}>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <KpiCard icon={BedDouble}   label="Reservations"  value={s?.hotel?.reservationsToday   || 0}  sub="Today" color="text-purple-400" />
+                  <KpiCard icon={Key}         label="Check-ins"     value={s?.hotel?.checkinsToday        || 0}  sub="Today" color="text-emerald-400" />
+                  <KpiCard icon={LogOut}      label="Check-outs"    value={s?.hotel?.checkoutsToday       || 0}  sub="Today" color="text-blue-400" />
+                  <KpiCard icon={Activity}    label="Occupancy"     value={`${s?.hotel?.occupancyPct || 0}%`}   sub={`${s?.hotel?.inHouse || 0} in-house`} color="text-amber-500" />
+                  <KpiCard icon={BedDouble}   label="Available"     value={s?.hotel?.availableRooms       || 0}  sub={`of ${s?.hotel?.totalRooms || 0}`} color="text-slate-400" />
+                  <KpiCard icon={SprayCan}    label="HK Pending"    value={s?.hotel?.housekeepingPending  || 0}  warn={s?.hotel?.housekeepingPending > 0} sub="Today" />
+                </div>
+              </SectionCard>
+
+              {/* Revenue Chart */}
+              <SectionCard title="Revenue by Day" icon={TrendingUp}>
+                {(!s?.weeklyChart?.length) ? (
+                  <div className="h-[180px] flex items-center justify-center text-sm text-slate-400">
+                    No data for selected period
                   </div>
-                  <span className={cn('font-semibold', bold ? 'text-slate-900 dark:text-white text-lg' : 'text-slate-700 dark:text-slate-300')}>
-                    {value}
-                  </span>
-                </div>
-              ))}
+                ) : (
+                  <div className="h-[220px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={s.weeklyChart} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" strokeOpacity={0.4} />
+                        <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#94a3b8' }} />
+                        <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} tickFormatter={fmtShort} />
+                        <Tooltip
+                          contentStyle={{ background: '#1e293b', border: 'none', borderRadius: 8, color: '#f1f5f9', fontSize: 12 }}
+                          formatter={(v: number, name: string) => [fmt(v), name === 'pos' ? 'Restaurant' : 'Hotel']}
+                        />
+                        <Legend formatter={(v) => v === 'pos' ? 'Restaurant' : 'Hotel'} wrapperStyle={{ fontSize: 12, color: '#94a3b8' }} />
+                        <Bar dataKey="pos"   stackId="r" fill="#3b82f6" />
+                        <Bar dataKey="hotel" stackId="r" fill="#10b981" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </SectionCard>
             </div>
-          </SectionCard>
 
-          {/* Payments */}
-          <SectionCard title="Collections (Period)" icon={IndianRupee}>
-            {(!s?.paymentBreakdown?.length) ? (
-              <p className="text-sm text-slate-400 py-3 text-center">No payments for selected period</p>
-            ) : (
-              <div className="space-y-3">
-                {s.paymentBreakdown.map((p: any) => {
-                  const Icon = PAYMENT_ICONS[p.method] || Wallet;
-                  const pct  = totalRev > 0 ? Math.round((p.total / totalRev) * 100) : 0;
-                  return (
-                    <div key={p.method}>
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
-                          <Icon size={13} />
-                          <span className="capitalize">{p.method}</span>
-                          <span className="text-xs text-slate-400">({p.txns})</span>
-                        </div>
-                        <span className="text-sm font-semibold text-slate-900 dark:text-white">{fmt(p.total)}</span>
+            {/* ── Right 1/3: Staff + Payments + Alerts ─────────────────────────── */}
+            <div className="space-y-5">
+
+              {/* Staff (always live) */}
+              <SectionCard title="Staff — Live" icon={Users}>
+                <div className="space-y-2.5">
+                  {[
+                    { label: 'Total Active',  value: s?.staff?.total        || 0, icon: Users,        bold: true  },
+                    { label: 'Cashiers',      value: s?.staff?.cashiers     || 0, icon: IndianRupee,  bold: false },
+                    { label: 'Waiters',       value: s?.staff?.waiters      || 0, icon: ChefHat,      bold: false },
+                    { label: 'Kitchen',       value: s?.staff?.kitchen      || 0, icon: ChefHat,      bold: false },
+                    { label: 'Receptionist',  value: s?.staff?.receptionist || 0, icon: Key,          bold: false },
+                    { label: 'Housekeeping',  value: s?.staff?.housekeeping || 0, icon: SprayCan,     bold: false },
+                  ].map(({ label, value, icon: Icon, bold }) => (
+                    <div key={label} className={cn('flex items-center justify-between py-1', bold && 'border-b border-slate-100 dark:border-slate-800 pb-2 mb-1')}>
+                      <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+                        <Icon size={13} className="text-slate-400" />
+                        <span className={bold ? 'font-semibold text-slate-900 dark:text-white' : ''}>{label}</span>
                       </div>
-                      <div className="h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                        <div className="h-full bg-amber-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
-                      </div>
+                      <span className={cn('font-semibold', bold ? 'text-slate-900 dark:text-white text-lg' : 'text-slate-700 dark:text-slate-300')}>
+                        {value}
+                      </span>
                     </div>
-                  );
-                })}
-                <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-between text-sm">
-                  <span className="text-slate-500">Total</span>
-                  <span className="font-bold text-slate-900 dark:text-white">
-                    {fmt(s.paymentBreakdown.reduce((a: number, p: any) => a + Number(p.total), 0))}
-                  </span>
+                  ))}
+                </div>
+              </SectionCard>
+
+              {/* Payments */}
+              <SectionCard title="Collections (Period)" icon={IndianRupee}>
+                {(!s?.paymentBreakdown?.length) ? (
+                  <p className="text-sm text-slate-400 py-3 text-center">No payments for selected period</p>
+                ) : (
+                  <div className="space-y-3">
+                    {s.paymentBreakdown.map((p: any) => {
+                      const Icon = PAYMENT_ICONS[p.method] || Wallet;
+                      const pct  = totalRev > 0 ? Math.round((p.total / totalRev) * 100) : 0;
+                      return (
+                        <div key={p.method}>
+                          <div className="flex items-center justify-between mb-1">
+                            <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+                              <Icon size={13} />
+                              <span className="capitalize">{p.method}</span>
+                              <span className="text-xs text-slate-400">({p.txns})</span>
+                            </div>
+                            <span className="text-sm font-semibold text-slate-900 dark:text-white">{fmt(p.total)}</span>
+                          </div>
+                          <div className="h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                            <div className="h-full bg-amber-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-between text-sm">
+                      <span className="text-slate-500">Total</span>
+                      <span className="font-bold text-slate-900 dark:text-white">
+                        {fmt(s.paymentBreakdown.reduce((a: number, p: any) => a + Number(p.total), 0))}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </SectionCard>
+
+              {/* Alerts */}
+              <div className={cn(
+                'rounded-xl p-5 border',
+                hasAlerts
+                  ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800/50'
+                  : 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800/50',
+              )}>
+                <div className="flex items-center gap-2 mb-3">
+                  <AlertTriangle size={14} className={hasAlerts ? 'text-red-500' : 'text-emerald-500'} />
+                  <span className="text-sm font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide">Alerts</span>
+                </div>
+                <div className="space-y-2 text-sm">
+                  {[
+                    { label: 'Low Inventory',  count: s?.alerts?.lowStock            || 0 },
+                    { label: 'Open Shifts',    count: s?.alerts?.openShifts          || 0 },
+                    { label: 'HK Pending',     count: s?.alerts?.housekeepingPending || 0 },
+                  ].map(({ label, count }) => (
+                    <div key={label} className="flex items-center justify-between">
+                      <span className={count > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}>
+                        {count > 0 ? '⚠' : '✓'} {label}
+                      </span>
+                      <span className={cn('font-semibold', count > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400')}>
+                        {count > 0 ? count : 'OK'}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </div>
-            )}
-          </SectionCard>
 
-          {/* Alerts */}
-          <div className={cn(
-            'rounded-xl p-5 border',
-            hasAlerts
-              ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800/50'
-              : 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800/50',
-          )}>
-            <div className="flex items-center gap-2 mb-3">
-              <AlertTriangle size={14} className={hasAlerts ? 'text-red-500' : 'text-emerald-500'} />
-              <span className="text-sm font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide">Alerts</span>
-            </div>
-            <div className="space-y-2 text-sm">
-              {[
-                { label: 'Low Inventory',  count: s?.alerts?.lowStock            || 0 },
-                { label: 'Open Shifts',    count: s?.alerts?.openShifts          || 0 },
-                { label: 'HK Pending',     count: s?.alerts?.housekeepingPending || 0 },
-              ].map(({ label, count }) => (
-                <div key={label} className="flex items-center justify-between">
-                  <span className={count > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}>
-                    {count > 0 ? '⚠' : '✓'} {label}
-                  </span>
-                  <span className={cn('font-semibold', count > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400')}>
-                    {count > 0 ? count : 'OK'}
-                  </span>
-                </div>
-              ))}
+              {/* Period info */}
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 text-xs space-y-1">
+                <div className="font-semibold text-slate-700 dark:text-slate-300 mb-1">Period</div>
+                <div className="text-slate-500">From: <span className="text-slate-700 dark:text-white">{from}</span></div>
+                <div className="text-slate-500">To: <span className="text-slate-700 dark:text-white">{to}</span></div>
+                <div className="text-slate-400 mt-1 italic">Hotel & staff metrics are always live (current state)</div>
+              </div>
             </div>
           </div>
-
-          {/* Period info */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 text-xs space-y-1">
-            <div className="font-semibold text-slate-700 dark:text-slate-300 mb-1">Period</div>
-            <div className="text-slate-500">From: <span className="text-slate-700 dark:text-white">{from}</span></div>
-            <div className="text-slate-500">To: <span className="text-slate-700 dark:text-white">{to}</span></div>
-            <div className="text-slate-400 mt-1 italic">Hotel & staff metrics are always live (current state)</div>
-          </div>
-        </div>
-      </div>
+        </>
+      )}
     </div>
   );
 }

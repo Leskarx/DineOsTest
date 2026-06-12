@@ -90,14 +90,14 @@ export default function HotelShiftsPage() {
   const [shiftsPage, setShiftsPage] = useState(1);
   const LIMIT = 10;
 
-  const { data: activeShift } = useQuery({
+  const { data: activeShift, isLoading: activeShiftLoading } = useQuery({
     queryKey: ['hotel-activeShift', branchId],
     queryFn: () => apiFetch('/api/v1/hotel-shifts/active').then((r) => r.data).catch(() => null),
     refetchInterval: 30_000,
     enabled: !!branchId,
   });
 
-  const { data: allShifts = [] } = useQuery({
+  const { data: allShifts = [], isLoading: shiftsLoading } = useQuery({
     queryKey: ['hotel-shifts', branchId],
     queryFn: () => apiFetch('/api/v1/hotel-shifts').then((r) => r.data),
     enabled: !!branchId,
@@ -173,7 +173,26 @@ export default function HotelShiftsPage() {
       </div>
 
       {/* Active Shift Card */}
-      {activeShift ? (
+      {activeShiftLoading ? (
+        <div className="card border-slate-700/50 bg-slate-800/10 animate-pulse">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-3 h-3 rounded-full bg-slate-700" />
+            <div className="h-5 bg-slate-700 rounded w-48" />
+            <div className="h-4 bg-slate-700 rounded w-32" />
+          </div>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="h-4 bg-slate-700 rounded w-48" />
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="bg-slate-800/50 rounded-lg p-3">
+                <div className="h-3 bg-slate-700 rounded w-20 mb-2" />
+                <div className="h-6 bg-slate-700 rounded w-24" />
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : activeShift ? (
         <div className="card border-emerald-700/50 bg-emerald-900/10">
           <div className="flex items-center gap-3 mb-3">
             <span className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse" />
@@ -242,7 +261,23 @@ export default function HotelShiftsPage() {
               </tr>
             </thead>
             <tbody>
-              {paginatedShifts.map((s: any) => {
+              {shiftsLoading ? (
+                [...Array(5)].map((_, i) => (
+                  <tr key={i} className="table-row">
+                    <td className="td"><div className="h-4 bg-slate-800 rounded w-16 animate-pulse"></div></td>
+                    <td className="td"><div className="h-4 bg-slate-800 rounded w-24 animate-pulse"></div></td>
+                    <td className="td"><div className="h-4 bg-slate-800 rounded w-24 animate-pulse"></div></td>
+                    <td className="td"><div className="h-4 bg-slate-800 rounded w-20 animate-pulse"></div></td>
+                    <td className="td"><div className="h-4 bg-slate-800 rounded w-16 ml-auto animate-pulse"></div></td>
+                    <td className="td"><div className="h-4 bg-slate-800 rounded w-16 ml-auto animate-pulse"></div></td>
+                    <td className="td"><div className="h-4 bg-slate-800 rounded w-16 ml-auto animate-pulse"></div></td>
+                    <td className="td"><div className="h-4 bg-slate-800 rounded w-16 ml-auto animate-pulse"></div></td>
+                    <td className="td"><div className="h-4 bg-slate-800 rounded w-16 ml-auto animate-pulse"></div></td>
+                    <td className="td"><div className="h-5 bg-slate-800 rounded-full w-16 mx-auto animate-pulse"></div></td>
+                    <td className="td"><div className="h-4 bg-slate-800 rounded w-4 animate-pulse"></div></td>
+                  </tr>
+                ))
+              ) : paginatedShifts.map((s: any) => {
                 const diff = Number(s.cashDifference || 0);
                 const isExpand = expandedShift === s.id;
                 return (
@@ -302,7 +337,7 @@ export default function HotelShiftsPage() {
                   </React.Fragment>
                 );
               })}
-              {shifts.length === 0 && (
+              {(!shiftsLoading && shifts.length === 0) && (
                 <tr><td colSpan={11} className="td text-center text-slate-500 py-8">No hotel shifts found</td></tr>
               )}
             </tbody>
