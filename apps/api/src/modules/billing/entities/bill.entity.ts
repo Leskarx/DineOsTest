@@ -11,22 +11,34 @@ import {
 import { Payment } from './payment.entity';
 
 export enum InvoiceStatus {
-  DRAFT = 'draft',
-  ISSUED = 'issued',
-  PAID = 'paid',
-  VOID = 'void',
+  DRAFT    = 'draft',
+  ISSUED   = 'issued',
+  PAID     = 'paid',
+  VOID     = 'void',
   REFUNDED = 'refunded',
 }
 
 export enum BillSource {
-  POS = 'pos',
+  POS   = 'pos',
   HOTEL = 'hotel',
 }
 
 export enum GstType {
   CGST_SGST = 'cgst_sgst',
-  IGST = 'igst',
-  EXEMPT = 'exempt',
+  IGST      = 'igst',
+  EXEMPT    = 'exempt',
+}
+
+export enum OrderType {
+  DINE_IN      = 'dine_in',
+  TAKEAWAY     = 'takeaway',
+  DELIVERY     = 'delivery',
+  ROOM_SERVICE = 'room_service',
+}
+
+export enum DeliveryPaymentType {
+  COD     = 'cod',
+  PREPAID = 'prepaid',
 }
 
 @Entity('bills')
@@ -35,94 +47,72 @@ export class Bill {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({
-    name: 'tenant_id',
-    type: 'uuid',
-  })
+  @Column({ name: 'tenant_id', type: 'uuid' })
   @Index()
   tenantId: string;
 
-  @Column({
-    name: 'branch_id',
-    type: 'uuid',
-  })
+  @Column({ name: 'branch_id', type: 'uuid' })
   @Index()
   branchId: string;
 
-  @Column({
-    name: 'order_id',
-    type: 'uuid',
-    nullable: true,
-  })
+  @Column({ name: 'order_id', type: 'uuid', nullable: true })
   orderId: string | null;
 
-  @Column({
-    name: 'reservation_id',
-    type: 'uuid',
-    nullable: true,
-  })
+  @Column({ name: 'reservation_id', type: 'uuid', nullable: true })
   reservationId: string | null;
 
-  @Column({
-    type: 'enum',
-    enum: BillSource,
-    default: BillSource.POS,
-  })
+  @Column({ type: 'enum', enum: BillSource, default: BillSource.POS })
   source: BillSource;
 
-  @Column({
-    name: 'shift_id',
-    type: 'uuid',
-    nullable: true,
-  })
+  @Column({ name: 'shift_id', type: 'uuid', nullable: true })
   shiftId: string | null;
 
-  @Column({
-    name: 'bill_number',
-    type: 'varchar',
-  })
+  @Column({ name: 'bill_number', type: 'varchar' })
   billNumber: string;
 
-  @Column({
-    name: 'invoice_number',
-    type: 'varchar',
-    nullable: true,
-  })
+  @Column({ name: 'invoice_number', type: 'varchar', nullable: true })
   invoiceNumber: string | null;
 
-  @Column({
-    type: 'enum',
-    enum: InvoiceStatus,
-    default: InvoiceStatus.ISSUED,
-  })
+  @Column({ type: 'enum', enum: InvoiceStatus, default: InvoiceStatus.ISSUED })
   status: InvoiceStatus;
 
+  /* ── Order type — copied from order at bill time ─────────────────────── */
   @Column({
-    name: 'customer_name',
-    type: 'varchar',
+    name: 'order_type',
+    type: 'enum',
+    enum: OrderType,
+    default: OrderType.DINE_IN,
     nullable: true,
   })
-  customerName: string | null;
+  orderType: OrderType | null;
 
+  /* ── Delivery fields — copied from order at bill time ────────────────── */
   @Column({
-    name: 'customer_phone',
-    type: 'varchar',
-    nullable: true,
-  })
-  customerPhone: string | null;
-
-  @Column({
-    name: 'customer_gstin',
-    type: 'varchar',
-    nullable: true,
-  })
-  customerGstin: string | null;
-
-  @Column({
-    name: 'customer_address',
+    name: 'delivery_address',
     type: 'text',
     nullable: true,
   })
+  deliveryAddress: string | null;
+
+  @Column({
+    name: 'delivery_payment_type',
+    type: 'enum',
+    enum: DeliveryPaymentType,
+    nullable: true,
+  })
+  deliveryPaymentType: DeliveryPaymentType | null;
+
+  /* ── Customer ─────────────────────────────────────────────────────────── */
+  @Column({ name: 'customer_name',  type: 'varchar', nullable: true })
+  customerName: string | null;
+
+  @Column({ name: 'customer_phone', type: 'varchar', nullable: true })
+  customerPhone: string | null;
+
+  @Column({ name: 'customer_gstin', type: 'varchar', nullable: true })
+  customerGstin: string | null;
+
+  @Column({ name: 'customer_address', type: 'text', nullable: true })
   customerAddress: string | null;
 
   @Column({
@@ -133,170 +123,68 @@ export class Bill {
   })
   supplyType: GstType;
 
-  @Column({
-    type: 'numeric',
-    precision: 12,
-    scale: 2,
-  })
+  /* ── Amounts ──────────────────────────────────────────────────────────── */
+  @Column({ type: 'numeric', precision: 12, scale: 2 })
   subtotal: number;
 
-  @Column({
-    name: 'discount_amount',
-    type: 'numeric',
-    precision: 12,
-    scale: 2,
-    default: 0,
-  })
+  @Column({ name: 'discount_amount', type: 'numeric', precision: 12, scale: 2, default: 0 })
   discountAmount: number;
 
-  @Column({
-    name: 'taxable_amount',
-    type: 'numeric',
-    precision: 12,
-    scale: 2,
-  })
+  @Column({ name: 'taxable_amount', type: 'numeric', precision: 12, scale: 2 })
   taxableAmount: number;
 
-  @Column({
-    name: 'cgst_amount',
-    type: 'numeric',
-    precision: 12,
-    scale: 2,
-    default: 0,
-  })
+  @Column({ name: 'cgst_amount', type: 'numeric', precision: 12, scale: 2, default: 0 })
   cgstAmount: number;
 
-  @Column({
-    name: 'sgst_amount',
-    type: 'numeric',
-    precision: 12,
-    scale: 2,
-    default: 0,
-  })
+  @Column({ name: 'sgst_amount', type: 'numeric', precision: 12, scale: 2, default: 0 })
   sgstAmount: number;
 
-  @Column({
-    name: 'igst_amount',
-    type: 'numeric',
-    precision: 12,
-    scale: 2,
-    default: 0,
-  })
+  @Column({ name: 'igst_amount', type: 'numeric', precision: 12, scale: 2, default: 0 })
   igstAmount: number;
 
-  @Column({
-    name: 'cess_amount',
-    type: 'numeric',
-    precision: 12,
-    scale: 2,
-    default: 0,
-  })
+  @Column({ name: 'cess_amount', type: 'numeric', precision: 12, scale: 2, default: 0 })
   cessAmount: number;
 
-  @Column({
-    name: 'total_tax',
-    type: 'numeric',
-    precision: 12,
-    scale: 2,
-    default: 0,
-  })
+  @Column({ name: 'total_tax', type: 'numeric', precision: 12, scale: 2, default: 0 })
   totalTax: number;
 
-  @Column({
-    name: 'round_off',
-    type: 'numeric',
-    precision: 5,
-    scale: 2,
-    default: 0,
-  })
+  @Column({ name: 'round_off', type: 'numeric', precision: 5, scale: 2, default: 0 })
   roundOff: number;
 
-  @Column({
-    name: 'grand_total',
-    type: 'numeric',
-    precision: 12,
-    scale: 2,
-  })
+  @Column({ name: 'grand_total', type: 'numeric', precision: 12, scale: 2 })
   grandTotal: number;
 
-  @Column({
-    name: 'paid_amount',
-    type: 'numeric',
-    precision: 12,
-    scale: 2,
-    default: 0,
-  })
+  @Column({ name: 'paid_amount', type: 'numeric', precision: 12, scale: 2, default: 0 })
   paidAmount: number;
 
-  @Column({
-    name: 'change_amount',
-    type: 'numeric',
-    precision: 12,
-    scale: 2,
-    default: 0,
-  })
+  @Column({ name: 'change_amount', type: 'numeric', precision: 12, scale: 2, default: 0 })
   changeAmount: number;
 
-  @Column({
-    name: 'gst_summary',
-    type: 'jsonb',
-    default: [],
-  })
+  @Column({ name: 'gst_summary', type: 'jsonb', default: [] })
   gstSummary: any[];
 
-  @Column({
-    type: 'text',
-    nullable: true,
-  })
+  @Column({ type: 'text', nullable: true })
   notes: string | null;
 
-  @Column({
-    name: 'is_refunded',
-    type: 'boolean',
-    default: false,
-  })
+  @Column({ name: 'is_refunded', type: 'boolean', default: false })
   isRefunded: boolean;
 
-  @Column({
-    name: 'refund_amount',
-    type: 'numeric',
-    precision: 12,
-    scale: 2,
-    default: 0,
-  })
+  @Column({ name: 'refund_amount', type: 'numeric', precision: 12, scale: 2, default: 0 })
   refundAmount: number;
 
-  @Column({
-    name: 'printed_count',
-    type: 'smallint',
-    default: 0,
-  })
+  @Column({ name: 'printed_count', type: 'smallint', default: 0 })
   printedCount: number;
 
-  @Column({
-    name: 'printed_at',
-    type: 'timestamp',
-    nullable: true,
-  })
+  @Column({ name: 'printed_at', type: 'timestamp', nullable: true })
   printedAt: Date | null;
 
-  @Column({
-    name: 'issued_at',
-    type: 'timestamp',
-    default: () => 'CURRENT_TIMESTAMP',
-  })
+  @Column({ name: 'issued_at', type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   issuedAt: Date;
 
-  @CreateDateColumn({
-    name: 'created_at',
-    type: 'timestamp',
-  })
+  @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
   createdAt: Date;
 
-  @UpdateDateColumn({
-    name: 'updated_at',
-    type: 'timestamp',
-  })
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamp' })
   updatedAt: Date;
 
   @OneToMany(() => Payment, (p) => p.bill)
