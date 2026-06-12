@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/store/auth.store';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   LayoutDashboard, Users, CreditCard,
   Activity, LogOut, ShieldAlert, Loader2, Gem, Settings, Receipt
@@ -23,6 +24,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router   = useRouter();
   const pathname = usePathname();
   const { user, accessToken, logout } = useAuthStore();
+  const queryClient = useQueryClient();
   // Give the store a moment to hydrate from localStorage before redirecting
   const [hydrated, setHydrated] = useState(false);
 
@@ -78,7 +80,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         <div className="p-3 border-t border-slate-200 dark:border-slate-800">
           <button
-            onClick={() => { logout(); router.replace('/login'); }}
+            onClick={() => { logout(); queryClient.clear(); router.replace('/login'); }}
             className="sidebar-link w-full text-red-600 dark:text-red-400 hover:text-red-300"
           >
             <LogOut size={15} /> Sign out
