@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useTheme } from 'next-themes';
@@ -29,9 +30,9 @@ const navSections: NavSection[] = [
   {
     section: 'Overview',
     items: [
-      { href: '/executive',               label: 'Owner Dashboard',    icon: LayoutDashboard, exact: true, roles: ['owner', 'manager'] },
+      { href: '/executive',                label: 'Owner Dashboard',    icon: LayoutDashboard, exact: true, roles: ['owner', 'manager'] },
       { href: '/owner/branch-performance', label: 'Branch Performance', icon: Building2,       exact: true, roles: ['owner'], context: 'global' },
-      { href: '/branch-summary',          label: 'Branch Summary',     icon: BarChart3,        exact: true, roles: ['owner', 'manager', 'restaurant_manager', 'hotel_manager'], context: 'branch' },
+      { href: '/branch-summary',           label: 'Branch Summary',     icon: BarChart3,       exact: true, roles: ['owner', 'manager', 'restaurant_manager', 'hotel_manager'], context: 'branch' },
     ],
   },
   {
@@ -75,20 +76,25 @@ const navSections: NavSection[] = [
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const router   = useRouter();
-  const pathname = usePathname();
+  const router      = useRouter();
+  const pathname    = usePathname();
   const { theme, setTheme } = useTheme();
+  const queryClient = useQueryClient();
+
+  // ── Your change: setBranchName ──
   const {
     user, accessToken, logout,
-    branchId, setBranchName,       // ← added setBranchName
+    branchId, setBranchName,
   } = useAuthStore();
-  const [hydrated,        setHydrated]        = useState(false);
-  const [isMobileMenuOpen,setIsMobileMenuOpen] = useState(false);
-  const isOnline   = useOnlineStatus();
-  const { isBlocked, plan, daysLeft } = useSubscriptionWall();
-  const isFetching = useIsFetching();
 
-  /* ── Fetch branches list (for branch type + branch name) ─────────────── */
+  const [hydrated,         setHydrated]         = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const isOnline                       = useOnlineStatus();
+  const { isBlocked, plan, daysLeft }  = useSubscriptionWall();
+  const isFetching                     = useIsFetching();
+
+  /* ── Fetch branches ──────────────────────────────────────────────────── */
   const { data: branches } = useQuery({
     queryKey: ['branches'],
     queryFn:  () => apiFetch('/api/v1/branches').then((r) => r.data),
@@ -100,12 +106,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   /* ── Set branch name in store whenever it resolves ───────────────────── */
   useEffect(() => {
-    if (activeBranch?.name) {
-      setBranchName(activeBranch.name);
-    }
+    if (activeBranch?.name) setBranchName(activeBranch.name);
   }, [activeBranch?.name, setBranchName]);
 
-  /* ── Clear branch name when branch changes / user logs out ──────────── */
+  /* ── Clear branch name when no branch selected ───────────────────────── */
   useEffect(() => {
     if (!branchId) setBranchName(null);
   }, [branchId, setBranchName]);
@@ -117,14 +121,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (!accessToken) router.replace('/login');
   }, [hydrated, accessToken, router]);
 
-  // Close mobile menu when route changes
+  /* ── Close mobile menu on route change ───────────────────────────────── */
   useEffect(() => {
     setIsMobileMenuOpen(false);
   }, [pathname]);
 
   if (!hydrated || !accessToken) return null;
 
-  // Onboarding wizard uses its own full-screen layout
   if (pathname === '/onboarding') {
     return (
       <ErrorBoundary section="Page">
@@ -146,13 +149,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Sidebar */}
       <aside className={cn(
-        'absolute md:relative z-40 w-56 flex-shrink-0 flex flex-col',
+        'absolute md:relative z-40 w-56 flex-shrink-0 flex flex-col h-full',
         'bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800',
-        'transition-transform duration-300 h-full',
+        'transition-transform duration-300',
         isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
       )}>
 
-        {/* Logo + app name */}
+        {/* Logo */}
         <div className="p-4 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center flex-shrink-0">
@@ -162,7 +165,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <div className="text-sm font-semibold text-slate-900 dark:text-white truncate">
                 Dine&amp;Stay OS
               </div>
-              {/* Show branch name under logo if available */}
               {activeBranch?.name ? (
                 <div className="text-xs text-amber-600 dark:text-amber-400 font-medium truncate">
                   {activeBranch.name}
@@ -272,7 +274,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
             </button>
             <button
-              onClick={async () => { await logout(); router.replace('/login'); }}
+              onClick={async () => {
+                await logout();
+                queryClient.clear(); // ← your friend's change: clears stale cache on logout
+                router.replace('/login');
+              }}
               className="sidebar-link flex-1 justify-center text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300"
               title="Sign out"
             >
