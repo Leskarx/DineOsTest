@@ -29,16 +29,23 @@ export function BranchSwitcher() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Auto-select if only 1 branch exists
+  useEffect(() => {
+    if (user?.role === 'owner' && branches?.length === 1 && branchId !== branches[0].id) {
+      setBranch(branches[0].id);
+    }
+  }, [branches, user?.role, branchId, setBranch]);
+
   const currentBranch = branches?.find((b: any) => b.id === branchId);
   const displayLabel = currentBranch ? currentBranch.name : 'All Branches (Global)';
 
-  if (user?.role !== 'owner') {
+  if (user?.role !== 'owner' || branches?.length === 1) {
     return (
       <div className="px-4 pb-3 border-b border-slate-200 dark:border-slate-800">
         <div className="w-full flex items-center gap-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 text-left opacity-90">
           <Store size={14} className="text-amber-500 flex-shrink-0" />
           <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">
-            {currentBranch ? currentBranch.name : 'Branch Staff'}
+            {currentBranch ? currentBranch.name : (branches?.length === 1 ? branches[0].name : 'Branch Staff')}
           </span>
         </div>
       </div>

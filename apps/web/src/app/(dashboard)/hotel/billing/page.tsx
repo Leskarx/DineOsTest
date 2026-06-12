@@ -35,6 +35,8 @@ export default function HotelBillingPage() {
   const [printingId, setPrintingId] = useState<string | null>(null);
   const [emailModal, setEmailModal] = useState<{ billId: string; billNumber: string } | null>(null);
   const [emailInput, setEmailInput] = useState('');
+  const [page, setPage] = useState(1);
+  const LIMIT = 15;
 
   const { data: bills = [], isLoading, refetch, isFetching } = useQuery<Bill[]>({
     queryKey: ['hotel-bills', user?.branchId, from, to],
@@ -62,6 +64,8 @@ export default function HotelBillingPage() {
     b.billNumber?.toLowerCase().includes(search.toLowerCase()) ||
     b.customerName?.toLowerCase().includes(search.toLowerCase())
   );
+  const paginatedBills = filteredBills.length > LIMIT ? filteredBills.slice((page - 1) * LIMIT, page * LIMIT) : filteredBills;
+  const totalPages = Math.ceil(filteredBills.length / LIMIT);
 
   /** Print a hotel bill by fetching its detail and rendering via printHtml */
   const handlePrint = async (billId: string) => {
@@ -228,7 +232,7 @@ export default function HotelBillingPage() {
                       <td className="px-4 py-3"><div className="h-6 bg-slate-200 dark:bg-slate-700 rounded-lg w-12 animate-pulse"></div></td>
                     </tr>
                   ))
-                ) : filteredBills.map((bill) => {
+                ) : paginatedBills.map((bill: any) => {
                   const balance = Math.max(0, Number(bill.grandTotal) - Number(bill.paidAmount));
                   return (
                     <tr
@@ -282,6 +286,30 @@ export default function HotelBillingPage() {
             </table>
           )}
         </div>
+        {filteredBills.length > LIMIT && (
+          <div className="flex items-center justify-between px-6 py-3 border-t border-slate-200 dark:border-slate-800 flex-shrink-0 bg-white dark:bg-slate-900">
+            <span className="text-xs text-slate-500">
+              Showing {(page - 1) * LIMIT + 1} - {Math.min(page * LIMIT, filteredBills.length)} of {filteredBills.length}
+            </span>
+            <div className="flex gap-2 items-center">
+              <button
+                disabled={page === 1}
+                onClick={() => setPage(p => p - 1)}
+                className="btn-secondary px-3 py-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              <span className="text-sm font-medium">{page} / {totalPages}</span>
+              <button
+                disabled={page === totalPages}
+                onClick={() => setPage(p => p + 1)}
+                className="btn-secondary px-3 py-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Email Modal */}

@@ -308,7 +308,7 @@ export default function HotelReportsPage() {
                             )}>
                                 <table className="w-full text-sm">
                                     <thead className={cn(
-                                        "sticky top-0 z-10 bg-slate-100/50 dark:bg-slate-800/50",
+                                        "sticky top-0 z-10 bg-slate-100 dark:bg-slate-800",
                                         revenueReport?.length <= LIMIT && "static"
                                     )}>
                                         <tr>
@@ -408,7 +408,7 @@ export default function HotelReportsPage() {
                             )}>
                                 <table className="w-full text-sm">
                                     <thead className={cn(
-                                        "sticky top-0 z-10 bg-slate-100/50 dark:bg-slate-800/50",
+                                        "sticky top-0 z-10 bg-slate-100 dark:bg-slate-800",
                                         bookingsReport?.length <= LIMIT && "static"
                                     )}>
                                         <tr>
@@ -564,7 +564,7 @@ export default function HotelReportsPage() {
                             )}>
                                 <table className="w-full text-sm">
                                     <thead className={cn(
-                                        "sticky top-0 z-10 bg-slate-100/50 dark:bg-slate-800/50",
+                                        "sticky top-0 z-10 bg-slate-100 dark:bg-slate-800",
                                         roomsReport?.length <= LIMIT && "static"
                                     )}>
                                         <tr>
@@ -678,7 +678,7 @@ export default function HotelReportsPage() {
 
                         <div className="card p-0 overflow-hidden">
                             <table className="w-full text-sm">
-                                <thead className="bg-slate-100/50 dark:bg-slate-800/50">
+                                <thead className="bg-slate-100 dark:bg-slate-800">
                                     <tr>
                                         <th className="th">Method</th>
                                         <th className="th text-right">Transactions</th>
@@ -726,7 +726,7 @@ export default function HotelReportsPage() {
                             )}>
                                 <table className="w-full text-sm">
                                     <thead className={cn(
-                                        "sticky top-0 z-10 bg-slate-100/50 dark:bg-slate-800/50",
+                                        "sticky top-0 z-10 bg-slate-100 dark:bg-slate-800",
                                         gstReport?.length <= LIMIT && "static"
                                     )}>
                                         <tr>
@@ -863,7 +863,7 @@ export default function HotelReportsPage() {
                             )}>
                                 <table className="w-full text-sm">
                                     <thead className={cn(
-                                        "sticky top-0 z-10 bg-slate-100/50 dark:bg-slate-800/50",
+                                        "sticky top-0 z-10 bg-slate-100 dark:bg-slate-800",
                                         frontdeskReport?.length <= LIMIT && "static"
                                     )}>
                                         <tr>
