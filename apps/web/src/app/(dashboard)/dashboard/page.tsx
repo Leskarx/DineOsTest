@@ -177,7 +177,7 @@ export default function DashboardPage() {
   const [openShiftModal,  setOpenShiftModal]  = useState(false);
   const [closeShiftModal, setCloseShiftModal] = useState(false);
 
-  const { data: summary } = useQuery({
+  const { data: summary, isLoading: summaryLoading } = useQuery({
     queryKey: ['dashboard', branchId],
     queryFn:  () => apiFetch('/api/v1/reports/dashboard').then((r) => r.data),
     refetchInterval: 30_000,
@@ -185,12 +185,12 @@ export default function DashboardPage() {
 
   const today = dayjs().format('YYYY-MM-DD');
 
-  const { data: hourly } = useQuery({
+  const { data: hourly, isLoading: hourlyLoading } = useQuery({
     queryKey: ['hourly', branchId, today],
     queryFn:  () => apiFetch(`/api/v1/reports/hourly?date=${today}`).then((r) => r.data),
   });
 
-  const { data: activeOrders } = useQuery({
+  const { data: activeOrders, isLoading: ordersLoading } = useQuery({
     queryKey: ['active-orders', branchId],
     queryFn:  () => apiFetch('/api/v1/orders?status=pending,confirmed,preparing,ready&limit=8').then((r) => r.data),
     refetchInterval: 20_000,
@@ -225,40 +225,64 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* Stat Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map(({ label, value, icon: Icon, color }) => (
-          <div key={label} className="stat-card">
-            <div className="flex items-center justify-between">
-              <span className="stat-label">{label}</span>
-              <Icon size={16} className={color} />
-            </div>
-            <div className="stat-value">{value}</div>
+      {summaryLoading ? (
+        <div className="space-y-6 animate-pulse mt-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-slate-200 dark:bg-slate-800 rounded-xl h-24" />
+            <div className="bg-slate-200 dark:bg-slate-800 rounded-xl h-24" />
+            <div className="bg-slate-200 dark:bg-slate-800 rounded-xl h-24" />
+            <div className="bg-slate-200 dark:bg-slate-800 rounded-xl h-24" />
           </div>
-        ))}
-      </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 bg-slate-200 dark:bg-slate-800 rounded-xl h-72" />
+            <div className="bg-slate-200 dark:bg-slate-800 rounded-xl h-72" />
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-slate-200 dark:bg-slate-800 rounded-xl h-64" />
+            <div className="bg-slate-200 dark:bg-slate-800 rounded-xl h-64" />
+          </div>
+          <div className="bg-slate-200 dark:bg-slate-800 rounded-xl h-64" />
+        </div>
+      ) : (
+        <>
+          {/* Stat Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {stats.map(({ label, value, icon: Icon, color }) => (
+              <div key={label} className="stat-card">
+                <div className="flex items-center justify-between">
+                  <span className="stat-label">{label}</span>
+                  <Icon size={16} className={color} />
+                </div>
+                <div className="stat-value">{value}</div>
+              </div>
+            ))}
+          </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Hourly chart */}
         <div className="card lg:col-span-2">
           <h2 className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-4">Hourly Sales — Today</h2>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={hourly || []} margin={{ top: 0, right: 0, bottom: 0, left: -20 }}>
-              <XAxis dataKey="hour" tick={{ fill: 'var(--chart-axis-text)', fontSize: 11 }} tickFormatter={(h) => `${h}:00`} />
-              <YAxis tick={{ fill: 'var(--chart-axis-text)', fontSize: 11 }} tickFormatter={(v) => `₹${v}`} />
-              <Tooltip
-                contentStyle={{ background: 'var(--chart-tooltip-bg)', border: '1px solid var(--chart-tooltip-border)', borderRadius: 8, color: 'var(--chart-tooltip-text)' }}
-                labelStyle={{ color: 'var(--chart-axis-text)' }}
-                formatter={(v: any) => [`₹${Number(v).toLocaleString('en-IN')}`, 'Revenue']}
-                labelFormatter={(h) => `${h}:00 – ${Number(h) + 1}:00`}
-              />
-              <Bar dataKey="revenue" radius={[4, 4, 0, 0]}>
-                {(hourly || []).map((_: any, i: number) => (
-                  <Cell key={i} fill={i === dayjs().hour() ? '#f59e0b' : 'var(--chart-bar-bg)'} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+          {hourlyLoading ? (
+            <div className="w-full h-[200px] bg-slate-200 dark:bg-slate-700 rounded-lg animate-pulse" />
+          ) : (
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={hourly || []} margin={{ top: 0, right: 0, bottom: 0, left: -20 }}>
+                <XAxis dataKey="hour" tick={{ fill: 'var(--chart-axis-text)', fontSize: 11 }} tickFormatter={(h) => `${h}:00`} />
+                <YAxis tick={{ fill: 'var(--chart-axis-text)', fontSize: 11 }} tickFormatter={(v) => `₹${v}`} />
+                <Tooltip
+                  contentStyle={{ background: 'var(--chart-tooltip-bg)', border: '1px solid var(--chart-tooltip-border)', borderRadius: 8, color: 'var(--chart-tooltip-text)' }}
+                  labelStyle={{ color: 'var(--chart-axis-text)' }}
+                  formatter={(v: any) => [`₹${Number(v).toLocaleString('en-IN')}`, 'Revenue']}
+                  labelFormatter={(h) => `${h}:00 – ${Number(h) + 1}:00`}
+                />
+                <Bar dataKey="revenue" radius={[4, 4, 0, 0]}>
+                  {(hourly || []).map((_: any, i: number) => (
+                    <Cell key={i} fill={i === dayjs().hour() ? '#f59e0b' : 'var(--chart-bar-bg)'} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </div>
 
         {/* Week summary */}
@@ -363,32 +387,47 @@ export default function DashboardPage() {
             <span className="badge-yellow text-xs">{activeOrders.length} active</span>
           )}
         </div>
-        {!activeOrders || activeOrders.length === 0 ? (
-          <div className="flex items-center justify-center gap-2 py-10 text-slate-600">
-            <CheckCircle size={20} className="opacity-40" />
-            <span className="text-sm">No active orders right now</span>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-100/50 dark:bg-slate-800/50">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-100/50 dark:bg-slate-800/50">
+              <tr>
+                <th className="th">Order #</th>
+                <th className="th">Table</th>
+                <th className="th">Type</th>
+                <th className="th">Items</th>
+                <th className="th text-right">Total</th>
+                <th className="th">Status</th>
+                <th className="th">Time</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ordersLoading ? (
+                [...Array(5)].map((_, i) => (
+                  <tr key={i} className="table-row">
+                    <td className="td"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-16 animate-pulse"></div></td>
+                    <td className="td"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-12 animate-pulse"></div></td>
+                    <td className="td"><div className="h-5 bg-slate-200 dark:bg-slate-700 rounded-full w-20 animate-pulse"></div></td>
+                    <td className="td"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-8 animate-pulse"></div></td>
+                    <td className="td"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-16 animate-pulse ml-auto"></div></td>
+                    <td className="td"><div className="h-5 bg-slate-200 dark:bg-slate-700 rounded-full w-20 animate-pulse"></div></td>
+                    <td className="td"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-12 animate-pulse"></div></td>
+                  </tr>
+                ))
+              ) : !activeOrders || activeOrders.length === 0 ? (
                 <tr>
-                  <th className="th">Order #</th>
-                  <th className="th">Table</th>
-                  <th className="th">Type</th>
-                  <th className="th">Items</th>
-                  <th className="th text-right">Total</th>
-                  <th className="th">Status</th>
-                  <th className="th">Time</th>
+                  <td colSpan={7}>
+                    <div className="flex items-center justify-center gap-2 py-10 text-slate-600">
+                      <CheckCircle size={20} className="opacity-40" />
+                      <span className="text-sm">No active orders right now</span>
+                    </div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {activeOrders.map((order: any) => (
+              ) : (
+                activeOrders.map((order: any) => (
                   <tr key={order.id} className="table-row">
                     <td className="td font-medium text-amber-600 dark:text-amber-400">{order.orderNumber}</td>
                     <td className="td">{order.table?.name || <span className="text-slate-500 italic">—</span>}</td>
                     <td className="td">
-                      {/* ← Fixed: shows emoji + proper label */}
                       <OrderTypeLabel type={order.type} />
                     </td>
                     <td className="td text-slate-500">{order.itemCount ?? order.items?.length ?? '—'}</td>
@@ -400,12 +439,15 @@ export default function DashboardPage() {
                     </td>
                     <td className="td text-slate-500 text-xs">{dayjs(order.createdAt).fromNow()}</td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
+
+        </>
+      )}
 
       {/* Modals */}
       {openShiftModal && (

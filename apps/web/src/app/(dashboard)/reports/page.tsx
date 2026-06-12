@@ -182,13 +182,14 @@ export default function ReportsPage() {
 
       {/* ── Global Loader ────────────────────────────────────────────────────── */}
       {loading && (
-        <div className="flex items-center justify-center py-20">
-          <div className="flex flex-col items-center gap-3">
-            <div className="h-10 w-10 animate-spin rounded-full border-4 border-amber-500 border-t-transparent" />
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              Loading report...
-            </p>
+        <div className="space-y-4 animate-pulse">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="stat-card h-24 bg-slate-100 dark:bg-slate-800/50" />
+            ))}
           </div>
+          <div className="card h-64 bg-slate-100 dark:bg-slate-800/50" />
+          <div className="card h-96 bg-slate-100 dark:bg-slate-800/50" />
         </div>
       )}
 

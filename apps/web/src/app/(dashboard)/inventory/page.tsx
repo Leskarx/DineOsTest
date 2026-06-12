@@ -18,9 +18,9 @@ export default function InventoryPage() {
   const [txnForm, setTxnForm] = useState({ type: 'purchase', quantity: '', unitCost: '', notes: '' });
   const [itemForm, setItemForm] = useState({ name: '', sku: '', minStockLevel: '', reorderLevel: '', isPerishable: false });
 
-  const { data: items } = useQuery({ queryKey: ['invItems'], queryFn: () => apiFetch('/api/v1/inventory/items').then((r) => r.data) });
-  const { data: alerts } = useQuery({ queryKey: ['invAlerts'], queryFn: () => apiFetch('/api/v1/inventory/alerts').then((r) => r.data), enabled: tab === 'alerts' });
-  const { data: ledger } = useQuery({ queryKey: ['ledger', selectedItem?.id], queryFn: () => apiFetch(`/api/v1/inventory/items/${selectedItem?.id}/ledger`).then((r) => r.data), enabled: !!selectedItem });
+  const { data: items, isLoading: itemsLoading } = useQuery({ queryKey: ['invItems'], queryFn: () => apiFetch('/api/v1/inventory/items').then((r) => r.data) });
+  const { data: alerts, isLoading: alertsLoading } = useQuery({ queryKey: ['invAlerts'], queryFn: () => apiFetch('/api/v1/inventory/alerts').then((r) => r.data), enabled: tab === 'alerts' });
+  const { data: ledger, isLoading: ledgerLoading } = useQuery({ queryKey: ['ledger', selectedItem?.id], queryFn: () => apiFetch(`/api/v1/inventory/items/${selectedItem?.id}/ledger`).then((r) => r.data), enabled: !!selectedItem });
 
   const txnMutation = useMutation({
     mutationFn: () => apiPost('/api/v1/inventory/transactions', {
@@ -99,7 +99,18 @@ export default function InventoryPage() {
                 </tr>
               </thead>
               <tbody>
-                {items
+                {itemsLoading ? (
+                  [...Array(5)].map((_, i) => (
+                    <tr key={i} className="table-row">
+                      <td className="td"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-32 animate-pulse"></div></td>
+                      <td className="td"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-16 animate-pulse"></div></td>
+                      <td className="td"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-16 animate-pulse ml-auto"></div></td>
+                      <td className="td"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-12 animate-pulse ml-auto"></div></td>
+                      <td className="td"><div className="h-5 bg-slate-200 dark:bg-slate-700 rounded-full w-20 animate-pulse"></div></td>
+                      <td className="td"><div className="h-6 bg-slate-200 dark:bg-slate-700 rounded w-24 animate-pulse"></div></td>
+                    </tr>
+                  ))
+                ) : items
                   ?.map((item: any) => {
                     // Support both camelCase (TypeORM entity) and snake_case (raw query)
                     const stockAmt = Number(item.currentStock ?? item.current_stock ?? 0);
@@ -143,18 +154,34 @@ export default function InventoryPage() {
       {/* Alerts */}
       {tab === 'alerts' && (
         <div className="space-y-2">
-          {alerts?.length === 0 && <div className="text-center py-12 text-slate-900 dark:text-slate-500">✅ All stock levels are adequate</div>}
-          {alerts?.map((item: any) => (
-            <div key={item.id} className="card flex items-center gap-4 border-red-300 dark:border-red-800/50">
-              <AlertTriangle size={18} className="text-red-600 dark:text-red-400 flex-shrink-0" />
-              <div className="flex-1">
-                <div className="font-medium text-slate-900 dark:text-white">{item.name}</div>
-                <div className="text-xs text-slate-900 dark:text-slate-400">Current: {item.current_stock} | Min: {item.min_stock_level}</div>
+          {alertsLoading ? (
+            [...Array(3)].map((_, i) => (
+              <div key={i} className="card flex items-center gap-4 border border-slate-200 dark:border-slate-800">
+                <div className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 animate-pulse flex-shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-32 animate-pulse" />
+                  <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-48 animate-pulse" />
+                </div>
+                <div className="h-6 w-20 bg-slate-200 dark:bg-slate-700 rounded-full animate-pulse" />
+                <div className="h-6 w-16 bg-slate-200 dark:bg-slate-700 rounded animate-pulse" />
               </div>
-              <span className="badge-red">{item.stock_status?.replace('_', ' ')}</span>
-              <button onClick={() => { setSelectedItem({ id: item.id, name: item.name }); setShowTxnForm(true); }} className="btn-secondary text-xs">Restock</button>
-            </div>
-          ))}
+            ))
+          ) : (
+            <>
+              {alerts?.length === 0 && <div className="text-center py-12 text-slate-900 dark:text-slate-500">✅ All stock levels are adequate</div>}
+              {alerts?.map((item: any) => (
+                <div key={item.id} className="card flex items-center gap-4 border-red-300 dark:border-red-800/50">
+                  <AlertTriangle size={18} className="text-red-600 dark:text-red-400 flex-shrink-0" />
+                  <div className="flex-1">
+                    <div className="font-medium text-slate-900 dark:text-white">{item.name}</div>
+                    <div className="text-xs text-slate-900 dark:text-slate-400">Current: {item.current_stock} | Min: {item.min_stock_level}</div>
+                  </div>
+                  <span className="badge-red">{item.stock_status?.replace('_', ' ')}</span>
+                  <button onClick={() => { setSelectedItem({ id: item.id, name: item.name }); setShowTxnForm(true); }} className="btn-secondary text-xs">Restock</button>
+                </div>
+              ))}
+            </>
+          )}
         </div>
       )}
 
@@ -168,7 +195,27 @@ export default function InventoryPage() {
             </select>
             {selectedItem && <span className="text-sm text-slate-900 dark:text-slate-400">Stock: <span className="text-slate-900 dark:text-white font-bold">{Number(selectedItem.currentStock).toFixed(2)}</span></span>}
           </div>
-          {ledger && (
+          {selectedItem && ledgerLoading ? (
+            <div className="card overflow-hidden p-0 mt-4">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-100/50 dark:bg-slate-800/50">
+                  <tr><th className="th">Date</th><th className="th">Type</th><th className="th text-right">Qty</th><th className="th text-right">Cost</th><th className="th text-right">Balance</th><th className="th">Notes</th></tr>
+                </thead>
+                <tbody>
+                  {[...Array(5)].map((_, i) => (
+                    <tr key={i} className="table-row">
+                      <td className="td"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-24 animate-pulse"></div></td>
+                      <td className="td"><div className="h-5 bg-slate-200 dark:bg-slate-700 rounded-full w-16 animate-pulse"></div></td>
+                      <td className="td"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-12 animate-pulse ml-auto"></div></td>
+                      <td className="td"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-12 animate-pulse ml-auto"></div></td>
+                      <td className="td"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-16 animate-pulse ml-auto"></div></td>
+                      <td className="td"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-32 animate-pulse"></div></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : ledger ? (
             <div className="card overflow-hidden p-0">
               <table className="w-full text-sm">
                 <thead className="bg-slate-100/50 dark:bg-slate-800/50">
@@ -190,7 +237,7 @@ export default function InventoryPage() {
                 </tbody>
               </table>
             </div>
-          )}
+          ) : null}
         </div>
       )}
 

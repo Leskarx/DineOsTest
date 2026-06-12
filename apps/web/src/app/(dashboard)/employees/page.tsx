@@ -444,7 +444,7 @@ export default function EmployeesPage() {
               {user?.role === 'owner' && form.role !== 'owner' && (
                 <div className="col-span-2 sm:col-span-1">
                   <label className="label">Assign Branch *</label>
-                  <select className="input" value={form.branchId} onChange={(e) => setForm({ ...form, branchId: e.target.value })} disabled={!!branchId}>
+                  <select className="input" value={form.branchId} onChange={(e) => setForm({ ...form, branchId: e.target.value })} disabled={!!branchId || !!editUser}>
                     <option value="" disabled>Select a Branch</option>
                     {branches?.map((b: any) => <option key={b.id} value={b.id}>{b.name}</option>)}
                   </select>
