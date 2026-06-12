@@ -14,14 +14,14 @@ const STATUS_BADGE: Record<string, string> = {
 
 export default function BillingPage() {
   const qc = useQueryClient();
-  const [from, setFrom] = useState(dayjs().format('YYYY-MM-DD'));
-  const [to, setTo] = useState(dayjs().format('YYYY-MM-DD'));
+  const [from, setFrom] = useState(dayjs().startOf('month').format('YYYY-MM-DD'));
+  const [to, setTo] = useState(dayjs().endOf('month').format('YYYY-MM-DD'));
   const [search, setSearch] = useState('');
   const [selectedBill, setSelectedBill] = useState<any>(null);
   const [emailModal, setEmailModal] = useState<{ billId: string; billNumber: string } | null>(null);
   const [emailInput, setEmailInput] = useState('');
 
-  const { data: bills } = useQuery({
+  const { data: bills, isLoading } = useQuery({
     queryKey: ['bills', from, to],
     // listBills now returns { data: Bill[], total, page, limit } — unwrap the inner array
     queryFn: () => apiFetch(`/api/v1/billing/bills?source=pos&from=${from}T00:00:00&to=${to}T23:59:59&limit=200`).then((r) => r.data?.data ?? r.data),
@@ -100,16 +100,29 @@ export default function BillingPage() {
           <table className="w-full text-sm">
             <thead className="bg-slate-100/50 dark:bg-slate-800/50 sticky top-0 z-10"><tr><th className="th">Bill #</th><th className="th">Time</th><th className="th">Customer</th><th className="th text-right">Amount</th><th className="th">Status</th></tr></thead>
             <tbody>
-              {filtered.map((bill: any) => (
-                <tr key={bill.id} onClick={() => setSelectedBill(bill)} className={cn('table-row cursor-pointer', selectedBill?.id === bill.id && 'bg-amber-100 dark:bg-amber-500/10')}>
-                  <td className="td font-medium text-amber-600 dark:text-amber-400">{bill.billNumber}</td>
-                  <td className="td text-slate-900 dark:text-slate-400 text-xs">{dayjs(bill.createdAt).format('h:mm A')}</td>
-                  <td className="td">{bill.customerName || <span className="text-slate-900 dark:text-slate-500 italic">Walk-in</span>}</td>
-                  <td className="td text-right font-bold">₹{Number(bill.grandTotal).toFixed(2)}</td>
-                  <td className="td"><span className={STATUS_BADGE[bill.status] || 'badge-slate'}>{bill.status}</span></td>
-                </tr>
-              ))}
-              {filtered.length === 0 && <tr><td colSpan={5} className="text-center py-12 text-slate-900 dark:text-slate-500">No bills found for this period</td></tr>}
+              {isLoading ? (
+                [...Array(10)].map((_, i) => (
+                  <tr key={i} className="table-row">
+                    <td className="td"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-24 animate-pulse"></div></td>
+                    <td className="td"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-16 animate-pulse"></div></td>
+                    <td className="td"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-32 animate-pulse"></div></td>
+                    <td className="td"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-16 animate-pulse ml-auto"></div></td>
+                    <td className="td"><div className="h-6 bg-slate-200 dark:bg-slate-700 rounded-full w-16 animate-pulse"></div></td>
+                  </tr>
+                ))
+              ) : filtered.length === 0 ? (
+                <tr><td colSpan={5} className="text-center py-12 text-slate-900 dark:text-slate-500">No bills found for this period</td></tr>
+              ) : (
+                filtered.map((bill: any) => (
+                  <tr key={bill.id} onClick={() => setSelectedBill(bill)} className={cn('table-row cursor-pointer', selectedBill?.id === bill.id && 'bg-amber-100 dark:bg-amber-500/10')}>
+                    <td className="td font-medium text-amber-600 dark:text-amber-400">{bill.billNumber}</td>
+                    <td className="td text-slate-900 dark:text-slate-400 text-xs">{dayjs(bill.createdAt).format('h:mm A')}</td>
+                    <td className="td">{bill.customerName || <span className="text-slate-900 dark:text-slate-500 italic">Walk-in</span>}</td>
+                    <td className="td text-right font-bold">₹{Number(bill.grandTotal).toFixed(2)}</td>
+                    <td className="td"><span className={STATUS_BADGE[bill.status] || 'badge-slate'}>{bill.status}</span></td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

@@ -170,10 +170,10 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto px-5 h-16 flex items-center justify-between">
           {/* Logo */}
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-amber-500 flex items-center justify-center flex-shrink-0">
-              <span className="text-sm font-black text-slate-900">D</span>
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-amber-500 flex items-center justify-center flex-shrink-0">
+              <span className="text-xs sm:text-sm font-black text-slate-900">D</span>
             </div>
-            <span className="font-bold text-slate-900 dark:text-white text-lg tracking-tight">Dine&amp;Stay OS</span>
+            <span className="font-bold text-slate-900 dark:text-white text-base md:text-lg tracking-tight whitespace-nowrap">Dine&amp;Stay OS</span>
           </div>
 
           <nav className="hidden md:flex items-center gap-6 text-sm text-slate-900 dark:text-slate-400">
@@ -184,16 +184,16 @@ export default function LandingPage() {
             <Link href="/privacy"    className="hover:text-slate-900 dark:text-white transition-colors">Privacy</Link>
           </nav>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 sm:gap-3">
             <Link
               href="/login"
-              className="text-sm text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:text-white transition-colors px-3 py-1.5"
+              className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:text-white transition-colors px-2 sm:px-3 py-1.5"
             >
               Sign in
             </Link>
             <Link
               href="/register"
-              className="bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold text-sm px-4 py-2 rounded-lg transition-colors"
+              className="bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg transition-colors whitespace-nowrap"
             >
               Start free trial
             </Link>
