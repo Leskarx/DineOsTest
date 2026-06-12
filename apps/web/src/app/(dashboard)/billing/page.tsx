@@ -20,6 +20,8 @@ export default function BillingPage() {
   const [selectedBill, setSelectedBill] = useState<any>(null);
   const [emailModal, setEmailModal] = useState<{ billId: string; billNumber: string } | null>(null);
   const [emailInput, setEmailInput] = useState('');
+  const [page, setPage] = useState(1);
+  const LIMIT = 15;
 
   const { data: bills, isLoading } = useQuery({
     queryKey: ['bills', from, to],
@@ -70,6 +72,8 @@ export default function BillingPage() {
   });
 
   const filtered = bills?.filter((b: any) => !search || b.billNumber.includes(search) || b.customerName?.toLowerCase().includes(search.toLowerCase())) ?? [];
+  const paginatedBills = filtered.length > LIMIT ? filtered.slice((page - 1) * LIMIT, page * LIMIT) : filtered;
+  const totalPages = Math.ceil(filtered.length / LIMIT);
 
   const totals = { gross: filtered.reduce((s: number, b: any) => s + Number(b.grandTotal), 0), tax: filtered.reduce((s: number, b: any) => s + Number(b.totalTax), 0), count: filtered.length };
 
@@ -98,7 +102,7 @@ export default function BillingPage() {
 
         <div className="flex-1 overflow-y-auto">
           <table className="w-full text-sm">
-            <thead className="bg-slate-100/50 dark:bg-slate-800/50 sticky top-0 z-10"><tr><th className="th">Bill #</th><th className="th">Time</th><th className="th">Customer</th><th className="th text-right">Amount</th><th className="th">Status</th></tr></thead>
+            <thead className="bg-slate-100 dark:bg-slate-800 sticky top-0 z-10"><tr><th className="th">Bill #</th><th className="th">Time</th><th className="th">Customer</th><th className="th text-right">Amount</th><th className="th">Status</th></tr></thead>
             <tbody>
               {isLoading ? (
                 [...Array(10)].map((_, i) => (
@@ -113,7 +117,7 @@ export default function BillingPage() {
               ) : filtered.length === 0 ? (
                 <tr><td colSpan={5} className="text-center py-12 text-slate-900 dark:text-slate-500">No bills found for this period</td></tr>
               ) : (
-                filtered.map((bill: any) => (
+                paginatedBills.map((bill: any) => (
                   <tr key={bill.id} onClick={() => setSelectedBill(bill)} className={cn('table-row cursor-pointer', selectedBill?.id === bill.id && 'bg-amber-100 dark:bg-amber-500/10')}>
                     <td className="td font-medium text-amber-600 dark:text-amber-400">{bill.billNumber}</td>
                     <td className="td text-slate-900 dark:text-slate-400 text-xs">{dayjs(bill.createdAt).format('h:mm A')}</td>
@@ -126,6 +130,30 @@ export default function BillingPage() {
             </tbody>
           </table>
         </div>
+        {filtered.length > LIMIT && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 dark:border-slate-800 flex-shrink-0 bg-white dark:bg-slate-900">
+            <span className="text-xs text-slate-500">
+              Showing {(page - 1) * LIMIT + 1} - {Math.min(page * LIMIT, filtered.length)} of {filtered.length}
+            </span>
+            <div className="flex gap-2 items-center">
+              <button
+                disabled={page === 1}
+                onClick={() => setPage(p => p - 1)}
+                className="btn-secondary px-3 py-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              <span className="text-sm font-medium">{page} / {totalPages}</span>
+              <button
+                disabled={page === totalPages}
+                onClick={() => setPage(p => p + 1)}
+                className="btn-secondary px-3 py-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Email Modal */}
