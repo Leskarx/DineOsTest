@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useTheme } from 'next-themes';
@@ -85,6 +86,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const { user, accessToken, logout, branchId } = useAuthStore();
+  const queryClient = useQueryClient();
   const [hydrated, setHydrated] = useState(false);
   const isOnline = useOnlineStatus();
   const { isBlocked, plan, daysLeft } = useSubscriptionWall();
@@ -247,6 +249,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <button
               onClick={async () => {
                 await logout();
+                queryClient.clear(); // clear stale cache so next login sees fresh data
                 router.replace('/login');
               }}
               className="sidebar-link flex-1 justify-center text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300"
