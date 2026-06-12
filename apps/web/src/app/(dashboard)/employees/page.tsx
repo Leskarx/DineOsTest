@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch, apiPost, apiPut, apiPatch, apiDelete } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/auth.store';
-import { Plus, Edit2, UserX, Shield, Layout, Lock } from 'lucide-react';
+import { Plus, Edit2, UserX, Shield, Layout, Lock, Search, Filter } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // ─── Department + Role config ────────────────────────────────────────────────
@@ -65,6 +65,10 @@ export default function EmployeesPage() {
   const LIMIT = 10;
   const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phone: '', role: 'cashier', password: '', pin: '', employeeCode: '', branchId: '' });
 
+  const [searchQuery, setSearchQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [deptFilter, setDeptFilter] = useState('all');
+
   const { data: users, isFetching: isLoading } = useQuery({
     queryKey: ['users'],
     queryFn: () => apiFetch('/api/v1/users').then((r) => r.data),
@@ -76,24 +80,42 @@ export default function EmployeesPage() {
   const filteredUsers = useMemo(() => {
     if (!users) return [];
 
-    // Owner sees everyone
-    if (user?.role === 'owner') return users;
+    let result = users;
 
-    // Branch manager sees everyone EXCEPT owners and other branch managers
+    // Role-based visibility
     if (user?.role === 'manager') {
-      return users.filter((u: any) => !['owner', 'manager'].includes(u.role));
+      result = result.filter((u: any) => !['owner', 'manager'].includes(u.role));
+    } else if (user?.role === 'restaurant_manager') {
+      result = result.filter((u: any) => detectDepartment(u.role) === 'restaurant' && !['owner', 'manager', 'restaurant_manager'].includes(u.role));
+    } else if (user?.role === 'hotel_manager') {
+      result = result.filter((u: any) => detectDepartment(u.role) === 'hotel' && !['owner', 'manager', 'hotel_manager'].includes(u.role));
+    } else if (user?.role !== 'owner') {
+      result = [];
     }
 
-    // Dept managers see only their department, EXCEPT higher-ups
-    if (user?.role === 'restaurant_manager') {
-      return users.filter((u: any) => detectDepartment(u.role) === 'restaurant' && !['owner', 'manager', 'restaurant_manager'].includes(u.role));
-    }
-    if (user?.role === 'hotel_manager') {
-      return users.filter((u: any) => detectDepartment(u.role) === 'hotel' && !['owner', 'manager', 'hotel_manager'].includes(u.role));
+    // Search filter
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter((u: any) => 
+        (u.firstName + ' ' + (u.lastName || '')).toLowerCase().includes(q) ||
+        (u.email || '').toLowerCase().includes(q) ||
+        (u.phone || '').toLowerCase().includes(q) ||
+        (u.employeeCode || '').toLowerCase().includes(q)
+      );
     }
 
-    return [];
-  }, [users, user?.role]);
+    // Role filter
+    if (roleFilter !== 'all') {
+      result = result.filter((u: any) => u.role === roleFilter);
+    }
+
+    // Department filter
+    if (deptFilter !== 'all') {
+      result = result.filter((u: any) => detectDepartment(u.role) === deptFilter);
+    }
+
+    return result;
+  }, [users, user?.role, searchQuery, roleFilter, deptFilter]);
 
   const totalPages = Math.max(
     1,
@@ -186,26 +208,64 @@ export default function EmployeesPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold text-slate-900 dark:text-white">Employees</h1>
           <p className="text-sm text-slate-900 dark:text-slate-400">{filteredUsers.length} active staff members</p>
         </div>
-        <button onClick={() => { setEditUser(null); setDepartment('restaurant'); setForm({ firstName: '', lastName: '', email: '', phone: '', role: 'cashier', password: '', pin: '', employeeCode: '', branchId: branchId || '' }); setShowForm(true); }} className="btn-primary"><Plus size={14} /> Add Employee</button>
+        <button onClick={() => { setEditUser(null); setDepartment('restaurant'); setForm({ firstName: '', lastName: '', email: '', phone: '', role: 'cashier', password: '', pin: '', employeeCode: '', branchId: branchId || '' }); setShowForm(true); }} className="btn-primary flex-shrink-0"><Plus size={14} /> Add Employee</button>
       </div>
 
-      <div className="card p-0 overflow-hidden flex flex-col h-[650px]">
-        <div className="flex-1 overflow-auto">
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search by name, email, phone, or code..."
+            className="input pl-9"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        <select
+          className="input sm:w-48"
+          value={roleFilter}
+          onChange={(e) => setRoleFilter(e.target.value)}
+        >
+          <option value="all">All Roles</option>
+          {Object.keys(ROLE_COLORS).map(r => (
+            <option key={r} value={r}>
+              {r === 'manager' ? 'Branch Manager' :
+               r === 'restaurant_manager' ? 'Restaurant Manager' :
+               r === 'hotel_manager' ? 'Hotel Manager' :
+               r.charAt(0).toUpperCase() + r.slice(1).replace('_', ' ')}
+            </option>
+          ))}
+        </select>
+        <select
+          className="input sm:w-48"
+          value={deptFilter}
+          onChange={(e) => setDeptFilter(e.target.value)}
+        >
+          <option value="all">All Departments</option>
+          {Object.entries(DEPARTMENT_LABELS).map(([k, v]) => (
+            <option key={k} value={k}>{v.replace(/[^a-zA-Z\s]/g, '').trim()}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="card p-0 overflow-hidden flex flex-col">
+        <div className="w-full overflow-x-auto">
           <table className="w-full">
-            <thead className="sticky top-0 z-10 bg-slate-100/50 dark:bg-slate-800/50">
+            <thead className="bg-slate-100/50 dark:bg-slate-800/50">
               <tr>
                 <th className="th">Name</th>
-                <th className="th">Contact</th>
+                <th className="th hidden sm:table-cell">Contact</th>
                 <th className="th">Role</th>
-                {user?.role === 'owner' && <th className="th">Branch</th>}
-                <th className="th">Dept</th>
-                <th className="th">Employee Code</th>
-                <th className="th">Actions</th>
+                {user?.role === 'owner' && <th className="th hidden md:table-cell">Branch</th>}
+                <th className="th hidden sm:table-cell">Dept</th>
+                <th className="th hidden md:table-cell">Employee Code</th>
+                <th className="th text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -218,28 +278,31 @@ export default function EmployeesPage() {
                         <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-24 animate-pulse"></div>
                       </div>
                     </td>
-                    <td className="td space-y-1">
+                    <td className="td space-y-1 hidden sm:table-cell">
                       <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-32 animate-pulse"></div>
                       <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-24 animate-pulse"></div>
                     </td>
                     <td className="td"><div className="h-6 bg-slate-200 dark:bg-slate-700 rounded-full w-24 animate-pulse"></div></td>
                     {user?.role === 'owner' && (
-                      <td className="td"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-20 animate-pulse"></div></td>
+                      <td className="td hidden md:table-cell"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-20 animate-pulse"></div></td>
                     )}
-                    <td className="td"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-20 animate-pulse"></div></td>
-                    <td className="td"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-16 animate-pulse"></div></td>
+                    <td className="td hidden sm:table-cell"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-20 animate-pulse"></div></td>
+                    <td className="td hidden md:table-cell"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-16 animate-pulse"></div></td>
                     <td className="td"><div className="h-8 bg-slate-200 dark:bg-slate-700 rounded w-16 animate-pulse"></div></td>
                   </tr>
                 ))
               ) : paginatedUsers.map((u: any) => (
                 <tr key={u.id} className="table-row">
-                  <td className="td">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-900 dark:text-white">{u.firstName?.[0]}{u.lastName?.[0]}</div>
-                      <div><div className="font-medium">{u.firstName} {u.lastName} {u.id === user?.id && <span className="text-amber-500 ml-1 text-xs font-bold">(You)</span>}</div></div>
+                  <td className="td max-w-[120px] sm:max-w-none">
+                    <div className="flex items-center gap-2 sm:gap-3">
+                      <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex flex-shrink-0 items-center justify-center text-xs font-bold text-slate-900 dark:text-white">{u.firstName?.[0]}{u.lastName?.[0]}</div>
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium truncate">{u.firstName} {u.lastName} {u.id === user?.id && <span className="text-amber-500 ml-1 text-xs font-bold">(You)</span>}</div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400 sm:hidden mt-0.5 truncate">{u.email}</div>
+                      </div>
                     </div>
                   </td>
-                  <td className="td text-slate-900 dark:text-slate-400 text-xs">
+                  <td className="td text-slate-900 dark:text-slate-400 text-xs hidden sm:table-cell">
                     <div>{u.email}</div>
                     <div>{u.phone}</div>
                   </td>
@@ -252,14 +315,14 @@ export default function EmployeesPage() {
                     </span>
                   </td>
                   {user?.role === 'owner' && (
-                    <td className="td text-slate-900 dark:text-slate-400 text-xs">
+                    <td className="td text-slate-900 dark:text-slate-400 text-xs hidden md:table-cell">
                       {u.branchId ? (branches?.find((b: any) => b.id === u.branchId)?.name || 'Unknown Branch') : 'Global'}
                     </td>
                   )}
-                  <td className="td"><span className="text-xs text-slate-900 dark:text-slate-500">{ROLE_DEPARTMENT[u.role] || '—'}</span></td>
-                  <td className="td text-slate-900 dark:text-slate-400 font-mono">{u.employeeCode || '—'}</td>
+                  <td className="td hidden sm:table-cell"><span className="text-xs text-slate-900 dark:text-slate-500">{ROLE_DEPARTMENT[u.role] || '—'}</span></td>
+                  <td className="td text-slate-900 dark:text-slate-400 font-mono hidden md:table-cell">{u.employeeCode || '—'}</td>
                   <td className="td">
-                    <div className="flex gap-2 items-center">
+                    <div className="flex gap-1 sm:gap-2 items-center justify-end">
                       <button onClick={() => {
                         setEditUser(u);
                         const dept = detectDepartment(u.role);
@@ -336,12 +399,12 @@ export default function EmployeesPage() {
 
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-300 dark:border-slate-700 w-full max-w-md p-6 space-y-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-300 dark:border-slate-700 w-full max-w-md p-4 sm:p-6 space-y-4 max-h-[95vh] overflow-y-auto">
             <h3 className="font-bold text-slate-900 dark:text-white text-lg">{editUser ? 'Edit Employee' : 'Add Employee'}</h3>
 
             <div>
               <label className="label">Department *</label>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 {availableDepartments.map((dept) => (
                   <button
                     key={dept}

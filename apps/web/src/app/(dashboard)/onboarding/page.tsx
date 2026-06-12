@@ -252,7 +252,7 @@ export default function OnboardingPage() {
                     onChange={(e) => patch('addressLine1', e.target.value)}
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="label">City <span className="text-red-600 dark:text-red-400">*</span></label>
                     <input
@@ -343,7 +343,7 @@ export default function OnboardingPage() {
                 </div>
                 <div>
                   <label className="label">GST Registration Type</label>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {[
                       { value: 'regular',     label: 'Regular' },
                       { value: 'composition', label: 'Composition' },
