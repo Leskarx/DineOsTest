@@ -8,7 +8,8 @@ import { useAuthStore } from '@/store/auth.store';
 import {
   LayoutDashboard, ShoppingCart, Monitor, Layout, BookOpen, Package,
   Receipt, Clock, BarChart3, Users, Building2, Settings, LogOut,
-  Wifi, WifiOff, Shield, Hotel, CalendarDays, SprayCan, BedDouble, Sun, Moon, Loader2, Menu
+  Wifi, WifiOff, Shield, Hotel, CalendarDays, SprayCan, BedDouble,
+  Sun, Moon, Loader2, Menu,
 } from 'lucide-react';
 import { useIsFetching, useQuery } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/api';
@@ -19,107 +20,114 @@ import { useSubscriptionWall } from '@/hooks/useSubscriptionWall';
 import { SubscriptionWall } from '@/components/ui/SubscriptionWall';
 import { BranchSwitcher } from '@/components/BranchSwitcher';
 
-interface NavItem { href: string; label: string; icon: React.ElementType; exact?: boolean; roles?: string[]; context?: 'global' | 'branch' }
+interface NavItem {
+  href: string; label: string; icon: React.ElementType;
+  exact?: boolean; roles?: string[]; context?: 'global' | 'branch';
+}
 interface NavSection { section: string; items: NavItem[] }
 
 const navSections: NavSection[] = [
   {
     section: 'Overview',
     items: [
-      { href: '/executive',              label: 'Owner Dashboard',    icon: LayoutDashboard, exact: true, roles: ['owner', 'manager'] },
-      { href: '/owner/branch-performance', label: 'Branch Performance', icon: Building2,      exact: true, roles: ['owner'], context: 'global' },
-      { href: '/branch-summary',         label: 'Branch Summary',     icon: BarChart3,       exact: true, roles: ['owner', 'manager', 'restaurant_manager', 'hotel_manager'], context: 'branch' },
+      { href: '/executive',                label: 'Owner Dashboard',    icon: LayoutDashboard, exact: true, roles: ['owner', 'manager'] },
+      { href: '/owner/branch-performance', label: 'Branch Performance', icon: Building2,       exact: true, roles: ['owner'], context: 'global' },
+      { href: '/branch-summary',           label: 'Branch Summary',     icon: BarChart3,       exact: true, roles: ['owner', 'manager', 'restaurant_manager', 'hotel_manager'], context: 'branch' },
     ],
   },
   {
     section: 'Restaurant',
     items: [
-      { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, exact: true, roles: ['owner', 'manager', 'restaurant_manager'] },
-      { href: '/cashier', label: 'Home', icon: LayoutDashboard, exact: true, roles: ['cashier'] },
-      { href: '/waiter', label: 'Home', icon: LayoutDashboard, exact: true, roles: ['waiter'] },
-      { href: '/pos', label: 'POS', icon: ShoppingCart, roles: ['owner', 'manager', 'restaurant_manager', 'cashier', 'waiter'] },
-      { href: '/kds', label: 'Kitchen Display', icon: Monitor, roles: ['owner', 'manager', 'restaurant_manager', 'kitchen'] },
-      { href: '/tables', label: 'Tables', icon: Layout, roles: ['owner', 'manager', 'restaurant_manager', 'cashier', 'waiter'] },
-      { href: '/menu', label: 'Menu', icon: BookOpen, roles: ['owner', 'manager', 'restaurant_manager'] },
-      { href: '/inventory', label: 'Inventory', icon: Package, roles: ['owner', 'manager', 'restaurant_manager', 'inventory'] },
-      { href: '/billing', label: 'Bills', icon: Receipt, roles: ['owner', 'manager', 'restaurant_manager', 'cashier'] },
-      { href: '/shifts', label: 'Shifts', icon: Clock, roles: ['owner', 'manager', 'restaurant_manager'] },
-      { href: '/reports', label: 'Reports', icon: BarChart3, roles: ['owner', 'manager', 'restaurant_manager'] },
+      { href: '/dashboard', label: 'Dashboard',       icon: LayoutDashboard, exact: true, roles: ['owner', 'manager', 'restaurant_manager'] },
+      { href: '/cashier',   label: 'Home',            icon: LayoutDashboard, exact: true, roles: ['cashier'] },
+      { href: '/waiter',    label: 'Home',            icon: LayoutDashboard, exact: true, roles: ['waiter'] },
+      { href: '/pos',       label: 'POS',             icon: ShoppingCart,    roles: ['owner', 'manager', 'restaurant_manager', 'cashier', 'waiter'] },
+      { href: '/kds',       label: 'Kitchen Display', icon: Monitor,         roles: ['owner', 'manager', 'restaurant_manager', 'kitchen'] },
+      { href: '/tables',    label: 'Tables',          icon: Layout,          roles: ['owner', 'manager', 'restaurant_manager', 'cashier', 'waiter'] },
+      { href: '/menu',      label: 'Menu',            icon: BookOpen,        roles: ['owner', 'manager', 'restaurant_manager'] },
+      { href: '/inventory', label: 'Inventory',       icon: Package,         roles: ['owner', 'manager', 'restaurant_manager', 'inventory'] },
+      { href: '/billing',   label: 'Bills',           icon: Receipt,         roles: ['owner', 'manager', 'restaurant_manager', 'cashier'] },
+      { href: '/shifts',    label: 'Shifts',          icon: Clock,           roles: ['owner', 'manager', 'restaurant_manager'] },
+      { href: '/reports',   label: 'Reports',         icon: BarChart3,       roles: ['owner', 'manager', 'restaurant_manager'] },
     ],
   },
   {
     section: 'Hotel',
     items: [
-      { href: '/hotel/dashboard', label: 'Dashboard', icon: BarChart3, roles: ['owner', 'manager', 'hotel_manager'] },
-      { href: '/hotel', label: 'Front Desk', icon: Hotel, exact: true, roles: ['owner', 'manager', 'hotel_manager', 'receptionist'] },
+      { href: '/hotel/dashboard',    label: 'Dashboard',    icon: BarChart3,    roles: ['owner', 'manager', 'hotel_manager'] },
+      { href: '/hotel',              label: 'Front Desk',   icon: Hotel,        exact: true, roles: ['owner', 'manager', 'hotel_manager', 'receptionist'] },
       { href: '/hotel/reservations', label: 'Reservations', icon: CalendarDays, roles: ['owner', 'manager', 'hotel_manager', 'receptionist'] },
-      {
-        href: '/hotel/rooms',
-        label: 'Rooms',
-        icon: BedDouble,
-        roles: ['owner', 'manager', 'hotel_manager']
-      },
-      { href: '/hotel/housekeeping', label: 'Housekeeping', icon: SprayCan, roles: ['owner', 'manager', 'hotel_manager', 'housekeeping', 'receptionist'] },
-      { href: '/hotel/billing', label: 'Billing', icon: Receipt, roles: ['owner', 'manager', 'hotel_manager'] },
-      { href: '/hotel/shifts', label: 'Shifts', icon: Clock, roles: ['owner', 'manager', 'hotel_manager', 'receptionist'] },
-      {
-        href: '/hotel/report',
-        label: 'Report',
-        icon: BarChart3,
-        roles: ['owner', 'manager', 'hotel_manager'],
-      },
+      { href: '/hotel/rooms',        label: 'Rooms',        icon: BedDouble,    roles: ['owner', 'manager', 'hotel_manager'] },
+      { href: '/hotel/housekeeping', label: 'Housekeeping', icon: SprayCan,     roles: ['owner', 'manager', 'hotel_manager', 'housekeeping', 'receptionist'] },
+      { href: '/hotel/billing',      label: 'Billing',      icon: Receipt,      roles: ['owner', 'manager', 'hotel_manager'] },
+      { href: '/hotel/shifts',       label: 'Shifts',       icon: Clock,        roles: ['owner', 'manager', 'hotel_manager', 'receptionist'] },
+      { href: '/hotel/report',       label: 'Report',       icon: BarChart3,    roles: ['owner', 'manager', 'hotel_manager'] },
     ],
   },
   {
     section: 'Admin',
     items: [
-      { href: '/employees', label: 'Employees', icon: Users, roles: ['owner', 'manager', 'restaurant_manager', 'hotel_manager'] },
-      { href: '/branches', label: 'Branches', icon: Building2, roles: ['owner'] },
-      { href: '/audit', label: 'Audit Log', icon: Shield, roles: ['owner'] },
-      { href: '/settings', label: 'Settings', icon: Settings, roles: ['owner'] },
+      { href: '/employees', label: 'Employees', icon: Users,     roles: ['owner', 'manager', 'restaurant_manager', 'hotel_manager'] },
+      { href: '/branches',  label: 'Branches',  icon: Building2, roles: ['owner'] },
+      { href: '/audit',     label: 'Audit Log', icon: Shield,    roles: ['owner'] },
+      { href: '/settings',  label: 'Settings',  icon: Settings,  roles: ['owner'] },
     ],
   },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
-  const pathname = usePathname();
+  const router      = useRouter();
+  const pathname    = usePathname();
   const { theme, setTheme } = useTheme();
-  const { user, accessToken, logout, branchId } = useAuthStore();
   const queryClient = useQueryClient();
-  const [hydrated, setHydrated] = useState(false);
-  const isOnline = useOnlineStatus();
-  const { isBlocked, plan, daysLeft } = useSubscriptionWall();
-  const isFetching = useIsFetching();
+
+  // ── Your change: setBranchName ──
+  const {
+    user, accessToken, logout,
+    branchId, setBranchName,
+  } = useAuthStore();
+
+  const [hydrated,         setHydrated]         = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // Fetch branches to get the current branch's type
+  const isOnline                       = useOnlineStatus();
+  const { isBlocked, plan, daysLeft }  = useSubscriptionWall();
+  const isFetching                     = useIsFetching();
+
+  /* ── Fetch branches ──────────────────────────────────────────────────── */
   const { data: branches } = useQuery({
     queryKey: ['branches'],
-    queryFn: () => apiFetch('/api/v1/branches').then((r) => r.data),
-    // Only fetch if we have a branchId and an accessToken (already handled by Hydration)
-    enabled: !!branchId && !!accessToken,
+    queryFn:  () => apiFetch('/api/v1/branches').then((r) => r.data),
+    enabled:  !!branchId && !!accessToken,
   });
 
-  const activeBranchType = branches?.find((b: any) => b.id === branchId)?.type || 'restaurant';
+  const activeBranch     = branches?.find((b: any) => b.id === branchId);
+  const activeBranchType = activeBranch?.type || 'restaurant';
 
+  /* ── Set branch name in store whenever it resolves ───────────────────── */
   useEffect(() => {
-    setHydrated(true);
-  }, []);
+    if (activeBranch?.name) setBranchName(activeBranch.name);
+  }, [activeBranch?.name, setBranchName]);
+
+  /* ── Clear branch name when no branch selected ───────────────────────── */
+  useEffect(() => {
+    if (!branchId) setBranchName(null);
+  }, [branchId, setBranchName]);
+
+  useEffect(() => { setHydrated(true); }, []);
 
   useEffect(() => {
     if (!hydrated) return;
     if (!accessToken) router.replace('/login');
   }, [hydrated, accessToken, router]);
 
-  // Close mobile menu when route changes
+  /* ── Close mobile menu on route change ───────────────────────────────── */
   useEffect(() => {
     setIsMobileMenuOpen(false);
   }, [pathname]);
 
   if (!hydrated || !accessToken) return null;
 
-  // Onboarding wizard uses its own full-screen layout — skip the sidebar
   if (pathname === '/onboarding') {
     return (
       <ErrorBoundary section="Page">
@@ -130,27 +138,42 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">
+
       {/* Mobile Overlay */}
       {isMobileMenuOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30 md:hidden" 
-          onClick={() => setIsMobileMenuOpen(false)} 
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30 md:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
         />
       )}
 
       {/* Sidebar */}
       <aside className={cn(
-        "absolute md:relative z-40 w-56 flex-shrink-0 flex flex-col bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transition-transform duration-300 h-full",
-        isMobileMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        'absolute md:relative z-40 w-56 flex-shrink-0 flex flex-col h-full',
+        'bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800',
+        'transition-transform duration-300',
+        isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
       )}>
+
+        {/* Logo */}
         <div className="p-4 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center flex-shrink-0">
               <span className="text-sm font-black text-slate-900">D</span>
             </div>
             <div className="min-w-0">
-              <div className="text-sm font-semibold text-slate-900 dark:text-white truncate">Dine&Stay OS</div>
-              <div className="text-xs text-slate-900 dark:text-slate-500 truncate">{user?.email}</div>
+              <div className="text-sm font-semibold text-slate-900 dark:text-white truncate">
+                Dine&amp;Stay OS
+              </div>
+              {activeBranch?.name ? (
+                <div className="text-xs text-amber-600 dark:text-amber-400 font-medium truncate">
+                  {activeBranch.name}
+                </div>
+              ) : (
+                <div className="text-xs text-slate-500 dark:text-slate-500 truncate">
+                  {user?.email}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -159,33 +182,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <BranchSwitcher />
         </div>
 
+        {/* Nav */}
         <nav className="flex-1 p-2 overflow-y-auto scrollbar-thin">
           {navSections.map(({ section, items }) => {
-            // Hide branch-specific sections when in Global Mode (branchId is null)
-            if (!branchId && (section === 'Restaurant' || section === 'Hotel')) {
-              return null;
-            }
+            if (!branchId && (section === 'Restaurant' || section === 'Hotel')) return null;
 
-            // Filter out sections based on branch type
             if (branchId) {
-              if (section === 'Restaurant' && activeBranchType === 'hotel') {
-                return null;
-              }
-              if (section === 'Hotel' && activeBranchType !== 'hotel' && activeBranchType !== 'hotel_and_restaurant') {
-                return null;
-              }
+              if (section === 'Restaurant' && activeBranchType === 'hotel') return null;
+              if (section === 'Hotel' && activeBranchType !== 'hotel' && activeBranchType !== 'hotel_and_restaurant') return null;
             }
 
-            const allowedItems = items.filter(
-              (item) => {
-                // Role check
-                if (item.roles && !(user?.role && item.roles.includes(user.role))) return false;
-                // Context check: 'global' = only when no branch selected, 'branch' = only when a branch is selected
-                if (item.context === 'global' && branchId) return false;
-                if (item.context === 'branch' && !branchId && user?.role === 'owner') return false;
-                return true;
-              }
-            );
+            const allowedItems = items.filter((item) => {
+              if (item.roles && !(user?.role && item.roles.includes(user.role))) return false;
+              if (item.context === 'global' && branchId) return false;
+              if (item.context === 'branch' && !branchId && user?.role === 'owner') return false;
+              return true;
+            });
 
             if (allowedItems.length === 0) return null;
 
@@ -196,7 +208,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </div>
                 <div className="space-y-0.5">
                   {allowedItems.map(({ href, label, icon: Icon, exact }) => {
-                    const isActive = exact ? pathname === href : pathname === href || pathname.startsWith(href + '/');
+                    const isActive = exact
+                      ? pathname === href
+                      : pathname === href || pathname.startsWith(href + '/');
                     const displayLabel = href === '/executive'
                       ? (user?.role === 'owner' ? 'Owner Dashboard' : 'Branch Summary')
                       : label;
@@ -218,13 +232,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           })}
         </nav>
 
+        {/* Bottom user strip */}
         <div className="p-3 border-t border-slate-200 dark:border-slate-800 space-y-2">
           <div className="flex items-center gap-2 px-2 py-2 bg-slate-100/40 dark:bg-slate-800/40 rounded-lg border border-slate-200/50 dark:border-slate-700/50">
             <div className="w-7 h-7 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-900 dark:text-white flex-shrink-0">
               {user?.firstName?.[0]}{user?.lastName?.[0]}
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-xs font-medium text-slate-900 dark:text-white truncate">{user?.firstName} {user?.lastName}</div>
+              <div className="text-xs font-medium text-slate-900 dark:text-white truncate">
+                {user?.firstName} {user?.lastName}
+              </div>
               <div className="text-[10px] text-amber-600 dark:text-amber-400/90 capitalize truncate font-semibold">
                 {user?.role === 'manager' ? 'Branch Manager' : user?.role?.replace('_', ' ')}
               </div>
@@ -232,7 +249,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
 
           <div className="flex items-center justify-between">
-            <div className={cn('flex items-center gap-2 text-xs px-2 py-1 rounded', isOnline ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400')}>
+            <div className={cn(
+              'flex items-center gap-2 text-xs px-2 py-1 rounded',
+              isOnline
+                ? 'text-emerald-600 dark:text-emerald-400'
+                : 'text-amber-600 dark:text-amber-400',
+            )}>
               {isOnline ? <Wifi size={12} /> : <WifiOff size={12} />}
               <span>{isOnline ? 'Online' : 'Offline — syncing'}</span>
             </div>
@@ -242,14 +264,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </div>
             )}
           </div>
+
           <div className="flex gap-2">
-            <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="sidebar-link flex-1 justify-center text-slate-500 hover:text-amber-500 dark:text-slate-400 dark:hover:text-amber-600 dark:text-amber-400" title="Toggle Theme">
+            <button
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              className="sidebar-link flex-1 justify-center text-slate-500 hover:text-amber-500 dark:text-slate-400 dark:hover:text-amber-600 dark:text-amber-400"
+              title="Toggle Theme"
+            >
               {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
             </button>
             <button
               onClick={async () => {
                 await logout();
-                queryClient.clear(); // clear stale cache so next login sees fresh data
+                queryClient.clear(); // ← your friend's change: clears stale cache on logout
                 router.replace('/login');
               }}
               className="sidebar-link flex-1 justify-center text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300"
@@ -263,17 +290,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Main Container */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+
         {/* Mobile Header */}
         <header className="md:hidden flex items-center justify-between bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 py-3 z-20">
           <div className="flex items-center gap-3">
-            <button onClick={() => setIsMobileMenuOpen(true)} className="p-1 -ml-1 text-slate-600 dark:text-slate-300">
+            <button
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="p-1 -ml-1 text-slate-600 dark:text-slate-300"
+            >
               <Menu size={22} />
             </button>
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-md bg-amber-500 flex items-center justify-center flex-shrink-0">
                 <span className="text-xs font-black text-slate-900">D</span>
               </div>
-              <span className="font-bold text-sm text-slate-900 dark:text-white">Dine&Stay OS</span>
+              <span className="font-bold text-sm text-slate-900 dark:text-white">
+                {activeBranch?.name || 'Dine&Stay OS'}
+              </span>
             </div>
           </div>
         </header>
@@ -288,4 +321,4 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
     </div>
   );
-}//layout.tsx
+}
