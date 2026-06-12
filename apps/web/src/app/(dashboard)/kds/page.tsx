@@ -171,7 +171,7 @@ function TicketCard({
   orderNum:          string;
   tickets:           KDSItem[];
   onStartCooking:    (ids: string[]) => void;
-  onMarkReady:       (ids: string[]) => void;
+  onMarkReady:       (ids: string[], orderType: string) => void;
   onBump:            (ids: string[]) => void;
   isBumping:         boolean;
   isMarkingReady:    boolean;
@@ -186,6 +186,8 @@ function TicketCard({
   const anyPreparing = tickets.some(
     (t) => t.kds_status === 'preparing' || t.kds_status === 'acknowledged',
   );
+
+  const orderType = oldest?.order_type || 'dine_in';
 
   // Group items by KOT round for display
   const roundGroups = tickets.reduce<Record<number, KDSItem[]>>((acc, item) => {
@@ -210,9 +212,8 @@ function TicketCard({
   const isUrgent   = !allReady && ageSeconds > URGENT_SECS;
 
   const orderTypeDisplay = (() => {
-    const type = oldest?.order_type || 'dine_in';
-    if (type === 'takeaway') return { icon: '🥡', label: 'Takeaway' };
-    if (type === 'delivery') return { icon: '🛵', label: 'Delivery' };
+    if (orderType === 'takeaway') return { icon: '🥡', label: 'Takeaway' };
+    if (orderType === 'delivery') return { icon: '🛵', label: 'Delivery' };
     return { icon: '🍽️', label: 'Dine In' };
   })();
 
@@ -260,7 +261,7 @@ function TicketCard({
         </div>
       )}
 
-      {/* Add-on KOT banner — shown when this ticket has round > 1 items */}
+      {/* Add-on KOT banner */}
       {hasMultiRounds && (
         <div className="bg-purple-500 text-white text-center text-xs font-bold py-1 flex items-center justify-center gap-1.5">
           <Hash size={11} />
@@ -316,11 +317,9 @@ function TicketCard({
         {rounds.map((round) => {
           const roundItems  = roundGroups[round];
           const isLatest    = round === maxRound && hasMultiRounds;
-          const isFirstRound = round === 1;
 
           return (
             <div key={round}>
-              {/* Round separator — only show when multiple rounds exist */}
               {hasMultiRounds && (
                 <div className="flex items-center gap-2 mb-2">
                   <div className={cn(
@@ -340,7 +339,6 @@ function TicketCard({
                 </div>
               )}
 
-              {/* Items in this round */}
               <div className="space-y-1.5">
                 {roundItems.map((ticket) => {
                   const isReady    = ticket.kds_status === 'ready';
@@ -357,7 +355,6 @@ function TicketCard({
                         isCooking && 'border-blue-200   dark:border-blue-800/50   bg-blue-50/40   dark:bg-blue-950/10',
                       )}
                     >
-                      {/* Qty badge */}
                       <div className={cn(
                         'min-w-[34px] h-8 rounded-lg flex items-center justify-center font-black text-sm flex-shrink-0',
                         isReady   ? 'bg-emerald-500 text-white' :
@@ -481,6 +478,7 @@ function TicketCard({
                       t.kds_status === 'acknowledged',
                     )
                     .map((t) => t.order_item_id),
+                  orderType,
                 )}
                 disabled={isMarkingReady}
                 className={cn(
@@ -600,8 +598,8 @@ export default function KdsPage() {
     }
   }, [qc, soundOn]);
 
-  /* ── Mark Ready ─────────────────────────────────────────────────────── */
-  const markReady = useCallback(async (ids: string[]) => {
+  /* ── Mark Ready — toast message depends on order type ───────────────── */
+  const markReady = useCallback(async (ids: string[], orderType: string) => {
     isMutatingRef.current = true;
     setMarking((s) => new Set([...s, ...ids]));
     await qc.cancelQueries({ queryKey: ['kds-pending'] });
@@ -615,7 +613,15 @@ export default function KdsPage() {
     try {
       await Promise.all(ids.map((id) => apiPatch(`/api/v1/kds/items/${id}/status`, { status: 'ready' })));
       if (soundOn) playReadyChime();
-      toast.success('Order marked ready! Waiter notified. 🔔', { duration: 2500 });
+
+      // ── Context-aware toast ──
+      if (orderType === 'delivery') {
+        toast.success('Order ready! Notify delivery rider. 🛵', { duration: 2500 });
+      } else if (orderType === 'takeaway') {
+        toast.success('Order ready! Notify customer for pickup. 🥡', { duration: 2500 });
+      } else {
+        toast.success('Order ready! Waiter notified. 🔔', { duration: 2500 });
+      }
     } finally {
       qc.invalidateQueries({ queryKey: ['kds-pending'] });
       setMarking((s) => { const n = new Set(s); ids.forEach((id) => n.delete(id)); return n; });

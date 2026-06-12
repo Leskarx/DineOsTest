@@ -1,9 +1,7 @@
 import { create } from 'zustand';
 
 export interface CartItem {
-  /** Unique cart-line key: `${menuItemId}-${variationId ?? 'base'}` */
   cartKey: string;
-  /** Menu item UUID — used as `menuItemId` in API calls */
   id: string;
   name: string;
   price: number;
@@ -16,22 +14,14 @@ export interface CartItem {
   notes?: string;
   variationId?: string | null;
   variationName?: string | null;
-  /** True if this item has already been sent to the kitchen (came from an existing order) */
   alreadySent?: boolean;
-  /** Kitchen status of this item — synced from KDS */
   kdsStatus?: 'pending' | 'preparing' | 'ready' | 'completed' | null;
-  /**
-   * KOT round number.
-   * Round 1 = first KOT, Round 2 = add-on KOT, etc.
-   * null for new (unsent) items — round is assigned by server on save.
-   */
   kotRound?: number | null;
 }
 
 type AddItemInput = Omit<CartItem, 'cartKey' | 'qty' | 'igstRate' | 'cessRate' | 'alreadySent'> & {
   igstRate?: number;
   cessRate?: number;
-  /** Directly set quantity (e.g. from picker). Defaults to 1. */
   qty?: number;
   alreadySent?: boolean;
   kotRound?: number | null;
@@ -47,51 +37,66 @@ interface PosState {
   discountPercent: number;
   discountAmount: number;
 
-  addItem: (item: AddItemInput) => void;
-  /** cartKey-based operations so variations of the same item are independent */
-  updateQty: (cartKey: string, qty: number) => void;
-  removeItem: (cartKey: string) => void;
-  updateNotes: (cartKey: string, notes: string) => void;
-  clearCart: () => void;
-  setCurrentOrder: (id: string | null) => void;
-  setOrderType: (type: PosState['orderType']) => void;
-  setTable: (id: string | null, name: string | null) => void;
-  setCovers: (n: number) => void;
-  setDiscount: (percent: number, amount: number) => void;
-  setCart: (items: CartItem[]) => void;
+  // ── Delivery fields — persisted in store so they survive navigation ──
+  deliveryPhone:   string;
+  deliveryName:    string;
+  deliveryAddress: string;
+  /** 'cod' = collect on delivery | 'prepaid' = paid at order time */
+  deliveryPaymentType: 'cod' | 'prepaid';
+
+  addItem:        (item: AddItemInput) => void;
+  updateQty:      (cartKey: string, qty: number) => void;
+  removeItem:     (cartKey: string) => void;
+  updateNotes:    (cartKey: string, notes: string) => void;
+  clearCart:      () => void;
+  setCurrentOrder:(id: string | null) => void;
+  setOrderType:   (type: PosState['orderType']) => void;
+  setTable:       (id: string | null, name: string | null) => void;
+  setCovers:      (n: number) => void;
+  setDiscount:    (percent: number, amount: number) => void;
+  setCart:        (items: CartItem[]) => void;
+
+  // ── Delivery setters ──
+  setDeliveryPhone:       (v: string) => void;
+  setDeliveryName:        (v: string) => void;
+  setDeliveryAddress:     (v: string) => void;
+  setDeliveryPaymentType: (v: 'cod' | 'prepaid') => void;
+  clearDeliveryFields:    () => void;
 }
 
 export const usePosStore = create<PosState>((set) => ({
-  cart: [],
-  currentOrder: null,
-  orderType: 'dine_in',
-  tableId: null,
-  tableName: null,
-  covers: 1,
+  cart:            [],
+  currentOrder:    null,
+  orderType:       'dine_in',
+  tableId:         null,
+  tableName:       null,
+  covers:          1,
   discountPercent: 0,
-  discountAmount: 0,
+  discountAmount:  0,
+
+  // Delivery defaults
+  deliveryPhone:       '',
+  deliveryName:        '',
+  deliveryAddress:     '',
+  deliveryPaymentType: 'cod',
 
   addItem: (item) =>
     set((state) => {
-      const cartKey = `${item.id}-${item.variationId ?? 'base'}`;
+      const cartKey  = `${item.id}-${item.variationId ?? 'base'}`;
       const existing = state.cart.find((c) => c.cartKey === cartKey);
       const incomingQty = item.qty ?? 1;
 
       if (existing) {
         if (!existing.alreadySent) {
-          // Item is new (not yet sent) — just increment qty
           return {
             cart: state.cart.map((c) =>
               c.cartKey === cartKey ? { ...c, qty: c.qty + incomingQty } : c,
             ),
           };
         }
-        // Item was already sent to kitchen — create a SEPARATE new entry
-        // so only the new portion gets sent in the next KOT
-        const newKey = `${cartKey}-new-${Date.now()}`;
-        const newEntry = state.cart.find((c) => c.cartKey.startsWith(`${cartKey}-new-`));
+        const newKey      = `${cartKey}-new-${Date.now()}`;
+        const newEntry    = state.cart.find((c) => c.cartKey.startsWith(`${cartKey}-new-`));
         if (newEntry) {
-          // Already have a pending new entry — increment it
           return {
             cart: state.cart.map((c) =>
               c.cartKey.startsWith(`${cartKey}-new-`) ? { ...c, qty: c.qty + incomingQty } : c,
@@ -103,14 +108,14 @@ export const usePosStore = create<PosState>((set) => ({
             ...state.cart,
             {
               ...item,
-              cartKey: newKey,
-              qty: incomingQty,
-              igstRate: item.igstRate ?? 0,
-              cessRate: item.cessRate ?? 0,
-              variationId: item.variationId ?? null,
+              cartKey:       newKey,
+              qty:           incomingQty,
+              igstRate:      item.igstRate  ?? 0,
+              cessRate:      item.cessRate  ?? 0,
+              variationId:   item.variationId   ?? null,
               variationName: item.variationName ?? null,
-              alreadySent: false, // this is a NEW addition
-              kotRound: null,     // will be assigned by server
+              alreadySent:   false,
+              kotRound:      null,
             },
           ],
         };
@@ -122,13 +127,13 @@ export const usePosStore = create<PosState>((set) => ({
           {
             ...item,
             cartKey,
-            qty: incomingQty,
-            igstRate: item.igstRate ?? 0,
-            cessRate: item.cessRate ?? 0,
-            variationId: item.variationId ?? null,
+            qty:           incomingQty,
+            igstRate:      item.igstRate  ?? 0,
+            cessRate:      item.cessRate  ?? 0,
+            variationId:   item.variationId   ?? null,
             variationName: item.variationName ?? null,
-            alreadySent: item.alreadySent ?? false,
-            kotRound: item.kotRound ?? null,
+            alreadySent:   item.alreadySent ?? false,
+            kotRound:      item.kotRound   ?? null,
           },
         ],
       };
@@ -141,18 +146,28 @@ export const usePosStore = create<PosState>((set) => ({
         : state.cart.map((c) => (c.cartKey === cartKey ? { ...c, qty } : c)),
     })),
 
-  removeItem: (cartKey) => set((state) => ({ cart: state.cart.filter((c) => c.cartKey !== cartKey) })),
-
+  removeItem:  (cartKey) => set((state) => ({ cart: state.cart.filter((c) => c.cartKey !== cartKey) })),
   updateNotes: (cartKey, notes) =>
     set((state) => ({ cart: state.cart.map((c) => (c.cartKey === cartKey ? { ...c, notes } : c)) })),
 
-  clearCart: () =>
-    set({ cart: [], discountPercent: 0, discountAmount: 0 }),
+  clearCart: () => set({ cart: [], discountPercent: 0, discountAmount: 0 }),
 
-  setCurrentOrder: (id) => set({ currentOrder: id }),
-  setOrderType: (type) => set({ orderType: type }),
-  setTable: (id, name) => set({ tableId: id, tableName: name }),
-  setCovers: (n) => set({ covers: n }),
-  setDiscount: (percent, amount) => set({ discountPercent: percent, discountAmount: amount }),
-  setCart: (items) => set({ cart: items }),
+  setCurrentOrder: (id)         => set({ currentOrder: id }),
+  setOrderType:    (type)       => set({ orderType: type }),
+  setTable:        (id, name)   => set({ tableId: id, tableName: name }),
+  setCovers:       (n)          => set({ covers: n }),
+  setDiscount:     (pct, amt)   => set({ discountPercent: pct, discountAmount: amt }),
+  setCart:         (items)      => set({ cart: items }),
+
+  // Delivery setters
+  setDeliveryPhone:       (v) => set({ deliveryPhone:       v }),
+  setDeliveryName:        (v) => set({ deliveryName:        v }),
+  setDeliveryAddress:     (v) => set({ deliveryAddress:     v }),
+  setDeliveryPaymentType: (v) => set({ deliveryPaymentType: v }),
+  clearDeliveryFields:    ()  => set({
+    deliveryPhone:       '',
+    deliveryName:        '',
+    deliveryAddress:     '',
+    deliveryPaymentType: 'cod',
+  }),
 }));

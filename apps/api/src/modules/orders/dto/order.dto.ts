@@ -16,13 +16,12 @@ export class CreateOrderItemDto {
 
 export class CreateOrderDto {
   @ApiProperty({ enum: OrderType }) @IsEnum(OrderType) @IsOptional() orderType?: OrderType;
-  // Also accept 'type' as an alias (frontend sends 'type')
   @ApiPropertyOptional({ enum: OrderType }) @IsEnum(OrderType) @IsOptional() type?: OrderType;
-  // tableId can be null (no table for takeaway) — use IsString to allow null/undefined
   @ApiPropertyOptional() @IsString() @IsOptional() tableId?: string | null;
   @ApiPropertyOptional() @IsString() @IsOptional() @MaxLength(100) customerName?: string;
   @ApiPropertyOptional() @IsString() @IsOptional() @MaxLength(20) customerPhone?: string;
   @ApiPropertyOptional() @IsString() @IsOptional() customerGstin?: string;
+  @ApiPropertyOptional() @IsString() @IsOptional() @MaxLength(500) deliveryAddress?: string;
   @ApiPropertyOptional() @IsUUID() @IsOptional() shiftId?: string;
   @ApiPropertyOptional() @IsNumber() @IsOptional() @Min(0) coverCount?: number;
   @ApiPropertyOptional() @IsNumber() @IsOptional() @Min(0) covers?: number;
@@ -32,10 +31,8 @@ export class CreateOrderDto {
   @ApiPropertyOptional() @IsBoolean() @IsOptional() isComplimentary?: boolean;
   @ApiPropertyOptional() @IsBoolean() @IsOptional() isSalesReturn?: boolean;
   @ApiPropertyOptional() @IsString() @IsOptional() scheduledAt?: string;
-  // Offline sync fields
   @ApiPropertyOptional() @IsString() @IsOptional() offlineId?: string;
   @ApiPropertyOptional() @IsBoolean() @IsOptional() isOfflineSync?: boolean;
-  // Injected server-side (not sent by client but merged in controller)
   @ApiPropertyOptional() @IsString() @IsOptional() branchId?: string;
   @ApiPropertyOptional() @IsString() @IsOptional() tenantId?: string;
 }

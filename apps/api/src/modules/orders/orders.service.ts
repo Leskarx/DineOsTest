@@ -10,33 +10,34 @@ import { GstRate } from '../billing/entities/gst-rate.entity';
 import { Table } from '../tables/entities/table.entity';
 
 export interface AddItemDto {
-  menuItemId: string;
-  quantity: number;
-  notes?: string;
+  menuItemId:  string;
+  quantity:    number;
+  notes?:      string;
   variationId?: string;
-  modifiers?: { modifierId: string; name: string; price: number }[];
+  modifiers?:  { modifierId: string; name: string; price: number }[];
 }
 
 export interface CreateOrderDto {
-  branchId: string;
-  tenantId: string;
-  tableId?: string;
-  type?: OrderType;
-  covers?: number;
-  customerName?: string;
-  customerPhone?: string;
-  items?: AddItemDto[];
-  waiterId?: string;
-  offlineId?: string;
+  branchId:         string;
+  tenantId:         string;
+  tableId?:         string;
+  type?:            OrderType;
+  covers?:          number;
+  customerName?:    string;
+  customerPhone?:   string;
+  deliveryAddress?: string;   // ← delivery address
+  items?:           AddItemDto[];
+  waiterId?:        string;
+  offlineId?:       string;
   isComplimentary?: boolean;
-  isSalesReturn?: boolean;
-  scheduledAt?: Date;
-  isOfflineSync?: boolean;
+  isSalesReturn?:   boolean;
+  scheduledAt?:     Date;
+  isOfflineSync?:   boolean;
 }
 
 export interface ApplyDiscountDto {
   discountPercent?: number;
-  discountAmount?: number;
+  discountAmount?:  number;
 }
 
 @Injectable()
@@ -59,8 +60,7 @@ export class OrdersService {
   ) {}
 
   async createOrder(dto: CreateOrderDto): Promise<Order> {
-    // Idempotency: if an offline order with the same offlineId already exists,
-    // return it instead of creating a duplicate
+    // Idempotency — return existing order if offlineId already synced
     if (dto.offlineId) {
       const existing = await this.orderRepo.findOne({
         where: { offlineId: dto.offlineId, tenantId: dto.tenantId },
@@ -77,21 +77,24 @@ export class OrdersService {
     await this.dataSource.transaction(async (em) => {
       const orderNumber = await this.generateOrderNumberTx(dto.branchId, em);
       const order = em.create(Order, {
-        tenantId:        dto.tenantId,
-        branchId:        dto.branchId,
-        tableId:         dto.tableId,
+        tenantId:         dto.tenantId,
+        branchId:         dto.branchId,
+        tableId:          dto.tableId,
         orderNumber,
-        type:            dto.type || OrderType.DINE_IN,
-        covers:          dto.covers || 1,
-        customerName:    dto.customerName,
-        customerPhone:   dto.customerPhone,
-        waiterId:        dto.waiterId,
-        status:          OrderStatus.PLACED,
-        placedAt:        new Date(),
-        offlineId:       dto.offlineId,
-        isComplimentary: dto.isComplimentary ?? false,
-        isSalesReturn:   dto.isSalesReturn ?? false,
-        scheduledAt:     dto.scheduledAt ?? null,
+        type:             dto.type || OrderType.DINE_IN,
+        covers:           dto.covers || 1,
+        customerName:     dto.customerName,
+        customerPhone:    dto.customerPhone,
+        waiterId:         dto.waiterId,
+        status:           OrderStatus.PLACED,
+        placedAt:         new Date(),
+        offlineId:        dto.offlineId,
+        isComplimentary:  dto.isComplimentary ?? false,
+        isSalesReturn:    dto.isSalesReturn   ?? false,
+        scheduledAt:      dto.scheduledAt     ?? null,
+        // ── Delivery ──────────────────────────────────────────────────
+        deliveryAddress:  dto.deliveryAddress  ?? null,
+        deliveryProvider: dto.type === OrderType.DELIVERY ? 'self' : null,
       });
       const saved = await em.save(order);
       createdOrderId = saved.id;
@@ -102,7 +105,6 @@ export class OrdersService {
     });
 
     if (dto.items?.length) {
-      // First KOT is always round 1
       await this.addItems(createdOrderId, dto.items, dto.tenantId, dto.isOfflineSync, 1);
     }
 
@@ -115,131 +117,121 @@ export class OrdersService {
 
   /**
    * Add items to an existing order.
-   * Automatically determines the next KOT round number.
-   * Round = max(existing kot_round) + 1, or 1 if no items yet.
+   * Auto-increments KOT round. Reopens served/ready orders.
    */
-   async addItems(
-  orderId: string,
-  items: AddItemDto[],
-  tenantId: string,
-  isOfflineSync = false,
-  forceRound?: number,
-): Promise<Order> {
-  const order = await this.findOne(orderId, tenantId);
-  if ([OrderStatus.BILLED, OrderStatus.CANCELLED].includes(order.status)) {
-    throw new BadRequestException('Cannot modify a billed or cancelled order');
-  }
+  async addItems(
+    orderId:       string,
+    items:         AddItemDto[],
+    tenantId:      string,
+    isOfflineSync  = false,
+    forceRound?:   number,
+  ): Promise<Order> {
+    const order = await this.findOne(orderId, tenantId);
+    if ([OrderStatus.BILLED, OrderStatus.CANCELLED].includes(order.status)) {
+      throw new BadRequestException('Cannot modify a billed or cancelled order');
+    }
 
-  // ── Reopen served/ready orders when new items are added ─────────────
-  // This happens when waiter already served KOT 1, but cashier adds KOT 2.
-  // Without this, order stays 'served' and KDS filters it out.
-  if ([OrderStatus.SERVED, OrderStatus.READY].includes(order.status)) {
-    order.status   = OrderStatus.PREPARING;
-    order.servedAt = null as any;
-    await this.orderRepo.save(order);
-    console.log(`[KOT] Reopened order ${orderId} from ${order.status} → preparing for KOT round`);
-  }
+    // Reopen if waiter already served KOT 1 and cashier is adding KOT 2
+    if ([OrderStatus.SERVED, OrderStatus.READY].includes(order.status)) {
+      order.status   = OrderStatus.PREPARING;
+      order.servedAt = null as any;
+      await this.orderRepo.save(order);
+    }
 
-  // ── Determine KOT round ──────────────────────────────────────────────
-  let kotRound: number;
-  if (forceRound !== undefined) {
-    kotRound = forceRound;
-  } else {
-    const result = await this.orderItemRepo
-      .createQueryBuilder('oi')
-      .select('MAX(oi.kotRound)', 'maxRound')
-      .where('oi.orderId = :orderId', { orderId })
-      .getRawOne();
-    const maxRound = result?.maxRound ? Number(result.maxRound) : 0;
-    kotRound = maxRound + 1;
-  }
+    // Determine KOT round
+    let kotRound: number;
+    if (forceRound !== undefined) {
+      kotRound = forceRound;
+    } else {
+      const result = await this.orderItemRepo
+        .createQueryBuilder('oi')
+        .select('MAX(oi.kotRound)', 'maxRound')
+        .where('oi.orderId = :orderId', { orderId })
+        .getRawOne();
+      const maxRound = result?.maxRound ? Number(result.maxRound) : 0;
+      kotRound = maxRound + 1;
+    }
 
-  const kotSentAt = new Date();
+    const kotSentAt = new Date();
 
-  const menuItems = await this.menuRepo.findBy({
-    id: In(items.map((i) => i.menuItemId)),
-  });
-  const menuMap = new Map(menuItems.map((m) => [m.id, m]));
+    const menuItems = await this.menuRepo.findBy({ id: In(items.map((i) => i.menuItemId)) });
+    const menuMap   = new Map(menuItems.map((m) => [m.id, m]));
 
-  const variationIds = items.map((i) => i.variationId).filter(Boolean) as string[];
-  const variations   = variationIds.length
-    ? await this.variationRepo.findBy({ id: In(variationIds) })
-    : [];
-  const varMap = new Map(variations.map((v) => [v.id, v]));
+    const variationIds = items.map((i) => i.variationId).filter(Boolean) as string[];
+    const variations   = variationIds.length
+      ? await this.variationRepo.findBy({ id: In(variationIds) })
+      : [];
+    const varMap = new Map(variations.map((v) => [v.id, v]));
 
-  const gstRateIds = [...new Set(menuItems.map((m) => m.gstRateId).filter(Boolean))];
-  const gstRates   = gstRateIds.length
-    ? await this.gstRepo.findBy({ id: In(gstRateIds) })
-    : [];
-  const gstMap = new Map(gstRates.map((g) => [g.id, g]));
+    const gstRateIds = [...new Set(menuItems.map((m) => m.gstRateId).filter(Boolean))];
+    const gstRates   = gstRateIds.length ? await this.gstRepo.findBy({ id: In(gstRateIds) }) : [];
+    const gstMap     = new Map(gstRates.map((g) => [g.id, g]));
 
-  const orderItems: OrderItem[] = [];
-  for (const item of items) {
-    const menu = menuMap.get(item.menuItemId);
-    if (!menu) throw new NotFoundException(`Menu item ${item.menuItemId} not found`);
+    const orderItems: OrderItem[] = [];
+    for (const item of items) {
+      const menu = menuMap.get(item.menuItemId);
+      if (!menu) throw new NotFoundException(`Menu item ${item.menuItemId} not found`);
 
-    const gst           = menu.gstRateId ? gstMap.get(menu.gstRateId) : null;
-    const variation     = item.variationId ? varMap.get(item.variationId) : null;
-    const unitPrice     = Number(variation?.price ?? menu.price);
-    const modifierTotal = (item.modifiers || []).reduce((s, m) => s + Number(m.price), 0);
-    const effectivePrice = unitPrice + modifierTotal;
-    const lineSubtotal  = effectivePrice * item.quantity;
+      const gst            = menu.gstRateId ? gstMap.get(menu.gstRateId) : null;
+      const variation      = item.variationId ? varMap.get(item.variationId) : null;
+      const unitPrice      = Number(variation?.price ?? menu.price);
+      const modifierTotal  = (item.modifiers || []).reduce((s, m) => s + Number(m.price), 0);
+      const effectivePrice = unitPrice + modifierTotal;
+      const lineSubtotal   = effectivePrice * item.quantity;
 
-    const { cgstAmt, sgstAmt, igstAmt, cessAmt } = this.computeTax(lineSubtotal, gst ?? null, false);
+      const { cgstAmt, sgstAmt, igstAmt, cessAmt } = this.computeTax(lineSubtotal, gst ?? null, false);
 
-    orderItems.push(
-      this.orderItemRepo.create({
+      orderItems.push(
+        this.orderItemRepo.create({
+          orderId,
+          tenantId,
+          menuItemId:    item.menuItemId,
+          variationId:   variation?.id   ?? null,
+          variationName: variation?.name ?? null,
+          name:          menu.name,
+          sku:           menu.sku,
+          quantity:      item.quantity,
+          unitPrice:     effectivePrice,
+          costPrice:     Number(variation?.costPrice ?? menu.costPrice ?? 0),
+          isVeg:         menu.isVeg,
+          notes:         item.notes,
+          gstRate:       gst?.rate     ?? 0,
+          cgstRate:      gst?.cgstRate ?? 0,
+          sgstRate:      gst?.sgstRate ?? 0,
+          igstRate:      gst?.igstRate ?? 0,
+          taxableAmount: lineSubtotal,
+          cgstAmount:    cgstAmt,
+          sgstAmount:    sgstAmt,
+          igstAmount:    igstAmt,
+          cessAmount:    cessAmt,
+          lineTotal:     lineSubtotal + cgstAmt + sgstAmt + igstAmt + cessAmt,
+          kotRound,
+          kotSentAt,
+        }),
+      );
+    }
+
+    await this.orderItemRepo.save(orderItems);
+    const updated = await this.recalculateTotals(orderId);
+
+    if (!isOfflineSync) {
+      this.events.emit('order.itemsAdded', {
         orderId,
-        tenantId,
-        menuItemId:    item.menuItemId,
-        variationId:   variation?.id ?? null,
-        variationName: variation?.name ?? null,
-        name:          menu.name,
-        sku:           menu.sku,
-        quantity:      item.quantity,
-        unitPrice:     effectivePrice,
-        costPrice:     Number(variation?.costPrice ?? menu.costPrice ?? 0),
-        isVeg:         menu.isVeg,
-        notes:         item.notes,
-        gstRate:       gst?.rate ?? 0,
-        cgstRate:      gst?.cgstRate ?? 0,
-        sgstRate:      gst?.sgstRate ?? 0,
-        igstRate:      gst?.igstRate ?? 0,
-        taxableAmount: lineSubtotal,
-        cgstAmount:    cgstAmt,
-        sgstAmount:    sgstAmt,
-        igstAmount:    igstAmt,
-        cessAmount:    cessAmt,
-        lineTotal:     lineSubtotal + cgstAmt + sgstAmt + igstAmt + cessAmt,
+        branchId:    updated.branchId,
+        orderNumber: updated.orderNumber,
         kotRound,
-        kotSentAt,
-      }),
-    );
+        items:       orderItems,
+      });
+      this.events.emit('order.statusChanged', {
+        orderId,
+        status:      OrderStatus.PREPARING,
+        branchId:    updated.branchId,
+        orderNumber: updated.orderNumber,
+      });
+    }
+
+    return updated;
   }
-
-  await this.orderItemRepo.save(orderItems);
-  const updated = await this.recalculateTotals(orderId);
-
-  if (!isOfflineSync) {
-    this.events.emit('order.itemsAdded', {
-      orderId,
-      branchId:    updated.branchId,
-      orderNumber: updated.orderNumber,
-      kotRound,
-      items:       orderItems,
-    });
-
-    // Also emit statusChanged so POS and waiter dashboard update
-    this.events.emit('order.statusChanged', {
-      orderId,
-      status:      OrderStatus.PREPARING,
-      branchId:    updated.branchId,
-      orderNumber: updated.orderNumber,
-    });
-  }
-
-  return updated;
-}
 
   async updateStatus(orderId: string, status: OrderStatus, tenantId: string): Promise<Order> {
     const order = await this.findOne(orderId, tenantId);
@@ -255,7 +247,7 @@ export class OrdersService {
   async applyDiscount(orderId: string, dto: ApplyDiscountDto, tenantId: string): Promise<Order> {
     const order = await this.findOne(orderId, tenantId);
     if (dto.discountPercent !== undefined) order.discountPercent = dto.discountPercent;
-    if (dto.discountAmount !== undefined)  order.discountAmount  = dto.discountAmount;
+    if (dto.discountAmount  !== undefined) order.discountAmount  = dto.discountAmount;
     await this.orderRepo.save(order);
     return this.recalculateTotals(orderId);
   }
@@ -278,34 +270,34 @@ export class OrdersService {
     return this.orderRepo.find({
       where,
       relations: ['items', 'table'],
-      order: { createdAt: 'DESC' },
-      take: limit,
+      order:     { createdAt: 'DESC' },
+      take:      limit,
     });
   }
 
-   async findOne(id: string, tenantId: string): Promise<Order> {
-  const order = await this.orderRepo.findOne({
-    where: { id, tenantId },
-    relations: ['items', 'table'],
-  });
-  if (!order) throw new NotFoundException('Order not found');
+  async findOne(id: string, tenantId: string): Promise<Order> {
+    const order = await this.orderRepo.findOne({
+      where:     { id, tenantId },
+      relations: ['items', 'table'],
+    });
+    if (!order) throw new NotFoundException('Order not found');
 
-  const isServed = order.status === OrderStatus.SERVED;
+    const isServed = order.status === OrderStatus.SERVED;
 
-  for (const item of order.items) {
-    if (item.voidReason === '__KDS_BUMPED__' && !item.isVoided) {
-      (item as any).isBumped    = true;
-      // If order is served, item is completed. If just bumped by kitchen, it's ready.
-      (item as any).orderServed = isServed;
+    // Normalize bumped items for frontend display
+    for (const item of order.items) {
+      if (item.voidReason === '__KDS_BUMPED__' && !item.isVoided) {
+        (item as any).isBumped    = true;
+        (item as any).orderServed = isServed;
+      }
     }
-  }
 
-  return order;
-}
+    return order;
+  }
 
   private async recalculateTotals(orderId: string): Promise<Order> {
     const order = await this.orderRepo.findOne({
-      where: { id: orderId },
+      where:     { id: orderId },
       relations: ['items'],
     });
     if (!order) throw new NotFoundException('Order not found');
@@ -322,39 +314,34 @@ export class OrdersService {
 
     const discountRatio = subtotal > 0 ? discountAmt / subtotal : 0;
 
-    const taxable = subtotal - discountAmt;
-    const cgst    = activeItems.reduce((s, i) => s + Number(i.cgstAmount), 0) * (1 - discountRatio);
-    const sgst    = activeItems.reduce((s, i) => s + Number(i.sgstAmount), 0) * (1 - discountRatio);
-    const igst    = activeItems.reduce((s, i) => s + Number(i.igstAmount), 0) * (1 - discountRatio);
-    const cess    = activeItems.reduce((s, i) => s + Number(i.cessAmount), 0) * (1 - discountRatio);
+    const taxable  = subtotal - discountAmt;
+    const cgst     = activeItems.reduce((s, i) => s + Number(i.cgstAmount), 0) * (1 - discountRatio);
+    const sgst     = activeItems.reduce((s, i) => s + Number(i.sgstAmount), 0) * (1 - discountRatio);
+    const igst     = activeItems.reduce((s, i) => s + Number(i.igstAmount), 0) * (1 - discountRatio);
+    const cess     = activeItems.reduce((s, i) => s + Number(i.cessAmount), 0) * (1 - discountRatio);
     const totalTax = cgst + sgst + igst + cess;
     const rawTotal = taxable + totalTax;
     const roundOff = Math.round(rawTotal) - rawTotal;
 
-    order.subtotal       = subtotal.toFixed(2) as any;
-    order.discountAmount = discountAmt.toFixed(2) as any;
-    order.taxableAmount  = taxable.toFixed(2) as any;
-    order.cgstAmount     = cgst.toFixed(2) as any;
-    order.sgstAmount     = sgst.toFixed(2) as any;
-    order.igstAmount     = igst.toFixed(2) as any;
-    order.cessAmount     = cess.toFixed(2) as any;
-    order.totalTax       = totalTax.toFixed(2) as any;
-    order.roundOff       = roundOff.toFixed(2) as any;
+    order.subtotal       = subtotal.toFixed(2)              as any;
+    order.discountAmount = discountAmt.toFixed(2)           as any;
+    order.taxableAmount  = taxable.toFixed(2)               as any;
+    order.cgstAmount     = cgst.toFixed(2)                  as any;
+    order.sgstAmount     = sgst.toFixed(2)                  as any;
+    order.igstAmount     = igst.toFixed(2)                  as any;
+    order.cessAmount     = cess.toFixed(2)                  as any;
+    order.totalTax       = totalTax.toFixed(2)              as any;
+    order.roundOff       = roundOff.toFixed(2)              as any;
     order.grandTotal     = (rawTotal + roundOff).toFixed(2) as any;
 
     return this.orderRepo.save(order);
   }
 
   /**
-   * Computes tax for a line item.
    * Intra-state → CGST + SGST only
    * Inter-state → IGST only
    */
-  private computeTax(
-    amount: number,
-    gst: GstRate | null,
-    isInterState = false,
-  ) {
+  private computeTax(amount: number, gst: GstRate | null, isInterState = false) {
     if (!gst) return { cgstAmt: 0, sgstAmt: 0, igstAmt: 0, cessAmt: 0 };
 
     let cgstAmt = 0;
@@ -380,27 +367,26 @@ export class OrdersService {
 
   @OnEvent('kds.itemStatus')
   async handleKdsItemStatus(payload: {
-    itemId: string;
-    orderId: string;
-    status: string;
+    itemId:   string;
+    orderId:  string;
+    status:   string;
     branchId: string;
   }) {
     const order = await this.orderRepo.findOne({
-      where: { id: payload.orderId },
+      where:     { id: payload.orderId },
       relations: ['items'],
     });
     if (!order) return;
 
     const activeItems = order.items.filter((i) => !i.isVoided);
     if (activeItems.length === 0) return;
-
     if (['billed', 'cancelled', 'void'].includes(order.status)) return;
 
     const allCompleted        = activeItems.every((i) => i.kdsStatus === 'completed');
     const allReadyOrCompleted = activeItems.every((i) => ['ready', 'completed'].includes(i.kdsStatus as any));
-    const anyPreparing        = activeItems.some((i) => i.kdsStatus === 'preparing');
-    const anyReady            = activeItems.some((i) => i.kdsStatus === 'ready');
-    const anyCompleted        = activeItems.some((i) => i.kdsStatus === 'completed');
+    const anyPreparing        = activeItems.some((i)  => i.kdsStatus === 'preparing');
+    const anyReady            = activeItems.some((i)  => i.kdsStatus === 'ready');
+    const anyCompleted        = activeItems.some((i)  => i.kdsStatus === 'completed');
 
     let newStatus = order.status;
 
