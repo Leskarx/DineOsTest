@@ -19,12 +19,17 @@ export class OrdersController {
 
   @Post()
   @ApiOperation({ summary: 'Create new order' })
-  create(@Body() dto: CreateOrderDtoClass, @TenantId() tenantId: string, @BranchId() branchId: string) {
+  create(
+    @Body() dto: CreateOrderDtoClass,
+    @TenantId() tenantId: string,
+    @BranchId() branchId: string,
+  ) {
     return this.svc.createOrder({
       ...dto,
-      type: dto.type ?? (dto as any).orderType,
+      type:            dto.type ?? (dto as any).orderType,
       tenantId,
-      branchId: branchId || dto.branchId || '',
+      branchId:        branchId || dto.branchId || '',
+      deliveryAddress: dto.deliveryAddress,  // ← pass through
     } as any);
   }
 

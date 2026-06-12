@@ -25,34 +25,38 @@ export default function WaiterDashboardPage() {
   const [flashOrderId,   setFlashOrderId]   = useState<string | null>(null);
   const [servingOrderId, setServingOrderId] = useState<string | null>(null);
 
-  /* ── Fetch READY orders ─────────────────────────────────────────── */
+  /* ── Fetch READY orders — dine_in and takeaway only (not delivery) ── */
   const { data: readyOrders, isLoading: loadingReady } = useQuery({
     queryKey: ['waiter-ready-orders', branchId],
     queryFn: async () => {
       const res = await apiFetch('/api/v1/orders?status=ready&limit=50');
-      return res.data || [];
+      // Filter out delivery orders — delivery is handled by delivery staff
+      const all = res.data || [];
+      return all.filter((o: any) => o.type !== 'delivery');
     },
     refetchInterval: 15_000,
     staleTime: 5_000,
   });
 
-  /* ── Fetch PREPARING orders ─────────────────────────────────────── */
+  /* ── Fetch PREPARING orders — dine_in and takeaway only ─────────── */
   const { data: preparingOrders } = useQuery({
     queryKey: ['waiter-preparing-orders', branchId],
     queryFn: async () => {
       const res = await apiFetch('/api/v1/orders?status=preparing&limit=30');
-      return res.data || [];
+      const all = res.data || [];
+      return all.filter((o: any) => o.type !== 'delivery');
     },
     refetchInterval: 30_000,
     staleTime: 10_000,
   });
 
-  /* ── Fetch PLACED orders ────────────────────────────────────────── */
+  /* ── Fetch PLACED orders — dine_in and takeaway only ────────────── */
   const { data: placedOrders } = useQuery({
     queryKey: ['waiter-placed-orders', branchId],
     queryFn: async () => {
       const res = await apiFetch('/api/v1/orders?status=placed&limit=30');
-      return res.data || [];
+      const all = res.data || [];
+      return all.filter((o: any) => o.type !== 'delivery');
     },
     refetchInterval: 30_000,
     staleTime: 10_000,
@@ -63,9 +67,7 @@ export default function WaiterDashboardPage() {
     mutationFn: async (orderId: string) => {
       setServingOrderId(orderId);
       await api.patch(`/api/v1/orders/${orderId}/status`, { status: 'served' });
-      await api.patch(`/api/v1/kds/orders/${orderId}/bump`, {}).catch(() => {
-        // Non-critical — KDS query also filters by order status
-      });
+      await api.patch(`/api/v1/kds/orders/${orderId}/bump`, {}).catch(() => {});
     },
     onSuccess: () => {
       toast.success('Order served & cleared from kitchen!');
@@ -83,8 +85,11 @@ export default function WaiterDashboardPage() {
     },
   });
 
-  /* ── Socket: kitchen ready events ──────────────────────────────── */
+  /* ── Socket: kitchen ready events — only for dine_in / takeaway ── */
   const handleKdsReady = useCallback((payload: any) => {
+    // Skip delivery orders — waiter doesn't handle delivery
+    if (payload?.orderType === 'delivery') return;
+
     qc.invalidateQueries({ queryKey: ['waiter-ready-orders'] });
     qc.invalidateQueries({ queryKey: ['waiter-preparing-orders'] });
 
@@ -108,11 +113,15 @@ export default function WaiterDashboardPage() {
   }, [qc, soundEnabled]);
 
   useSocket('order:statusChanged', useCallback((payload: any) => {
+    // Only react to ready/served status for non-delivery orders
+    if (payload?.orderType === 'delivery') return;
     if (payload?.status === 'ready')  handleKdsReady(payload);
     if (payload?.status === 'served') qc.invalidateQueries({ queryKey: ['waiter-ready-orders'] });
   }, [handleKdsReady, qc]));
 
-  useSocket('kds:itemStatusChanged', useCallback(() => {
+  useSocket('kds:itemStatusChanged', useCallback((payload: any) => {
+    // Skip delivery order KDS changes
+    if (payload?.orderType === 'delivery') return;
     qc.invalidateQueries({ queryKey: ['waiter-preparing-orders'] });
   }, [qc]));
 
@@ -121,7 +130,6 @@ export default function WaiterDashboardPage() {
   const preparingCount = preparingOrders?.length || 0;
   const placedCount    = placedOrders?.length    || 0;
 
-  /* ── Render ─────────────────────────────────────────────────────── */
   return (
     <div className="p-6 space-y-6 max-w-6xl mx-auto">
 
@@ -238,8 +246,7 @@ export default function WaiterDashboardPage() {
                           </span>
                         ) : (
                           <span className="text-xs text-emerald-600 dark:text-emerald-500">
-                            {order.type === 'takeaway' ? '🥡 Takeaway' :
-                             order.type === 'delivery' ? '🛵 Delivery' : '🍽️ Dine In'}
+                            {order.type === 'takeaway' ? '🥡 Takeaway' : '🍽️ Dine In'}
                           </span>
                         )}
                       </div>
@@ -279,7 +286,7 @@ export default function WaiterDashboardPage() {
                     )}
                   </div>
 
-                  {/* Serve button — per-order loading state */}
+                  {/* Serve button */}
                   <button
                     onClick={() => serveMutation.mutate(order.id)}
                     disabled={isAnyServing}
@@ -324,7 +331,7 @@ export default function WaiterDashboardPage() {
             No orders ready for pickup
           </h3>
           <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
-            You&apos;ll get a notification when the kitchen marks an order as ready
+            You&apos;ll get a notification when the kitchen marks a dine-in or takeaway order as ready
           </p>
         </div>
       )}
@@ -358,7 +365,7 @@ export default function WaiterDashboardPage() {
             </div>
             <div className="flex-1">
               <h3 className="font-bold text-slate-900 dark:text-white">Tables</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">View & manage table statuses</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">View &amp; manage table statuses</p>
             </div>
             <ArrowRight size={16} className="text-slate-300 dark:text-slate-600 group-hover:text-purple-500 transition-colors" />
           </Link>
@@ -372,7 +379,7 @@ export default function WaiterDashboardPage() {
             </div>
             <div className="flex-1">
               <h3 className="font-bold text-slate-900 dark:text-white">Digital Menu</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Browse items & check availability</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Browse items &amp; check availability</p>
             </div>
             <ArrowRight size={16} className="text-slate-300 dark:text-slate-600 group-hover:text-blue-500 transition-colors" />
           </Link>
