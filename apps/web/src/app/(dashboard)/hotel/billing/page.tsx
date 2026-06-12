@@ -29,15 +29,17 @@ export default function HotelBillingPage() {
   const { user } = useAuthStore();
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
+  const [from, setFrom] = useState(dayjs().startOf('month').format('YYYY-MM-DD'));
+  const [to, setTo] = useState(dayjs().endOf('month').format('YYYY-MM-DD'));
   const [selectedBill, setSelectedBill] = useState<any>(null);
   const [printingId, setPrintingId] = useState<string | null>(null);
   const [emailModal, setEmailModal] = useState<{ billId: string; billNumber: string } | null>(null);
   const [emailInput, setEmailInput] = useState('');
 
   const { data: bills = [], isLoading, refetch, isFetching } = useQuery<Bill[]>({
-    queryKey: ['hotel-bills', user?.branchId],
+    queryKey: ['hotel-bills', user?.branchId, from, to],
     queryFn: async () => {
-      const res = await api.get('/api/v1/billing/bills?source=hotel');
+      const res = await api.get(`/api/v1/billing/bills?source=hotel&from=${from}T00:00:00&to=${to}T23:59:59&limit=200`);
       const d = res.data;
       // Handle various response shapes
       if (Array.isArray(d)) return d;
@@ -170,9 +172,14 @@ export default function HotelBillingPage() {
           </button>
         </div>
 
-        {/* Search bar */}
-        <div className="px-6 py-3 border-b border-slate-200 dark:border-slate-800 flex-shrink-0">
-          <div className="relative max-w-sm">
+        {/* Filters */}
+        <div className="px-6 py-3 border-b border-slate-200 dark:border-slate-800 flex-shrink-0 flex items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-2 text-sm">
+            <input type="date" className="input py-1.5 w-auto" value={from} onChange={(e) => setFrom(e.target.value)} />
+            <span className="text-slate-900 dark:text-slate-500">to</span>
+            <input type="date" className="input py-1.5 w-auto" value={to} onChange={(e) => setTo(e.target.value)} />
+          </div>
+          <div className="relative flex-1 min-w-[200px] max-w-sm">
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-900 dark:text-slate-500" />
             <input
               type="text"
@@ -186,9 +193,7 @@ export default function HotelBillingPage() {
 
         {/* Table */}
         <div className="flex-1 overflow-auto">
-          {isLoading ? (
-            <div className="flex items-center justify-center h-full text-slate-900 dark:text-slate-500 text-sm animate-pulse">Loading…</div>
-          ) : filteredBills.length === 0 ? (
+          {!isLoading && filteredBills.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full gap-3 text-slate-600">
               <FileText size={40} />
               <p className="text-sm">
@@ -210,7 +215,20 @@ export default function HotelBillingPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800/60">
-                {filteredBills.map((bill) => {
+                {isLoading ? (
+                  [...Array(10)].map((_, i) => (
+                    <tr key={i}>
+                      <td className="px-4 py-3"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-24 animate-pulse"></div></td>
+                      <td className="px-4 py-3"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-32 animate-pulse"></div></td>
+                      <td className="px-4 py-3"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-20 animate-pulse"></div></td>
+                      <td className="px-4 py-3"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-16 animate-pulse ml-auto"></div></td>
+                      <td className="px-4 py-3"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-16 animate-pulse ml-auto"></div></td>
+                      <td className="px-4 py-3"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-16 animate-pulse ml-auto"></div></td>
+                      <td className="px-4 py-3"><div className="h-5 bg-slate-200 dark:bg-slate-700 rounded-md w-16 animate-pulse mx-auto"></div></td>
+                      <td className="px-4 py-3"><div className="h-6 bg-slate-200 dark:bg-slate-700 rounded-lg w-12 animate-pulse"></div></td>
+                    </tr>
+                  ))
+                ) : filteredBills.map((bill) => {
                   const balance = Math.max(0, Number(bill.grandTotal) - Number(bill.paidAmount));
                   return (
                     <tr
