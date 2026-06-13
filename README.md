@@ -18,6 +18,19 @@
 
 ---
 
+## Core Data Flow
+
+1. **Multi-Tenant System**: Each client is an isolated Tenant (`tenantId`).
+2. **Branch Segregation**: A Tenant can have multiple Branches (types: `restaurant`, `hotel`, or `hotel_and_restaurant`).
+3. **Role-Based Access**: 
+   - *Owners* see a global dashboard across all branches with the ability to drill down. (Auto-selects branch if only one exists).
+   - *Managers/Staff* are bound to a specific `branchId` and interact only with local branch data.
+4. **Independent Revenue Streams**: 
+   - *Restaurant Flow*: Table/POS -> KOT -> KDS -> Restaurant Billing -> Restaurant Shift closing.
+   - *Hotel Flow*: Reservation -> Check-in -> Housekeeping -> Checkout/Hotel Billing -> Hotel Shift closing.
+
+---
+
 ## Subscription Plans
 
 | Plan       | Price/mo  | Branches | Users | Features                                          |
@@ -116,44 +129,59 @@ Password:   Demo@1234
 
 ## Key Features
 
-### 🧾 India GST Billing
-- CGST + SGST for intra-state supply
-- IGST for inter-state / B2B (auto-switches on customer GSTIN entry)
-- GST slabs: 0%, 5%, 12%, 18%, 28%
+### 🏢 Multi-Tenant & Multi-Branch Architecture
+- Superadmin panel for tenant management, SaaS plans, and system payments
+- Global Owner Dashboard for multi-branch performance analytics
+- Branch auto-selection logic for single-branch owners
+- Role-Based Access Control (Owner, Manager, Cashier, Waiter, Kitchen, Hotel Staff, Admin)
+
+### 🏨 Hotel Management Module
+- Dedicated Hotel Dashboard and Front Desk operations
+- Room status, Categories, and Reservation tracking
+- Housekeeping assignment and task tracking
+- Independent Hotel Shifts and Paginated Billing flow
+
+### 🧾 POS & India GST Billing
+- CGST + SGST for intra-state supply, IGST for inter-state / B2B
+- Automatic GST slabs calculation: 0%, 5%, 12%, 18%, 28%
+- Support for Split Payments (Cash, UPI, Card, Wallet, Credit, Complimentary)
 - GSTR-1 / GSTR-3B summary reports
 - Amount-in-words on receipts
 
-### 🖨️ Thermal Printing
-- ESC/POS command builder for 58mm and 80mm printers
-- Web Serial API (Chrome/Edge) for direct USB printing
-- Browser print fallback (any browser)
-- KOT (Kitchen Order Ticket) printing
+### 💳 Payments & Subscriptions
+- Razorpay Integration for SaaS Subscriptions at the tenant level
+- Razorpay per-tenant order creation for end-customer POS/Hotel billing
+- Subscription Wall for expired/blocked tenants with automated limits
 
 ### 📴 Offline-First PWA
 - Service Worker with `next-pwa` + Workbox
-- IndexedDB cache for menu, categories, tables
+- IndexedDB cache for menu, categories, and tables
 - Sync queue flushes automatically on reconnect
 - Works fully offline for POS operations
 
 ### 🍳 Kitchen Display System (KDS)
 - Real-time WebSocket updates via Socket.IO
-- Per-item status: pending → acknowledged → preparing → ready → bump
+- Per-item status workflow: pending → acknowledged → preparing → ready → bump
 - Urgency highlighting for orders > 10 minutes
 - Groups items by order ticket
 
-### 💰 Shift Management
-- Open/close shifts with denomination count
-  - ₹2000, ₹500, ₹200, ₹100, ₹50, ₹20, ₹10, ₹5, ₹2, ₹1
-- Cash reconciliation: opening + sales - refunds vs counted
-- Payment method breakdown (Cash/UPI/Card/Wallet/Credit/Complimentary)
-- GST summary per shift
+### 🖨️ Hardware Integrations
+- ESC/POS command builder for 58mm and 80mm thermal printers
+- Web Serial API for direct USB printing (Chrome/Edge)
+- Browser print fallback
 
-### 📦 Inventory
-- Stock ledger with running balance
-- Moving average cost tracking
-- Low stock & out-of-stock alerts
-- Purchase orders with supplier management
-- Auto-deduction on sale (when linked to menu items)
+### 💰 Shift & Financial Management
+- Open/close shifts with denomination tracking (₹2000 down to ₹1)
+- Cash reconciliation: opening + sales - refunds vs counted
+- Independent shift tracking for Hotel vs Restaurant
+
+### 📦 Backoffice, Inventory & Auditing
+- Stock ledger with running balance and moving average cost tracking
+- Purchase orders and low-stock / out-of-stock alerts
+- Employee and Staff profile management
+- Detailed Audit Logs for tracking critical actions
+- Scheduled automated PostgreSQL database backups
+- Integrations for Mailer, SMS notifications, and S3 Storage
 
 ---
 
